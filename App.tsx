@@ -1,128 +1,80 @@
 
 import React, { useState, useEffect } from 'react';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  onSnapshot, 
+  query, 
+  orderBy, 
+  updateDoc, 
+  doc, 
+  serverTimestamp 
+} from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
 import { Button } from './components/Button';
 import { Input, Select } from './components/Input';
 import { 
     CATEGORIES, PRODUCTS, PAYMENT_METHODS, 
     EXTRAS_OPTIONS, FRANGUINHO_SIDES,
-    ACAI_PACKAGING, ACAI_COMPLEMENTS, ACAI_TOPPINGS, ACAI_FRUITS, ACAI_PAID_EXTRAS
+    ACAI_PACKAGING, ACAI_COMPLEMENTS, ACAI_PAID_EXTRAS
 } from './constants';
-import { Product, CustomerInfo, CartItem, PaymentMethod, Order, OrderStatus, OrderType } from './types';
+import { Product, CustomerInfo, CartItem, PaymentMethod, OrderStatus, OrderType } from './types';
 
-// Canal de comunicação para simular tempo real entre abas/janelas (Simulando Firestore Realtime)
-const orderChannel = new BroadcastChannel('sandra_orders');
+// CONFIGURAÇÃO DO FIREBASE
+// Importante: Substitua pelos dados reais do seu Console Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSy...", 
+  authDomain: "projeto-sandra.firebaseapp.com",
+  projectId: "projeto-sandra",
+  storageBucket: "projeto-sandra.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abcdef"
+};
 
-// --- RECEIPT COMPONENT ---
-const Receipt = ({ order }: { order: Order | null }) => {
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// --- TYPES INTERNOS ---
+type AppView = 'HOME' | 'ORDER' | 'LOGIN' | 'ADMIN' | 'SUCCESS';
+type OrderStep = 'MENU' | 'TYPE_SELECTION' | 'FORM' | 'SUMMARY';
+
+// --- COMPONENTES DE APOIO ---
+
+const Receipt = ({ order }: { order: any | null }) => {
     if (!order) return null;
-    const date = new Date(order.createdAt).toLocaleString('pt-BR');
-    const DashedLine = () => <div className="w-full border-b border-black border-dashed my-2"></div>;
-
+    const date = order.criadoEm?.toDate ? order.criadoEm.toDate().toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR');
+    
     return (
-        <div className="w-full max-w-[80mm] mx-auto text-black font-mono text-sm p-2 bg-white printable-content">
-            <div className="text-center">
-                <h1 className="font-bold text-xl uppercase mb-1 text-black">Cantinho da Sandra</h1>
-                <p className="text-xs">Pedido #{order.id.slice(-4)}</p>
-                <DashedLine />
+        <div className="w-full max-w-[80mm] mx-auto text-black font-mono text-xs p-4 bg-white printable-content border border-zinc-200">
+            <div className="text-center mb-4">
+                <h1 className="font-bold text-lg uppercase">Cantinho da Sandra</h1>
+                <p>Pedido: #{order.id?.slice(-4)}</p>
+                <div className="border-b border-dashed border-black my-2"></div>
             </div>
-            <div className="mb-2">
-                <p className="font-bold uppercase">{order.customer.orderType}</p>
-                <p className="font-bold text-lg">{order.customer.name}</p>
-                <p>{order.customer.phone}</p>
-                {order.customer.orderType === OrderType.DELIVERY && (
-                    <p>{order.customer.address}, {order.customer.addressNumber}</p>
-                )}
-                <p className="text-xs mt-1">{date}</p>
-                <DashedLine />
+            <div className="mb-4">
+                <p><strong>CLIENTE:</strong> {order.nomeCliente}</p>
+                <p><strong>DATA:</strong> {date}</p>
+                <div className="border-b border-dashed border-black my-2"></div>
             </div>
-            <div className="mb-2">
-                <table className="w-full text-left">
-                    <thead><tr className="border-b border-black"><th>Qtd</th><th>Item</th><th className="text-right">$$</th></tr></thead>
-                    <tbody>
-                        {order.items.map((item, idx) => (
-                            <React.Fragment key={idx}>
-                                <tr className="align-top font-bold">
-                                    <td>{item.quantity}</td>
-                                    <td>{item.name}</td>
-                                    <td className="text-right">{(item.price * item.quantity).toFixed(2)}</td>
-                                </tr>
-                                {(item.removedIngredients?.length || item.additions?.length || item.observation) && (
-                                    <tr>
-                                        <td></td>
-                                        <td colSpan={2} className="text-[10px] pb-1 uppercase leading-tight italic">
-                                            {item.removedIngredients?.map(i => <div key={i}>- SEM {i}</div>)}
-                                            {item.additions?.map(i => <div key={i}>+ COM {i}</div>)}
-                                            {item.observation && <div>OBS: {item.observation}</div>}
-                                            {item.packaging && <div>EMB: {item.packaging}</div>}
-                                        </td>
-                                    </tr>
-                                )}
-                            </React.Fragment>
-                        ))}
-                    </tbody>
-                </table>
-                <DashedLine />
+            <div className="mb-4">
+                <p className="font-bold mb-1">ITENS:</p>
+                <p className="whitespace-pre-wrap">{order.itens}</p>
+                <div className="border-b border-dashed border-black my-2"></div>
             </div>
             <div className="text-right">
-                <p className="text-lg font-bold">TOTAL: R$ {order.total.toFixed(2)}</p>
-                <p className="text-xs mt-1">Pagamento: {order.customer.paymentMethod}</p>
+                <p className="text-sm font-bold">TOTAL: R$ {Number(order.total).toFixed(2)}</p>
             </div>
-            <div className="text-center text-xs mt-4"><p>Obrigado!</p></div>
+            <div className="text-center mt-6">
+                <p>Obrigado pela preferência!</p>
+            </div>
         </div>
     );
 };
 
-// --- LOGIN VIEW ---
-const LoginView = ({ onLogin, onCancel }: { onLogin: () => void, onCancel: () => void }) => {
-  const [user, setUser] = useState('');
-  const [pass, setPass] = useState('');
-  const [error, setError] = useState(false);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (user.toLowerCase() === 'sandra' && pass === '1234') {
-      onLogin();
-    } else {
-      setError(true);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center p-6 bg-white/80 backdrop-blur-xl animate-fade-in">
-      <div className="glass-card w-full max-w-sm rounded-[3rem] p-10 shadow-2xl border-2 border-red-100">
-        <h2 className="text-3xl font-black text-red-600 mb-6 text-center">Acesso Restrito</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Input label="Usuário" value={user} onChange={e => setUser(e.target.value)} placeholder="Digite o usuário" />
-          <Input label="Senha" type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder="****" />
-          {error && <p className="text-red-600 text-xs font-bold text-center">Usuário ou senha incorretos!</p>}
-          <Button type="submit" fullWidth>ENTRAR</Button>
-          <button type="button" onClick={onCancel} className="w-full text-zinc-400 font-bold text-sm">Cancelar</button>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-// --- SUCCESS VIEW ---
-const OrderSuccessView = ({ onBack }: { onBack: () => void }) => (
-  <div className="flex flex-col items-center justify-center min-h-screen px-6 text-center animate-fade-in">
-    <div className="glass-card p-8 rounded-[3rem] max-w-md shadow-2xl border-red-50 flex flex-col items-center">
-      <div className="text-7xl mb-6 animate-bounce">🎉</div>
-      <h2 className="text-3xl font-black text-red-600 mb-3 tracking-tighter">Pedido Realizado!</h2>
-      <p className="text-red-900/60 text-base font-medium mb-8 leading-relaxed">
-        Sucesso! Agora a <strong>Sandra</strong> vai conferir os detalhes e entrará em contato com você via <strong>WhatsApp</strong> para confirmar seu pedido.
-      </p>
-      <div className="w-full space-y-4">
-        <Button onClick={onBack} fullWidth className="py-4 text-lg">VOLTAR AO INÍCIO</Button>
-      </div>
-      <p className="mt-6 text-[10px] font-black text-red-300 uppercase tracking-widest">Aguarde nosso contato!</p>
-    </div>
-  </div>
-);
-
-// --- MODAL COMPONENTS ---
-
-const ProductModal = ({ product, isOpen, onClose, onConfirm }: { product: Product | null, isOpen: boolean, onClose: () => void, onConfirm: (item: CartItem) => void }) => {
+// --- MODAL DE PRODUTO ---
+const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
   const [quantity, setQuantity] = useState(1);
   const [removedIngredients, setRemovedIngredients] = useState<string[]>([]);
   const [additions, setAdditions] = useState<string[]>([]);
@@ -131,7 +83,7 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: { product: Produc
 
   useEffect(() => {
     if (isOpen && product) {
-      setQuantity(1); setRemovedIngredients([]); setAdditions([]); setObservation(''); setPackaging(ACAI_PACKAGING[0]);
+      setQuantity(1); setRemovedIngredients([]); setAdditions([]); setObservation('');
     }
   }, [isOpen, product]);
 
@@ -139,404 +91,365 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: { product: Produc
 
   const handleConfirm = () => {
     let extraPrice = 0;
-    if (product.categoryId === 'lanches') {
-        additions.forEach(add => {
-            const extra = EXTRAS_OPTIONS.find(e => e.name === add);
-            if (extra) extraPrice += extra.price;
-        });
-    } else if (product.categoryId === 'acai') {
-        additions.forEach(add => {
-            const extra = ACAI_PAID_EXTRAS.find(e => e.name === add);
-            if (extra) extraPrice += extra.price;
-        });
-    }
-    const item: CartItem = {
+    additions.forEach(add => {
+        const extra = [...EXTRAS_OPTIONS, ...ACAI_PAID_EXTRAS].find(e => e.name === add);
+        if (extra) extraPrice += extra.price;
+    });
+    
+    onConfirm({
       ...product, cartId: Date.now().toString(), quantity,
       removedIngredients, additions, observation,
       packaging: product.categoryId === 'acai' ? packaging : undefined,
       price: product.price + extraPrice
-    };
-    onConfirm(item);
+    });
   };
 
   const toggleIngredient = (ing: string) => setRemovedIngredients(prev => prev.includes(ing) ? prev.filter(i => i !== ing) : [...prev, ing]);
-
-  const toggleAddition = (add: string, isAcomp: boolean = false) => {
-    if (isAcomp && product.maxSides !== undefined) {
-        if (!additions.includes(add) && additions.length >= product.maxSides) {
-            alert(`Máximo de ${product.maxSides} acompanhamentos.`);
-            return;
-        }
-    }
-    setAdditions(prev => prev.includes(add) ? prev.filter(a => a !== add) : [...prev, add]);
-  };
+  const toggleAddition = (add: string) => setAdditions(prev => prev.includes(add) ? prev.filter(a => a !== add) : [...prev, add]);
 
   return (
-    <div className={`fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-      <div className="bg-zinc-900 border border-red-900/20 w-full max-w-lg rounded-[2rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-        <div className="p-4 border-b border-red-900/10 flex justify-between items-start">
-          <div><h3 className="text-xl font-black text-white">{product.name}</h3><p className="text-red-500 font-bold text-base">R$ {product.price.toFixed(2)}</p></div>
-          <button onClick={onClose} className="text-zinc-500 text-2xl font-bold">&times;</button>
+    <div className={`fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+      <div className="bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+        <div className="p-6 border-b border-red-50 flex justify-between items-center">
+          <div><h3 className="text-2xl font-black text-red-700">{product.name}</h3><p className="text-red-500 font-bold">R$ {product.price.toFixed(2)}</p></div>
+          <button onClick={onClose} className="text-zinc-300 hover:text-red-500 text-3xl">&times;</button>
         </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <section>
-            <label className="block text-red-500 text-xs font-black uppercase mb-3 tracking-widest">Quantidade</label>
-            <div className="flex items-center gap-4">
-              <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-10 h-10 rounded-full bg-zinc-800 text-white font-black text-lg">-</button>
-              <span className="text-2xl font-black text-white">{quantity}</span>
-              <button onClick={() => setQuantity(quantity + 1)} className="w-10 h-10 rounded-full bg-zinc-800 text-white font-black text-lg">+</button>
+            <label className="block text-red-800 text-xs font-black uppercase mb-3 tracking-widest">Quantidade</label>
+            <div className="flex items-center gap-6">
+              <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 font-black text-xl">-</button>
+              <span className="text-3xl font-black text-red-900">{quantity}</span>
+              <button onClick={() => setQuantity(quantity + 1)} className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 font-black text-xl">+</button>
             </div>
           </section>
-          {product.categoryId === 'lanches' && product.ingredients && (
-            <section><label className="block text-red-500 text-xs font-black uppercase mb-3 tracking-widest">Retirar algo?</label>
-              <div className="grid grid-cols-2 gap-2">{product.ingredients.map(ing => (
-                <button key={ing} onClick={() => toggleIngredient(ing)} className={`p-2 rounded-xl border text-xs font-bold transition-all ${removedIngredients.includes(ing) ? 'bg-red-900/30 border-red-500 text-red-500' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>SEM {ing}</button>))}
+
+          {product.ingredients && (
+            <section>
+              <label className="block text-red-800 text-xs font-black uppercase mb-3 tracking-widest">Retirar algo?</label>
+              <div className="grid grid-cols-2 gap-2">
+                {product.ingredients.map((ing: string) => (
+                  <button key={ing} onClick={() => toggleIngredient(ing)} className={`p-3 rounded-xl text-xs font-bold border transition-all ${removedIngredients.includes(ing) ? 'bg-red-600 border-red-600 text-white' : 'bg-white border-zinc-100 text-zinc-500'}`}>SEM {ing.toUpperCase()}</button>
+                ))}
               </div>
             </section>
           )}
-          {product.categoryId === 'lanches' && (
-            <section><label className="block text-red-500 text-xs font-black uppercase mb-3 tracking-widest">Extras</label>
-              <div className="space-y-2">{EXTRAS_OPTIONS.map(opt => (
-                <button key={opt.name} onClick={() => toggleAddition(opt.name)} className={`w-full p-3 rounded-xl border text-xs font-bold flex justify-between items-center transition-all ${additions.includes(opt.name) ? 'bg-red-900/30 border-red-500 text-red-500' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>
-                  <span>{opt.name}</span><span className="bg-zinc-900 px-2 py-1 rounded-lg">+ R$ {opt.price.toFixed(2)}</span></button>))}
+
+          {(product.categoryId === 'lanches' || product.categoryId === 'acai') && (
+            <section>
+              <label className="block text-red-800 text-xs font-black uppercase mb-3 tracking-widest">Adicionais</label>
+              <div className="space-y-2">
+                {(product.categoryId === 'lanches' ? EXTRAS_OPTIONS : ACAI_PAID_EXTRAS).map(opt => (
+                  <button key={opt.name} onClick={() => toggleAddition(opt.name)} className={`w-full flex justify-between items-center p-4 rounded-xl border transition-all ${additions.includes(opt.name) ? 'bg-red-50 border-red-200 text-red-700' : 'bg-white border-zinc-100 text-zinc-500'}`}>
+                    <span className="font-bold">{opt.name}</span>
+                    <span className="font-black text-red-600">+R$ {opt.price.toFixed(2)}</span>
+                  </button>
+                ))}
               </div>
             </section>
           )}
-          {product.categoryId === 'franguinho' && (
-            <section><label className="block text-red-500 text-xs font-black uppercase mb-3 tracking-widest">Acompanhamentos (Máx {product.maxSides})</label>
-              <div className="grid grid-cols-1 gap-2">{FRANGUINHO_SIDES.map(side => (
-                <button key={side} onClick={() => toggleAddition(side, true)} className={`p-3 rounded-xl border text-xs font-bold transition-all ${additions.includes(side) ? 'bg-red-900/30 border-red-500 text-red-500' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>{side}</button>))}
-              </div>
-            </section>
-          )}
-          {product.categoryId === 'acai' && (
-            <div className="space-y-6">
-               <section><label className="block text-red-500 text-xs font-black uppercase mb-3 tracking-widest">Embalagem</label>
-                  <div className="grid grid-cols-3 gap-2">{ACAI_PACKAGING.map(p => (<button key={p} onClick={() => setPackaging(p)} className={`p-2 rounded-xl border text-xs font-bold transition-all ${packaging === p ? 'bg-red-600 border-red-600 text-white shadow-lg' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>{p}</button>))}</div>
-               </section>
-               <section><label className="block text-red-500 text-xs font-black uppercase mb-3 tracking-widest">Complementos</label>
-                  <div className="grid grid-cols-2 gap-2">{ACAI_COMPLEMENTS.map(c => (<button key={c} onClick={() => toggleAddition(c)} className={`p-2 rounded-xl border text-xs font-bold transition-all ${additions.includes(c) ? 'bg-red-900/30 border-red-500 text-red-500' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>{c}</button>))}</div>
-               </section>
-               <section><label className="block text-red-500 text-xs font-black uppercase mb-3 tracking-widest">Adicionais (+$$)</label>
-                  <div className="space-y-2">{ACAI_PAID_EXTRAS.map(opt => (<button key={opt.name} onClick={() => toggleAddition(opt.name)} className={`w-full p-3 rounded-xl border text-xs font-bold flex justify-between items-center transition-all ${additions.includes(opt.name) ? 'bg-red-900/30 border-red-500 text-red-500' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}><span>{opt.name}</span><span className="bg-zinc-900 px-2 py-1 rounded-lg">+ R$ {opt.price.toFixed(2)}</span></button>))}</div>
-               </section>
-            </div>
-          )}
-          <section><label className="block text-red-500 text-xs font-black uppercase mb-3 tracking-widest">Observação</label>
-            <textarea value={observation} onChange={e => setObservation(e.target.value)} className="w-full bg-zinc-800 border border-zinc-700 rounded-xl p-3 text-white focus:outline-none focus:border-red-600 transition-all text-sm" rows={2} placeholder="Ex: Carne bem passada..." />
+
+          <section>
+            <label className="block text-red-800 text-xs font-black uppercase mb-3 tracking-widest">Observações</label>
+            <textarea className="w-full bg-zinc-50 border border-zinc-100 rounded-2xl p-4 text-zinc-800 focus:outline-none focus:border-red-500 min-h-[100px]" placeholder="Algum detalhe especial?" value={observation} onChange={e => setObservation(e.target.value)} />
           </section>
         </div>
-        <div className="p-4 bg-zinc-950 border-t border-red-900/10"><Button onClick={handleConfirm} fullWidth className="py-4 text-lg">ADICIONAR</Button></div>
+        <div className="p-6 bg-zinc-50/50">
+          <Button fullWidth onClick={handleConfirm} className="py-4 text-lg">ADICIONAR AO CARRINHO</Button>
+        </div>
       </div>
     </div>
   );
 };
 
-const ManualItemModal = ({ isOpen, onClose, onConfirm }: any) => {
-  const [name, setName] = useState('');
-  const [price, setPrice] = useState('');
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-zinc-900 border border-red-900/20 w-full max-w-sm rounded-[2rem] p-6 shadow-2xl space-y-4">
-        <div className="flex justify-between items-center"><h3 className="text-lg font-black text-white">Item Especial</h3><button onClick={onClose} className="text-zinc-500 text-xl">&times;</button></div>
-        <Input label="Qual o nome?" value={name} onChange={e => setName(e.target.value)} />
-        <Input label="Qual o preço?" type="number" value={price} onChange={e => setPrice(e.target.value)} />
-        <Button onClick={() => { onConfirm({id:'m'+Date.now(), cartId:Date.now().toString(), name, price:parseFloat(price), quantity:1, categoryId: 'manual'}); setName(''); setPrice(''); }} fullWidth disabled={!name || !price}>ADICIONAR</Button>
-      </div>
-    </div>
-  );
-};
-
-// --- MAIN VIEWS ---
-
-const CustomerHomeView = ({ onStartOrder }: any) => (
-  <div className="flex flex-col items-center justify-center min-h-[85vh] px-4 animate-fade-in">
-    <div className="glass-card p-8 rounded-[3rem] w-full max-w-md text-center shadow-2xl border-red-50 flex flex-col items-center">
-      <div className="text-6xl mb-6 animate-bounce">🍔</div>
-      <h1 className="text-4xl font-black text-red-600 mb-3 tracking-tighter leading-none">Cantinho da Sandra</h1>
-      <p className="text-red-900/40 text-base uppercase font-black mb-10 tracking-widest">Lanches • Açaí • Porções</p>
-      <Button onClick={onStartOrder} fullWidth className="text-xl py-6 shadow-2xl shadow-red-200 hover:scale-105 transition-transform">FAZER MEU PEDIDO! 🚀</Button>
-    </div>
-  </div>
-);
-
-const AdminView = ({ orders, onShowDaily, onPrint, onStatusChange }: { 
-    orders: Order[], onShowDaily: () => void, onPrint: (o: Order) => void, onStatusChange: (id: string, s: OrderStatus) => void 
-}) => (
-  <div className="p-4 max-w-5xl mx-auto space-y-8 pb-48 animate-fade-in">
-    <header className="flex justify-between items-center">
-      <h2 className="text-3xl font-black text-red-700 tracking-tighter">Painel da Sandra</h2>
-      <Button onClick={onShowDaily}>📊 Relatório</Button>
-    </header>
-    
-    <section className="space-y-4">
-      <h3 className="text-lg font-black text-red-800/40 uppercase tracking-[0.2em]">📦 Pedidos no Sistema</h3>
-      <div className="space-y-3">
-        {orders.length === 0 ? <p className="text-zinc-400 italic">Aguardando novos pedidos...</p> : orders.map((o: Order) => (
-          <div key={o.id} className={`glass-card p-4 rounded-2xl border-l-[10px] flex justify-between items-center shadow-xl transition-all ${o.status === OrderStatus.NEW ? 'border-red-600 bg-red-50 animate-pulse-soft ring-4 ring-red-500/10' : 'border-zinc-300'}`}>
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <p className="font-black text-red-900 text-xl tracking-tight">{o.customer.name}</p>
-                {o.status === OrderStatus.NEW && <span className="bg-red-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase animate-bounce">NOVO</span>}
-              </div>
-              <p className="text-[10px] text-zinc-500 font-bold uppercase">{new Date(o.createdAt).toLocaleString()} • {o.customer.orderType}</p>
-              <div className="flex items-center gap-4 mt-1">
-                <p className="font-black text-red-600 text-lg">R$ {o.total.toFixed(2)}</p>
-                <p className="text-[10px] text-zinc-400 font-bold">({o.customer.paymentMethod})</p>
-              </div>
-            </div>
-            <div className="flex flex-col gap-2">
-              <button onClick={() => onPrint(o)} className="bg-zinc-800 text-white p-3 rounded-2xl shadow-xl hover:brightness-110 active:scale-95 transition-all text-sm flex items-center justify-center">🖨️</button>
-              {o.status === OrderStatus.NEW && (
-                <button onClick={() => onStatusChange(o.id, OrderStatus.COMPLETED)} className="bg-green-600 text-white p-3 rounded-2xl shadow-xl hover:brightness-110 active:scale-95 transition-all text-sm font-black">CONFIRMAR</button>
-              )}
-            </div>
-          </div>))}
-      </div>
-    </section>
-  </div>
-);
-
-// Added missing AppView type and ensured AppStep is present
-type AppView = 'HOME' | 'LOGIN' | 'ORDER_SUCCESS' | 'ADMIN' | 'ORDER';
-type AppStep = 'MENU' | 'TYPE_SELECTION' | 'FORM' | 'SUMMARY';
+// --- APP PRINCIPAL ---
 
 export default function App() {
   const [view, setView] = useState<AppView>('HOME');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
-  const [currentCategoryId, setCurrentCategoryId] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [reportData, setReportData] = useState<any>(null);
-
-  const [currentOrder, setCurrentOrder] = useState<{
-      cart: CartItem[];
-      customer: CustomerInfo;
-      step: AppStep;
-  }>({
-      cart: [],
-      step: 'MENU',
-      customer: { name: '', phone: '', address: '', addressNumber: '', reference: '', deliveryFee: 0, tableNumber: '', orderType: OrderType.DELIVERY, paymentMethod: PaymentMethod.PIX }
+  const [step, setStep] = useState<OrderStep>('MENU');
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [customer, setCustomer] = useState<CustomerInfo>({
+    name: '', phone: '', address: '', addressNumber: '', reference: '', tableNumber: '',
+    orderType: OrderType.DELIVERY, paymentMethod: PaymentMethod.PIX
   });
+  const [orders, setOrders] = useState<any[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [activeCategory, setActiveCategory] = useState(CATEGORIES[0].id);
+  const [receiptOrder, setReceiptOrder] = useState<any>(null);
 
-  // Carregar do "Firestore" (LocalStorage persistente)
+  // Listener Firestore em tempo real para o Admin
   useEffect(() => {
-    const h = localStorage.getItem('sandra_pedidos');
-    if (h) {
-        const parsedOrders = JSON.parse(h);
-        setOrders(parsedOrders.sort((a: Order, b: Order) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    if (view === 'ADMIN' && isLoggedIn) {
+      const q = query(collection(db, 'pedidos'), orderBy('criadoEm', 'desc'));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const loadedOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setOrders(loadedOrders);
+      });
+      return () => unsubscribe();
     }
-  }, []);
+  }, [view, isLoggedIn]);
 
-  // Tempo Real via BroadcastChannel
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-        if (event.data.type === 'REFRESH_ORDERS') {
-            const h = localStorage.getItem('sandra_pedidos');
-            if (h) setOrders(JSON.parse(h).sort((a: Order, b: Order) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-        }
-    };
-    orderChannel.addEventListener('message', handleMessage);
-    return () => orderChannel.removeEventListener('message', handleMessage);
-  }, []);
+  const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
-  const saveToStorage = (updatedOrders: Order[]) => {
-      localStorage.setItem('sandra_pedidos', JSON.stringify(updatedOrders));
-      orderChannel.postMessage({ type: 'REFRESH_ORDERS' });
+  const handleFinishOrder = async () => {
+    // Formata o texto descritivo dos itens conforme solicitado
+    const itensString = cart.map(item => {
+        let desc = `${item.quantity}x ${item.name}`;
+        const extras = [];
+        if (item.removedIngredients?.length) extras.push(`SEM: ${item.removedIngredients.join(', ')}`);
+        if (item.additions?.length) extras.push(`ADD: ${item.additions.join(', ')}`);
+        if (item.observation) extras.push(`OBS: ${item.observation}`);
+        if (extras.length) desc += `\n   (${extras.join(' | ')})`;
+        return desc;
+    }).join('\n');
+
+    try {
+      await addDoc(collection(db, 'pedidos'), {
+        nomeCliente: customer.name,
+        itens: itensString,
+        total: total,
+        status: 'novo',
+        criadoEm: serverTimestamp(),
+        // Dados adicionais para controle interno
+        telefone: customer.phone,
+        endereco: customer.orderType === OrderType.DELIVERY ? `${customer.address}, ${customer.addressNumber}` : 'Retirada',
+        tipo: customer.orderType,
+        pagamento: customer.paymentMethod
+      });
+      
+      setCart([]);
+      setStep('MENU');
+      setView('SUCCESS');
+    } catch (e) {
+      console.error(e);
+      alert("Houve um erro ao enviar seu pedido. Tente novamente.");
+    }
   };
 
-  useEffect(() => {
-    if (receiptOrder) {
-      const timer = setTimeout(() => {
+  const updateOrderStatus = async (orderId: string, newStatus: string) => {
+    await updateDoc(doc(db, 'pedidos', orderId), { status: newStatus });
+  };
+
+  const printOrder = (order: any) => {
+    setReceiptOrder(order);
+    setTimeout(() => {
         window.print();
-        setTimeout(() => setReceiptOrder(null), 1000);
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [receiptOrder]);
-
-  const handleStartOrder = () => {
-    setCurrentOrder({
-        cart: [], step: 'MENU',
-        customer: { name: '', phone: '', address: '', addressNumber: '', reference: '', deliveryFee: 0, tableNumber: '', orderType: OrderType.DELIVERY, paymentMethod: PaymentMethod.PIX }
-    });
-    setView('ORDER');
+        setReceiptOrder(null);
+    }, 500);
   };
 
-  const handleFinish = () => {
-    const total = currentOrder.cart.reduce((s, i) => s + (i.price * i.quantity), 0);
-    const newOrder: Order = { 
-        id: Date.now().toString(), 
-        customer: currentOrder.customer, 
-        items: currentOrder.cart, 
-        total, 
-        createdAt: new Date().toISOString(), 
-        status: OrderStatus.NEW // Salvar como "novo"
-    };
+  // --- RENDERS ---
 
-    const updatedOrders = [newOrder, ...orders];
-    setOrders(updatedOrders);
-    saveToStorage(updatedOrders);
-    setView('ORDER_SUCCESS');
-  };
+  if (view === 'SUCCESS') return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center animate-fade-in">
+      <div className="glass-card p-12 rounded-[3.5rem] max-w-md shadow-2xl border-red-50">
+        <div className="text-8xl mb-6">🎉</div>
+        <h2 className="text-3xl font-black text-red-600 mb-4">Pedido Enviado!</h2>
+        <p className="text-red-900/60 font-medium mb-8">Sandra já recebeu seu pedido e está preparando com todo carinho. Aguarde!</p>
+        <Button fullWidth onClick={() => setView('HOME')}>VOLTAR AO INÍCIO</Button>
+      </div>
+    </div>
+  );
 
-  const updateStatus = (id: string, status: OrderStatus) => {
-      const updated = orders.map(o => o.id === id ? { ...o, status } : o);
-      setOrders(updated);
-      saveToStorage(updated);
-  };
+  if (view === 'LOGIN') return (
+    <div className="min-h-screen flex items-center justify-center p-6 animate-fade-in">
+        <div className="glass-card p-10 rounded-[3rem] w-full max-w-sm shadow-2xl">
+            <h2 className="text-2xl font-black text-red-600 mb-6 text-center">Acesso Restrito</h2>
+            <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                if (formData.get('user') === 'sandra' && formData.get('pass') === '1234') {
+                    setIsLoggedIn(true); setView('ADMIN');
+                } else alert("Senha incorreta");
+            }} className="space-y-4">
+                <Input label="Usuário" name="user" required />
+                <Input label="Senha" name="pass" type="password" required />
+                <Button type="submit" fullWidth>ENTRAR NO PAINEL</Button>
+                <button type="button" onClick={() => setView('HOME')} className="w-full text-zinc-400 font-bold text-sm">Cancelar</button>
+            </form>
+        </div>
+    </div>
+  );
 
-  const handleAdminAccess = () => {
-    if (isLoggedIn) {
-      setView(view === 'ADMIN' ? 'HOME' : 'ADMIN');
-    } else {
-      setView('LOGIN');
-    }
-  };
+  if (view === 'ADMIN') return (
+    <div className="min-h-screen p-4 md:p-8 animate-fade-in pb-20">
+      <header className="flex justify-between items-center mb-8 max-w-6xl mx-auto">
+        <h2 className="text-3xl font-black text-red-700 tracking-tighter">Painel de Pedidos</h2>
+        <Button variant="secondary" onClick={() => setView('HOME')}>SAIR</Button>
+      </header>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+        {orders.map(o => (
+          <div key={o.id} className={`glass-card p-6 rounded-[2rem] border-l-[12px] shadow-xl transition-all ${o.status === 'novo' ? 'border-red-600 bg-red-50/50 animate-pulse-soft' : 'border-zinc-300'}`}>
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <p className="text-xl font-black text-red-900">{o.nomeCliente}</p>
+                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{o.tipo} • {o.pagamento}</p>
+              </div>
+              {o.status === 'novo' && <span className="bg-red-600 text-white text-[9px] font-black px-2 py-1 rounded-full animate-bounce">NOVO</span>}
+            </div>
+            
+            <div className="bg-white/50 rounded-2xl p-4 mb-4 text-xs font-mono text-zinc-700 whitespace-pre-wrap max-h-[150px] overflow-y-auto">
+              {o.itens}
+            </div>
+            
+            <div className="flex justify-between items-center mb-6">
+               <p className="text-lg font-black text-red-600">R$ {Number(o.total).toFixed(2)}</p>
+               <button onClick={() => printOrder(o)} className="p-3 bg-zinc-800 text-white rounded-xl hover:scale-105 transition-transform">🖨️ Imprimir</button>
+            </div>
 
-  const filteredProducts = PRODUCTS.filter(p => (currentCategoryId ? p.categoryId === currentCategoryId : true) && p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+            {o.status === 'novo' && (
+              <Button fullWidth onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 border-green-500">CONCLUIR PEDIDO</Button>
+            )}
+          </div>
+        ))}
+        {orders.length === 0 && <p className="col-span-full text-center py-20 text-zinc-400 italic">Nenhum pedido no momento...</p>}
+      </div>
+      <div className="printable-area hidden">
+         <Receipt order={receiptOrder} />
+      </div>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen text-red-800 font-sans overflow-x-hidden">
-      <div className="printable-area hidden bg-white">
-        {receiptOrder && <Receipt order={receiptOrder} />}
-      </div>
-
-      <div className="no-print h-full pb-20">
-        {view === 'LOGIN' && <LoginView onLogin={() => { setIsLoggedIn(true); setView('ADMIN'); }} onCancel={() => setView('HOME')} />}
-        {view === 'ORDER_SUCCESS' && <OrderSuccessView onBack={() => setView('HOME')} />}
-        {view === 'HOME' && <CustomerHomeView onStartOrder={handleStartOrder} />}
-        {view === 'ADMIN' && <AdminView orders={orders} onShowDaily={()=>setReportData({title:'Resumo Financeiro', total:orders.reduce((s,o)=>s+o.total,0), count:orders.length})} onPrint={setReceiptOrder} onStatusChange={updateStatus} />}
-
-        {view === 'ORDER' && (
-            <div className="h-screen flex flex-col animate-fade-in">
-                {currentOrder.step === 'MENU' && (
-                  <>
-                    <header className="p-3 glass sticky top-0 z-20 flex justify-between items-center"><button onClick={()=>setView('HOME')} className="text-sm font-bold text-red-600 px-2">X CANCELAR</button><h2 className="text-base font-black uppercase">Cardápio</h2><div className="w-10"></div></header>
-                    <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-40">
-                      <div className="max-w-md mx-auto">
-                        <input type="search" placeholder="🔍 Procurar..." className="w-full bg-zinc-900 text-white rounded-xl p-4 mb-6 shadow-xl text-sm" value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} />
-                        <Button variant="secondary" onClick={()=>setIsManualModalOpen(true)} fullWidth className="border-dashed mb-8 text-base py-3">🍔 MONTAR MEU JEITO</Button>
-                        {!currentCategoryId && !searchTerm ? (
-                            <div className="grid grid-cols-2 gap-4">{CATEGORIES.map(c=>(<button key={c.id} onClick={()=>setCurrentCategoryId(c.id)} className="glass-card p-6 rounded-[2rem] flex flex-col items-center gap-2 hover:border-red-500 shadow-xl transition-all">
-                                <span className="text-4xl">{c.icon}</span><span className="font-black text-xs uppercase tracking-tighter">{c.name}</span></button>))}</div>
-                        ) : (
-                            <div className="space-y-3">
-                                <button onClick={()=>setCurrentCategoryId(null)} className="font-black text-red-600 text-sm flex items-center gap-2 mb-2">← VOLTAR</button>
-                                {filteredProducts.map(p=>(<div key={p.id} onClick={() => setSelectedProduct(p)} className="glass-card p-4 rounded-2xl flex justify-between items-center shadow-lg cursor-pointer active:scale-95">
-                                    <div className="flex-1"><p className="font-black text-red-900 text-lg">{p.name}</p><p className="font-bold text-red-600 text-sm">R$ {p.price.toFixed(2)}</p></div>
-                                    <div className="w-10 h-10 bg-red-600 text-white rounded-full flex items-center justify-center font-black text-xl shadow-xl">+</div>
-                                </div>))}
-                            </div>
-                        )}
-                      </div>
-                    </div>
-                    {currentOrder.cart.length > 0 && <div className="fixed bottom-16 left-0 right-0 glass p-4 border-t-4 border-red-600 z-30 animate-slide-up"><div className="max-w-md mx-auto flex justify-between items-center"><div><p className="text-2xl font-black text-red-900 leading-none">R$ {currentOrder.cart.reduce((s,i)=>s+(i.price*i.quantity),0).toFixed(2)}</p></div><Button onClick={()=>setCurrentOrder({...currentOrder, step:'TYPE_SELECTION'})} className="px-8 py-3 text-lg">FINALIZAR &rarr;</Button></div></div>}
-                  </>
-                )}
-                {currentOrder.step === 'TYPE_SELECTION' && (
-                  <div className="flex flex-col items-center justify-center h-full p-4 space-y-8 animate-fade-in">
-                    <h2 className="text-3xl font-black text-center text-red-700 tracking-tighter">Como deseja receber?</h2>
-                    <div className="grid grid-cols-1 w-full max-w-sm gap-4">
-                        <button onClick={()=>setCurrentOrder({...currentOrder, step:'FORM', customer:{...currentOrder.customer, orderType:OrderType.DELIVERY}})} className="glass-card p-6 rounded-[2rem] text-center border-2 border-red-600 shadow-2xl hover:scale-105 active:scale-95 transition-all">
-                            <span className="text-6xl block mb-2">🛵</span><span className="text-xl font-black tracking-widest">ENTREGA</span>
-                        </button>
-                        <button onClick={()=>setCurrentOrder({...currentOrder, step:'FORM', customer:{...currentOrder.customer, orderType:OrderType.COUNTER}})} className="glass-card p-6 rounded-[2rem] text-center border-2 border-zinc-200 shadow-2xl hover:scale-105 active:scale-95 transition-all">
-                            <span className="text-6xl block mb-2">🥡</span><span className="text-xl font-black tracking-widest">RETIRAR</span>
-                        </button>
-                    </div>
-                    <button onClick={()=>setCurrentOrder({...currentOrder, step:'MENU'})} className="font-black text-zinc-400 uppercase text-xs tracking-widest">Voltar</button>
-                  </div>
-                )}
-                {currentOrder.step === 'FORM' && (
-                  <div className="max-w-md mx-auto p-6 pt-8 space-y-6 h-full overflow-y-auto pb-40 animate-fade-in">
-                    <header className="flex justify-between items-center"><button onClick={()=>setCurrentOrder({...currentOrder, step:'TYPE_SELECTION'})} className="text-sm font-black text-red-600">← VOLTAR</button><h2 className="text-2xl font-black text-red-600 tracking-tighter">Seus Dados</h2><div className="w-8"></div></header>
-                    <form className="space-y-4" onSubmit={e=>{e.preventDefault(); setCurrentOrder({...currentOrder, step:'SUMMARY'});}}>
-                      <Input label="Seu Nome *" value={currentOrder.customer.name} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, name:e.target.value}})} required />
-                      <Input label="WhatsApp (DDD) *" type="tel" value={currentOrder.customer.phone} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, phone:e.target.value}})} required />
-                      {currentOrder.customer.orderType === OrderType.DELIVERY && (
-                        <div className="space-y-4 animate-fade-in">
-                          <Input label="Rua e Bairro *" value={currentOrder.customer.address} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, address:e.target.value}})} required />
-                          <div className="flex gap-3">
-                            <div className="flex-1"><Input label="Nº *" value={currentOrder.customer.addressNumber} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, addressNumber:e.target.value}})} required /></div>
-                            <div className="flex-[2]"><Input label="Ref." value={currentOrder.customer.reference} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, reference:e.target.value}})} /></div>
-                          </div>
-                        </div>
-                      )}
-                      <Select label="Forma de Pagamento" options={PAYMENT_METHODS} value={currentOrder.customer.paymentMethod} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, paymentMethod:e.target.value as PaymentMethod}})} />
-                      <div className="space-y-2"><label className="block text-red-700 text-xs font-bold ml-1">Observações do Pedido</label>
-                        <textarea className="w-full bg-zinc-900 text-white p-4 rounded-2xl h-24 shadow-xl text-sm" value={currentOrder.customer.observation} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, observation:e.target.value}})} />
-                      </div>
-                      <Button type="submit" fullWidth className="py-4 text-xl">REVISAR PEDIDO</Button>
-                    </form>
-                  </div>
-                )}
-                {currentOrder.step === 'SUMMARY' && (
-                  <div className="max-w-md mx-auto p-6 h-full flex flex-col pb-40 animate-fade-in">
-                    <header className="flex justify-between items-center mb-6"><button onClick={()=>setCurrentOrder({...currentOrder, step:'FORM'})} className="text-sm font-black text-red-600 underline">← EDITAR</button><h2 className="text-2xl font-black tracking-tighter">Resumo</h2><div className="w-10"></div></header>
-                    <div className="flex-1 space-y-4">
-                      <div className="glass-card p-6 rounded-[2rem] border-l-[8px] border-red-600 shadow-xl">
-                        <p className="text-[10px] font-black text-red-500 uppercase tracking-widest">{currentOrder.customer.orderType}</p>
-                        <p className="text-2xl font-black text-red-900">{currentOrder.customer.name}</p>
-                        <p className="text-base font-bold text-red-800/70 mt-1">Total: R$ {currentOrder.cart.reduce((s,i)=>s+(i.price*i.quantity),0).toFixed(2)}</p>
-                      </div>
-                      <div className="glass-card p-6 rounded-[2rem] space-y-4 shadow-2xl overflow-y-auto max-h-[30vh]">
-                        {currentOrder.cart.map(item=>(
-                          <div key={item.cartId} className="flex justify-between items-start font-bold border-b-2 border-red-50 pb-2 last:border-0 last:pb-0">
-                            <div className="flex-1 pr-4"><p className="text-lg font-black text-red-900 leading-tight">{item.quantity}x {item.name}</p></div>
-                            <span className="text-lg font-black text-red-700 whitespace-nowrap">R$ {(item.price*item.quantity).toFixed(2)}</span>
-                          </div>))}
-                      </div>
-                    </div>
-                    <div className="fixed bottom-16 left-0 right-0 glass p-6 z-30 animate-slide-up"><Button onClick={handleFinish} fullWidth className="py-6 text-2xl shadow-red-200 animate-pulse">CONFIRMAR PEDIDO! ✅</Button></div>
-                  </div>
-                )}
-            </div>
-        )}
-
-        {reportData && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-black/60 backdrop-blur-xl animate-fade-in">
-            <div className="glass-card w-full max-w-sm rounded-[3rem] p-10 text-center shadow-2xl border-4 border-red-100">
-                <h3 className="text-2xl font-black text-red-600 mb-6">{reportData.title}</h3>
-                <div className="space-y-6 mb-8">
-                    <div className="flex flex-col"><span className="text-5xl font-black text-red-700 tracking-tighter">R$ {reportData.total.toFixed(2)}</span></div>
-                    <div className="flex flex-col"><span className="text-3xl font-black text-red-900">{reportData.count} atendidos</span></div>
-                </div>
-                <Button onClick={()=>setReportData(null)} fullWidth>FECHAR</Button>
-            </div>
+    <div className="min-h-screen">
+      {view === 'HOME' && (
+        <div className="min-h-screen flex flex-col items-center justify-center p-6 animate-fade-in">
+          <div className="glass-card p-10 md:p-16 rounded-[4rem] text-center shadow-2xl max-w-md w-full border-red-50">
+            <div className="text-7xl mb-6">🍔</div>
+            <h1 className="text-4xl font-black text-red-600 mb-2 tracking-tighter italic">Cantinho da Sandra</h1>
+            <p className="text-red-900/40 font-black uppercase tracking-[0.3em] text-xs mb-12">Lanches • Açaí • Porções</p>
+            <Button fullWidth onClick={() => setView('ORDER')} className="text-xl py-6 shadow-xl shadow-red-200 hover:scale-105 transition-transform">REALIZAR PEDIDO 🚀</Button>
+            <button onClick={() => setView('LOGIN')} className="mt-8 text-zinc-300 text-[10px] font-bold uppercase tracking-widest hover:text-red-400">Acesso Restrito</button>
           </div>
-        )}
-
-        {/* BOTAO ADMIN NO RODAPÉ */}
-        <div className="fixed bottom-2 left-0 right-0 flex justify-center z-[100] no-print">
-          <button 
-            onClick={handleAdminAccess} 
-            className="bg-red-600/90 text-white px-5 py-2 rounded-full font-black text-[11px] uppercase tracking-widest shadow-lg hover:bg-red-700 active:scale-95 transition-all flex items-center gap-1.5 border-2 border-white/60"
-          >
-            <span>🔐</span> Painel Administrativo
-          </button>
         </div>
+      )}
 
-        <ProductModal product={selectedProduct} isOpen={!!selectedProduct} onClose={()=>setSelectedProduct(null)} onConfirm={item=>{setCurrentOrder({...currentOrder, cart:[...(currentOrder.cart), item]}); setSelectedProduct(null);}} />
-        <ManualItemModal isOpen={isManualModalOpen} onClose={()=>setIsManualModalOpen(false)} onConfirm={item=>{setCurrentOrder({...currentOrder, cart:[...(currentOrder.cart), item]}); setIsManualModalOpen(false);}} />
-      </div>
+      {view === 'ORDER' && (
+        <div className="max-w-xl mx-auto min-h-screen flex flex-col bg-white md:bg-transparent">
+            {step === 'MENU' && (
+                <>
+                    <header className="p-4 glass sticky top-0 z-50 flex justify-between items-center md:rounded-b-[2rem]">
+                        <button onClick={() => setView('HOME')} className="text-red-600 font-black text-sm">← VOLTAR</button>
+                        <h2 className="font-black text-red-700 uppercase tracking-widest">Cardápio</h2>
+                        <div className="w-10"></div>
+                    </header>
+                    <div className="p-4 flex gap-2 overflow-x-auto no-scrollbar py-6">
+                        {CATEGORIES.map(cat => (
+                            <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`flex-shrink-0 px-6 py-3 rounded-2xl font-black text-xs uppercase transition-all ${activeCategory === cat.id ? 'bg-red-600 text-white shadow-lg' : 'bg-red-50 text-red-400'}`}>
+                                {cat.icon} {cat.name}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="flex-1 p-4 space-y-4 pb-32">
+                        {PRODUCTS.filter(p => p.categoryId === activeCategory).map(prod => (
+                            <div key={prod.id} onClick={() => setSelectedProduct(prod)} className="glass-card p-5 rounded-[2rem] flex justify-between items-center shadow-lg cursor-pointer active:scale-95 transition-all">
+                                <div>
+                                    <h3 className="text-lg font-black text-red-900">{prod.name}</h3>
+                                    <p className="text-red-600 font-bold">R$ {prod.price.toFixed(2)}</p>
+                                </div>
+                                <div className="w-12 h-12 bg-red-600 text-white rounded-2xl flex items-center justify-center text-2xl font-black shadow-lg shadow-red-200">+</div>
+                            </div>
+                        ))}
+                    </div>
+                    {cart.length > 0 && (
+                        <div className="fixed bottom-6 left-4 right-4 z-50 animate-slide-up">
+                            <Button fullWidth onClick={() => setStep('TYPE_SELECTION')} className="py-5 text-xl flex justify-between items-center px-8 shadow-2xl">
+                                <span>VER CARRINHO ({cart.length})</span>
+                                <span>R$ {total.toFixed(2)}</span>
+                            </Button>
+                        </div>
+                    )}
+                </>
+            )}
+
+            {step === 'TYPE_SELECTION' && (
+                <div className="p-6 flex flex-col items-center justify-center min-h-[80vh] animate-fade-in space-y-6">
+                    <h2 className="text-3xl font-black text-red-700 text-center tracking-tighter">Como deseja receber seu pedido?</h2>
+                    <div className="grid grid-cols-1 w-full gap-4 max-w-xs">
+                        <button onClick={() => { setCustomer({...customer, orderType: OrderType.DELIVERY}); setStep('FORM'); }} className="glass-card p-8 rounded-[2.5rem] text-center border-2 border-red-50 hover:border-red-500 transition-all">
+                            <span className="text-5xl block mb-2">🛵</span><span className="font-black text-red-900">ENTREGA</span>
+                        </button>
+                        <button onClick={() => { setCustomer({...customer, orderType: OrderType.COUNTER}); setStep('FORM'); }} className="glass-card p-8 rounded-[2.5rem] text-center border-2 border-red-50 hover:border-red-500 transition-all">
+                            <span className="text-5xl block mb-2">🥡</span><span className="font-black text-red-900">RETIRAR</span>
+                        </button>
+                    </div>
+                    <button onClick={() => setStep('MENU')} className="text-zinc-400 font-bold uppercase text-xs">Voltar ao menu</button>
+                </div>
+            )}
+
+            {step === 'FORM' && (
+                <div className="p-6 animate-fade-in pb-32">
+                    <h2 className="text-2xl font-black text-red-700 mb-8">Dados do Pedido</h2>
+                    <form onSubmit={(e) => { e.preventDefault(); setStep('SUMMARY'); }} className="space-y-4">
+                        <Input label="Seu Nome" value={customer.name} onChange={e => setCustomer({...customer, name: e.target.value})} required />
+                        <Input label="Telefone / WhatsApp" type="tel" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} required />
+                        {customer.orderType === OrderType.DELIVERY && (
+                            <>
+                                <Input label="Endereço (Rua e Bairro)" value={customer.address} onChange={e => setCustomer({...customer, address: e.target.value})} required />
+                                <Input label="Número" value={customer.addressNumber} onChange={e => setCustomer({...customer, addressNumber: e.target.value})} required />
+                            </>
+                        )}
+                        <Select label="Pagamento" options={PAYMENT_METHODS} value={customer.paymentMethod} onChange={e => setCustomer({...customer, paymentMethod: e.target.value as PaymentMethod})} />
+                        <Button type="submit" fullWidth className="py-5 text-xl mt-8">CONTINUAR</Button>
+                    </form>
+                    <button onClick={() => setStep('TYPE_SELECTION')} className="w-full mt-4 text-zinc-400 font-bold uppercase text-xs">Voltar</button>
+                </div>
+            )}
+
+            {step === 'SUMMARY' && (
+                <div className="p-6 animate-fade-in pb-32">
+                    <h2 className="text-2xl font-black text-red-700 mb-6">Confirmar Pedido</h2>
+                    <div className="glass-card p-6 rounded-[2.5rem] mb-6 space-y-4 shadow-xl">
+                        <div className="border-b border-red-50 pb-4">
+                            <p className="text-xs font-black text-red-400 uppercase tracking-widest">Cliente</p>
+                            <p className="text-xl font-black text-red-900">{customer.name}</p>
+                            <p className="text-sm font-bold text-zinc-500">{customer.phone}</p>
+                        </div>
+                        <div className="space-y-3">
+                            {cart.map(item => (
+                                <div key={item.cartId} className="flex justify-between items-start">
+                                    <div className="flex-1">
+                                        <p className="font-black text-red-900 leading-tight">{item.quantity}x {item.name}</p>
+                                        <p className="text-[10px] text-zinc-400 font-bold">{item.additions?.join(', ')}</p>
+                                    </div>
+                                    <p className="font-black text-red-600">R$ {(item.price * item.quantity).toFixed(2)}</p>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="border-t border-red-50 pt-4 flex justify-between items-center">
+                            <span className="text-xl font-black text-red-900">TOTAL</span>
+                            <span className="text-2xl font-black text-red-600">R$ {total.toFixed(2)}</span>
+                        </div>
+                    </div>
+                    <Button onClick={handleFinishOrder} fullWidth className="py-6 text-2xl shadow-2xl shadow-red-200 animate-pulse">CONFIRMAR E ENVIAR ✅</Button>
+                    <button onClick={() => setStep('FORM')} className="w-full mt-6 text-zinc-400 font-bold uppercase text-xs">Corrigir dados</button>
+                </div>
+            )}
+        </div>
+      )}
+
+      <ProductModal 
+        isOpen={!!selectedProduct} 
+        product={selectedProduct} 
+        onClose={() => setSelectedProduct(null)} 
+        onConfirm={(item: CartItem) => { setCart([...cart, item]); setSelectedProduct(null); }} 
+      />
 
       <style>{`
-        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slide-up { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        @keyframes pulse-soft { 0%, 100% { background-color: rgba(254, 226, 226, 0.4); } 50% { background-color: rgba(254, 202, 202, 0.6); } }
-        .animate-fade-in { animation: fade-in 0.4s ease-out; }
-        .animate-slide-up { animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes pulse-soft { 0%, 100% { background: rgba(254, 242, 242, 0.8); } 50% { background: rgba(254, 226, 226, 0.9); } }
+        .animate-fade-in { animation: fade-in 0.4s ease-out forwards; }
+        .animate-slide-up { animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         .animate-pulse-soft { animation: pulse-soft 2s infinite ease-in-out; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
         
         @media print {
-          .no-print { display: none !important; }
-          .printable-area { display: block !important; width: 100% !important; background: white !important; }
-          .printable-content { color: black !important; background: white !important; font-family: 'Courier Prime', monospace; }
+            .no-print { display: none !important; }
+            body { background: white !important; }
+            .printable-area { display: block !important; }
         }
       `}</style>
     </div>
