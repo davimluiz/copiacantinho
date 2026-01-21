@@ -1,8 +1,8 @@
 
+"use client";
+
 import React, { useState, useEffect } from 'react';
-import { initializeApp, getApp, getApps } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { 
-  getFirestore, 
   collection, 
   addDoc, 
   onSnapshot, 
@@ -13,6 +13,9 @@ import {
   serverTimestamp 
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
+// Importa a instância centralizada do banco de dados
+import { db } from './firebase';
+
 import { Button } from './components/Button';
 import { Input, Select } from './components/Input';
 import { 
@@ -20,32 +23,6 @@ import {
     EXTRAS_OPTIONS, ACAI_PAID_EXTRAS
 } from './constants';
 import { Product, CustomerInfo, CartItem, PaymentMethod, OrderStatus, OrderType } from './types';
-
-// CONFIGURAÇÃO DO FIREBASE - Mapeamento direto das variáveis da Vercel
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
-};
-
-// LOGS DE DIAGNÓSTICO (Visíveis no Console do Navegador)
-console.log('--- DIAGNÓSTICO FIREBASE VERCEL ---');
-console.log('API_KEY:', firebaseConfig.apiKey ? 'Detectada' : 'AUSENTE');
-console.log('PROJECT_ID:', firebaseConfig.projectId ? firebaseConfig.projectId : 'AUSENTE');
-console.log('AUTH_DOMAIN:', firebaseConfig.authDomain ? firebaseConfig.authDomain : 'AUSENTE');
-console.log('---------------------------------');
-
-// Inicialização direta do Firebase
-let db: any;
-try {
-  const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-  db = getFirestore(app);
-} catch (e) {
-  console.error("Erro na inicialização automática:", e);
-}
 
 type AppView = 'HOME' | 'ORDER' | 'LOGIN' | 'ADMIN' | 'SUCCESS';
 type OrderStep = 'MENU' | 'TYPE_SELECTION' | 'FORM' | 'SUMMARY';
@@ -174,6 +151,7 @@ export default function App() {
   // --- LISTENER EM TEMPO REAL PARA A TELA ADMIN ---
   useEffect(() => {
     if (view === 'ADMIN' && isLoggedIn && db) {
+      console.log("[Admin] Iniciando escuta em tempo real da coleção 'pedidos'");
       const q = query(collection(db, 'pedidos'), orderBy('criadoEm', 'desc'));
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const loadedOrders = snapshot.docs.map(doc => ({ 
@@ -190,19 +168,13 @@ export default function App() {
 
   const total = cart.reduce((acc, item) => acc + (Number(item.price) * Number(item.quantity)), 0);
 
-  // --- FUNÇÃO FINALIZAR PEDIDO COM ALERTA DE ERRO EXPLICÍTO ---
+  // --- FUNÇÃO FINALIZAR PEDIDO ---
   const handleFinishOrder = async () => {
     if (isSending) return;
     
-    // Tenta reinicializar o DB caso não tenha sido carregado
     if (!db) {
-      try {
-        const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-        db = getFirestore(app);
-      } catch (e: any) {
-        alert("ERRO INICIALIZACAO FIREBASE: " + e.message);
-        return;
-      }
+      alert("Erro Crítico: O banco de dados (Firestore) não foi inicializado. Verifique se as variáveis de ambiente NEXT_PUBLIC_* estão configuradas no painel da Vercel.");
+      return;
     }
 
     const clientName = String(customer.name || "").trim();
@@ -238,16 +210,16 @@ export default function App() {
     };
 
     try {
-      // Gravação na coleção "pedidos"
+      console.log('Tentando gravar pedido na coleção "pedidos"...');
       await addDoc(collection(db, 'pedidos'), payload);
+      console.log('Sucesso! Pedido gravado.');
       setCart([]);
       setView('SUCCESS');
       setTimeout(() => window.location.reload(), 4500);
     } catch (err: any) {
       console.error("ERRO FIREBASE COMPLETO:", err);
-      // Alerta radical solicitado para diagnóstico
       alert('ERRO DO FIREBASE: ' + err.message);
-      setIsSending(false); // Libera o botão novamente
+      setIsSending(false);
     }
   };
 
