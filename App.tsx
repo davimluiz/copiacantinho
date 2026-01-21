@@ -21,7 +21,7 @@ import {
 } from './constants';
 import { Product, CustomerInfo, CartItem, PaymentMethod, OrderStatus, OrderType } from './types';
 
-// CONFIGURAÇÃO DO FIREBASE - Mapeamento direto das variáveis da Vercel
+// CONFIGURAÇÃO DO FIREBASE
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -31,13 +31,20 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-// Inicialização sem travas de verificação prévia
+// LOGS DE DEPURAÇÃO - Para verificar se a Vercel está injetando os valores corretamente
+console.log('--- DEBUG FIREBASE CONFIG ---');
+console.log('API Key:', firebaseConfig.apiKey ? 'Configurada (OK)' : 'NÃO ENCONTRADA');
+console.log('Project ID:', firebaseConfig.projectId || 'NÃO ENCONTRADO');
+console.log('Auth Domain:', firebaseConfig.authDomain || 'NÃO ENCONTRADO');
+console.log('----------------------------');
+
+// Inicialização sem interrupção
 let db: any;
 try {
   const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
   db = getFirestore(app);
 } catch (e) {
-  console.error("Erro na inicialização do Firebase:", e);
+  console.error("Erro crítico na inicialização do Firebase:", e);
 }
 
 type AppView = 'HOME' | 'ORDER' | 'LOGIN' | 'ADMIN' | 'SUCCESS';
@@ -183,24 +190,24 @@ export default function App() {
 
   const total = cart.reduce((acc, item) => acc + (Number(item.price) * Number(item.quantity)), 0);
 
-  // --- FINALIZAÇÃO DO PEDIDO (ENVIO DIRETO) ---
+  // --- FINALIZAÇÃO DO PEDIDO (TRATAMENTO DE ERRO EXPLICÍTO) ---
   const handleFinishOrder = async () => {
     if (isSending) return;
     
-    // Tentativa de reconexão manual com DB se estiver nulo
+    // Tentativa de recuperação do DB se estiver nulo
     if (!db) {
       try {
         const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
         db = getFirestore(app);
-      } catch (e) {
-        alert("Erro ao conectar com o banco de dados. Verifique as configurações na Vercel.");
+      } catch (e: any) {
+        alert(`Erro de Inicialização: ${e.message}. Verifique as variáveis de ambiente na Vercel.`);
         return;
       }
     }
 
     const clientName = String(customer.name || "").trim();
     if (!clientName || cart.length === 0) {
-      alert("Por favor, informe seu nome e escolha seus lanches.");
+      alert("Por favor, preencha seu nome e escolha pelo menos um item.");
       return;
     }
 
@@ -231,14 +238,16 @@ export default function App() {
     };
 
     try {
+      console.log('Enviando pedido ao Firestore...', payload);
       await addDoc(collection(db, 'pedidos'), payload);
       setCart([]);
       setView('SUCCESS');
       setTimeout(() => window.location.reload(), 4500);
     } catch (error: any) {
-      console.error("Erro Firestore addDoc:", error);
-      alert(`Erro ao salvar pedido: ${error.message}. Verifique sua conexão ou chaves do Firebase.`);
-      setIsSending(false);
+      console.error("ERRO COMPLETO DO FIRESTORE:", error);
+      // Alerta com o erro exato retornado pelo Google
+      alert(`FALHA NO FIREBASE: ${error.code || 'Erro desconhecido'}\n\nMensagem: ${error.message}\n\nVerifique se as permissões (Rules) do Firestore estão abertas.`);
+      setIsSending(false); // Volta o botão para o estado original
     }
   };
 
