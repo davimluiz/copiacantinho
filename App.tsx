@@ -21,7 +21,7 @@ import {
 } from './constants';
 import { Product, CustomerInfo, CartItem, PaymentMethod, OrderStatus, OrderType } from './types';
 
-// CONFIGURAÇÃO DO FIREBASE - Inicialização Única
+// CONFIGURAÇÃO DO FIREBASE - Inicialização Segura
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "",
@@ -31,9 +31,19 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || ""
 };
 
-// Singleton para garantir que o Firebase não reinicialize no client
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const db = getFirestore(app);
+// Verifica se o Firebase está configurado antes de tentar usar
+const isConfigured = !!firebaseConfig.apiKey;
+let app: any;
+let db: any;
+
+try {
+  if (isConfigured) {
+    app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    db = getFirestore(app);
+  }
+} catch (e) {
+  console.error("Erro ao inicializar Firebase:", e);
+}
 
 type AppView = 'HOME' | 'ORDER' | 'LOGIN' | 'ADMIN' | 'SUCCESS';
 type OrderStep = 'MENU' | 'TYPE_SELECTION' | 'FORM' | 'SUMMARY';
@@ -50,7 +60,7 @@ const Receipt = ({ order }: { order: any | null }) => {
                 <p className="text-[9px]">ID: {order.id?.slice(-6).toUpperCase()}</p>
             </div>
             <div className="mb-2">
-                <p><strong>CLIENTE:</strong> {String(order.nomeCliente).toUpperCase()}</p>
+                <p><strong>CLIENTE:</strong> {String(order.nomeCliente || 'CLIENTE').toUpperCase()}</p>
                 <p><strong>DATA:</strong> {date}</p>
                 <p><strong>FONE:</strong> {order.telefone || 'N/I'}</p>
                 <p><strong>TIPO:</strong> {order.tipo || 'BALCÃO'}</p>
@@ -111,9 +121,9 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
           <section>
             <label className="block text-red-900/40 text-[10px] font-black uppercase mb-4 tracking-[0.3em]">Quantidade</label>
             <div className="flex items-center gap-8">
-              <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-16 h-16 rounded-[1.5rem] bg-zinc-50 text-red-600 font-black text-3xl hover:bg-zinc-100 active:scale-90 transition-all">-</button>
+              <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-16 h-16 rounded-[1.5rem] bg-zinc-50 text-red-600 font-black text-3xl hover:bg-zinc-100 transition-all">-</button>
               <span className="text-5xl font-black text-red-900 italic">{quantity}</span>
-              <button onClick={() => setQuantity(quantity + 1)} className="w-16 h-16 rounded-[1.5rem] bg-zinc-50 text-red-600 font-black text-3xl hover:bg-zinc-100 active:scale-90 transition-all">+</button>
+              <button onClick={() => setQuantity(quantity + 1)} className="w-16 h-16 rounded-[1.5rem] bg-zinc-50 text-red-600 font-black text-3xl hover:bg-zinc-100 transition-all">+</button>
             </div>
           </section>
 
@@ -123,20 +133,6 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
               <div className="grid grid-cols-2 gap-3">
                 {product.ingredients.map((ing: string) => (
                   <button key={ing} onClick={() => toggleIngredient(ing)} className={`p-4 rounded-2xl text-[10px] font-black uppercase border-2 transition-all ${removedIngredients.includes(ing) ? 'bg-red-600 border-red-600 text-white shadow-lg' : 'bg-white border-zinc-100 text-zinc-300'}`}>SEM {ing}</button>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {(product.categoryId === 'lanches' || product.categoryId === 'acai') && (
-            <section>
-              <label className="block text-red-900/40 text-[10px] font-black uppercase mb-4 tracking-[0.3em]">Adicionais</label>
-              <div className="space-y-3">
-                {(product.categoryId === 'lanches' ? EXTRAS_OPTIONS : ACAI_PAID_EXTRAS).map(opt => (
-                  <button key={opt.name} onClick={() => toggleAddition(opt.name)} className={`w-full flex justify-between items-center p-5 rounded-[1.5rem] border-2 transition-all ${additions.includes(opt.name) ? 'bg-red-50 border-red-200 text-red-800' : 'bg-white border-zinc-100 text-zinc-400'}`}>
-                    <span className="font-black text-xs uppercase italic">{opt.name}</span>
-                    <span className="font-black text-red-600 text-sm">+ R$ {opt.price.toFixed(2)}</span>
-                  </button>
                 ))}
               </div>
             </section>
@@ -173,6 +169,13 @@ export default function App() {
   // LISTENER REAL-TIME ADMIN
   useEffect(() => {
     if (view === 'ADMIN' && isLoggedIn) {
+      if (!isConfigured || !db) {
+        // Fallback: carregar pedidos do localStorage para testes se o Firebase estiver offline
+        const localOrders = JSON.parse(localStorage.getItem('pedidos_contingencia') || '[]');
+        setOrders(localOrders);
+        return;
+      }
+
       const q = query(collection(db, 'pedidos'), orderBy('criadoEm', 'desc'));
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const loadedOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -186,7 +189,7 @@ export default function App() {
 
   const total = cart.reduce((acc, item) => acc + (Number(item.price) * Number(item.quantity)), 0);
 
-  // --- FINALIZAÇÃO DO PEDIDO (LIMPEZA TOTAL DE CAMPOS) ---
+  // --- FINALIZAÇÃO DO PEDIDO (COM FAIL-SAFE) ---
   const handleFinishOrder = async () => {
     if (isSending) return;
     
@@ -198,53 +201,62 @@ export default function App() {
 
     setIsSending(true);
 
+    // 1. Sanitização do Total e Itens
+    const finalTotal = isNaN(total) ? 0 : Number(Number(total).toFixed(2));
+    const itensFormatados = cart.map(item => {
+        let desc = `${item.quantity}x ${item.name}`;
+        const extras = [];
+        if (item.removedIngredients?.length) extras.push(`SEM: ${item.removedIngredients.join(', ')}`);
+        if (item.additions?.length) extras.push(`COM: ${item.additions.join(', ')}`);
+        if (item.observation?.trim()) extras.push(`OBS: ${item.observation.trim()}`);
+        return extras.length > 0 ? `${desc} (${extras.join(' | ')})` : desc;
+    }).join('\n');
+
+    // 2. Payload Limpo
+    const payload = {
+      nomeCliente: clientName,
+      itens: String(itensFormatados || "Pedido de Lanche"),
+      total: finalTotal,
+      status: "novo",
+      criadoEm: isConfigured ? serverTimestamp() : new Date(),
+      telefone: String(customer.phone || "Não informado"),
+      tipo: String(customer.orderType || "BALCÃO"),
+      pagamento: String(customer.paymentMethod || "PIX"),
+      endereco: customer.orderType === OrderType.DELIVERY 
+          ? `${String(customer.address || "S/E")}, ${String(customer.addressNumber || "S/N")}` 
+          : "Balcão"
+    };
+
     try {
-      // 1. Sanitização do Total (Garantia de Número válido)
-      const finalTotal = isNaN(total) ? 0 : Number(Number(total).toFixed(2));
+      if (isConfigured && db) {
+        // Criamos uma Promise com Timeout de 15 segundos
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("O servidor demorou muito para responder. Verifique sua internet.")), 15000)
+        );
 
-      // 2. Normalização dos Itens (String plana para evitar erros de nested objects)
-      const itensFormatados = cart.map(item => {
-          let desc = `${item.quantity}x ${item.name}`;
-          const extras = [];
-          if (item.removedIngredients?.length) extras.push(`SEM: ${item.removedIngredients.join(', ')}`);
-          if (item.additions?.length) extras.push(`COM: ${item.additions.join(', ')}`);
-          if (item.observation?.trim()) extras.push(`OBS: ${item.observation.trim()}`);
-          return extras.length > 0 ? `${desc} (${extras.join(' | ')})` : desc;
-      }).join('\n');
-
-      // 3. Payload Seguro (NADA de undefined ou objetos complexos)
-      const payload = {
-        nomeCliente: clientName,
-        itens: String(itensFormatados || "Lanche"),
-        total: finalTotal,
-        status: "novo",
-        criadoEm: serverTimestamp(), // O SDK cuida disso
-        telefone: String(customer.phone || "Não informado"),
-        tipo: String(customer.orderType || "BALCÃO"),
-        pagamento: String(customer.paymentMethod || "PIX"),
-        endereco: customer.orderType === OrderType.DELIVERY 
-            ? `${String(customer.address || "S/E")}, ${String(customer.addressNumber || "S/N")}` 
-            : "Balcão"
-      };
-
-      // 4. Execução do addDoc (O SDK do Firebase lida com retries internamente)
-      await addDoc(collection(db, 'pedidos'), payload);
+        const dbPromise = addDoc(collection(db, 'pedidos'), payload);
+        await Promise.race([dbPromise, timeoutPromise]);
+      } else {
+        // Modo Demo: Salva no LocalStorage se não houver Firebase configurado
+        console.warn("Firebase não configurado. Salvando localmente para demonstração.");
+        const currentLocal = JSON.parse(localStorage.getItem('pedidos_contingencia') || '[]');
+        const newOrder = { id: 'LOCAL_' + Date.now(), ...payload, criadoEm: { toDate: () => new Date() } };
+        localStorage.setItem('pedidos_contingencia', JSON.stringify([newOrder, ...currentLocal]));
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Simula delay
+      }
       
-      // 5. Sucesso: Troca a interface e agenda o reload
       setView('SUCCESS');
-      
-      setTimeout(() => {
-        window.location.reload();
-      }, 4000);
+      setTimeout(() => window.location.reload(), 3500);
 
     } catch (error: any) {
-      console.error("FALHA AO GRAVAR PEDIDO:", error);
-      alert(`Erro no envio: ${error.message || "Verifique sua conexão"}. Tente novamente.`);
+      console.error("FALHA AO ENVIAR:", error);
+      alert(`Ops! ${error.message || "Houve um erro técnico"}.`);
       setIsSending(false);
     }
   };
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
+    if (!isConfigured || !db) return;
     try {
       await updateDoc(doc(db, 'pedidos', orderId), { status: newStatus });
     } catch (e) { console.error(e); }
@@ -262,19 +274,14 @@ export default function App() {
 
   if (view === 'SUCCESS') return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-zinc-50 animate-fade-in fixed inset-0 z-[500]">
-      <div className="glass-card p-12 md:p-20 rounded-[5rem] max-w-md shadow-2xl border-green-200 border-2 relative overflow-hidden bg-white">
+      <div className="glass-card p-12 md:p-20 rounded-[5rem] max-w-md shadow-2xl border-green-200 border-2 bg-white">
         <div className="text-[120px] mb-12 animate-bounce leading-none">✅</div>
-        <h2 className="text-4xl font-black text-green-600 mb-6 tracking-tighter italic uppercase leading-tight">Pedido Enviado!</h2>
-        <div className="space-y-6">
-            <p className="text-zinc-400 font-black text-[10px] uppercase tracking-[0.3em] leading-relaxed">
-                A <span className="text-red-600">Sandra</span> recebeu seu pedido.
+        <h2 className="text-4xl font-black text-green-600 mb-6 tracking-tighter italic uppercase">Pedido Enviado!</h2>
+        <div className="bg-green-50 border border-green-100 p-8 rounded-[2.5rem]">
+            <p className="text-green-800 font-black text-[11px] uppercase tracking-widest leading-loose">
+                A Sandra já recebeu sua solicitação!<br/>
+                Reiniciando sistema...
             </p>
-            <div className="bg-green-50 border border-green-100 p-8 rounded-[2.5rem] shadow-inner">
-                <p className="text-green-800 font-black text-[11px] uppercase tracking-widest leading-loose">
-                    Agora é só aguardar!<br/>
-                    Sistema reiniciando...
-                </p>
-            </div>
         </div>
       </div>
     </div>
@@ -293,8 +300,8 @@ export default function App() {
             }} className="space-y-6">
                 <Input label="Usuário" name="user" required />
                 <Input label="Senha" name="pass" type="password" required />
-                <Button type="submit" fullWidth className="py-5 rounded-[1.5rem]">ACESSAR PAINEL</Button>
-                <button type="button" onClick={() => setView('HOME')} className="w-full text-zinc-300 font-black text-[10px] mt-4 uppercase tracking-widest hover:text-red-600 transition-colors">← Voltar</button>
+                <Button type="submit" fullWidth className="py-5 rounded-[1.5rem]">ENTRAR</Button>
+                <button type="button" onClick={() => setView('HOME')} className="w-full text-zinc-300 font-black text-[10px] mt-4 uppercase tracking-widest">← Voltar</button>
             </form>
         </div>
     </div>
@@ -305,33 +312,37 @@ export default function App() {
       <header className="flex justify-between items-center mb-12 max-w-7xl mx-auto bg-white p-8 rounded-[3rem] shadow-sm border border-red-50">
         <div>
             <h2 className="text-4xl font-black text-red-800 italic leading-none">Cozinha</h2>
-            <p className="text-[10px] text-zinc-300 font-black uppercase tracking-widest mt-2">Gestão de Pedidos</p>
+            {!isConfigured && <p className="text-orange-500 font-bold text-[10px] uppercase">⚠️ Modo Demonstração (Sem Banco)</p>}
         </div>
         <Button variant="secondary" onClick={() => { setIsLoggedIn(false); setView('HOME'); }} className="px-8 py-3 rounded-2xl text-[10px] font-black uppercase">SAIR</Button>
       </header>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 max-w-7xl mx-auto">
-        {orders.map(o => (
-          <div key={o.id} className={`glass-card p-8 rounded-[3.5rem] border-l-[14px] shadow-2xl transition-all relative overflow-hidden bg-white ${o.status === 'novo' ? 'border-red-600' : 'border-zinc-100 opacity-60'}`}>
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <p className="text-3xl font-black text-red-950 leading-none italic">{o.nomeCliente}</p>
-                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mt-3">{o.tipo || 'ENTREGA'} • {o.pagamento}</p>
+        {orders.length === 0 ? (
+          <div className="col-span-full text-center py-20 opacity-20 text-4xl font-black italic text-zinc-300">Nenhum pedido no momento... 🍔</div>
+        ) : (
+          orders.map(o => (
+            <div key={o.id} className={`glass-card p-8 rounded-[3.5rem] border-l-[14px] shadow-2xl transition-all relative overflow-hidden bg-white ${o.status === 'novo' ? 'border-red-600' : 'border-zinc-100 opacity-60'}`}>
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <p className="text-3xl font-black text-red-950 leading-none italic">{o.nomeCliente}</p>
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mt-3">{o.tipo} • {o.pagamento}</p>
+                </div>
+                {o.status === 'novo' && <span className="bg-red-600 text-white text-[9px] font-black px-4 py-2 rounded-full uppercase italic">Novo</span>}
               </div>
-              {o.status === 'novo' && <span className="bg-red-600 text-white text-[9px] font-black px-4 py-2 rounded-full shadow-lg shadow-red-100 uppercase italic">Novo</span>}
+              <div className="bg-zinc-50/50 rounded-[2rem] p-6 mb-6 text-[11px] font-bold whitespace-pre-wrap max-h-[180px] overflow-y-auto leading-relaxed text-zinc-700">
+                {o.itens}
+              </div>
+              <div className="flex justify-between items-center mb-8">
+                 <p className="text-4xl font-black text-red-700 italic">R$ {Number(o.total || 0).toFixed(2)}</p>
+                 <button onClick={() => printOrder(o)} className="w-14 h-14 bg-zinc-900 text-white rounded-[1.2rem] flex items-center justify-center text-3xl hover:scale-105 transition-transform shadow-xl">🖨️</button>
+              </div>
+              {o.status === 'novo' && (
+                <Button fullWidth onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 border-green-500 py-5 rounded-[1.8rem] text-xs font-black uppercase">Finalizar</Button>
+              )}
             </div>
-            <div className="bg-zinc-50/50 rounded-[2rem] p-6 mb-6 text-[11px] font-bold whitespace-pre-wrap max-h-[180px] overflow-y-auto leading-relaxed text-zinc-700 border border-zinc-50">
-              {o.itens}
-            </div>
-            <div className="flex justify-between items-center mb-8">
-               <p className="text-4xl font-black text-red-700 italic">R$ {Number(o.total || 0).toFixed(2)}</p>
-               <button onClick={() => printOrder(o)} className="w-14 h-14 bg-zinc-900 text-white rounded-[1.2rem] flex items-center justify-center text-3xl hover:scale-105 active:scale-90 transition-transform shadow-xl">🖨️</button>
-            </div>
-            {o.status === 'novo' && (
-              <Button fullWidth onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 border-green-500 py-5 rounded-[1.8rem] text-xs font-black uppercase">Concluir Pedido</Button>
-            )}
-          </div>
-        ))}
+          ))
+        )}
       </div>
       <div className="printable-area hidden"><Receipt order={receiptOrder} /></div>
     </div>
@@ -341,49 +352,49 @@ export default function App() {
     <div className="min-h-screen bg-white">
       {view === 'HOME' && (
         <div className="min-h-screen flex flex-col items-center justify-center p-6 animate-fade-in bg-zinc-50">
-          <div className="glass-card p-14 md:p-24 rounded-[5rem] text-center shadow-2xl max-w-md w-full border-red-50 bg-white relative overflow-hidden border-b-8 border-red-100">
-            <div className="text-[120px] mb-10 animate-float leading-none drop-shadow-2xl">🍔</div>
-            <h1 className="text-6xl font-black text-red-800 mb-4 tracking-tighter italic leading-none">Cantinho da Sandra</h1>
-            <p className="text-red-900/20 font-black uppercase tracking-[0.5em] text-[11px] mb-16">O melhor lanche da região</p>
+          <div className="glass-card p-14 md:p-24 rounded-[5rem] text-center shadow-2xl max-w-md w-full border-red-50 bg-white relative overflow-hidden">
+            <div className="text-[120px] mb-10 animate-float leading-none">🍔</div>
+            <h1 className="text-6xl font-black text-red-800 mb-4 tracking-tighter italic leading-none">Sandra Lanches</h1>
+            <p className="text-red-900/20 font-black uppercase tracking-[0.5em] text-[11px] mb-16 italic">Tradicional & Delicioso</p>
             <Button fullWidth onClick={() => setView('ORDER')} className="text-2xl py-8 shadow-2xl shadow-red-100 flex items-center justify-center gap-5 group rounded-[3rem] border-b-4 border-red-800">
               FAZER PEDIDO <span className="text-4xl group-hover:translate-x-3 transition-transform">➡</span>
             </Button>
-            <button onClick={() => setView('LOGIN')} className="mt-20 text-zinc-200 text-[10px] font-black uppercase tracking-[0.3em] hover:text-red-300 transition-colors italic">Área Administrativa</button>
+            <button onClick={() => setView('LOGIN')} className="mt-20 text-zinc-200 text-[10px] font-black uppercase tracking-[0.3em] hover:text-red-300 italic">Admin</button>
           </div>
         </div>
       )}
 
       {view === 'ORDER' && (
-        <div className="max-w-xl mx-auto min-h-screen flex flex-col bg-white border-x border-zinc-50 shadow-2xl shadow-zinc-200">
+        <div className="max-w-xl mx-auto min-h-screen flex flex-col bg-white border-x border-zinc-50 shadow-2xl">
             {step === 'MENU' && (
                 <>
-                    <header className="p-6 bg-white sticky top-0 z-50 flex justify-between items-center border-b border-zinc-100 shadow-sm backdrop-blur-md bg-white/90">
+                    <header className="p-6 bg-white sticky top-0 z-50 flex justify-between items-center border-b border-zinc-100 shadow-sm">
                         <button onClick={() => setView('HOME')} className="text-red-700 font-black text-[10px] uppercase tracking-widest px-3 py-1 bg-red-50 rounded-full">← Início</button>
-                        <h2 className="font-black text-red-900 uppercase tracking-[0.2em] text-[10px] italic">Cardápio Oficial</h2>
+                        <h2 className="font-black text-red-900 uppercase tracking-[0.2em] text-[10px] italic">Cardápio</h2>
                         <div className="w-12"></div>
                     </header>
-                    <div className="p-5 flex gap-3 overflow-x-auto no-scrollbar py-7 border-b border-zinc-50">
+                    <div className="p-5 flex gap-3 overflow-x-auto no-scrollbar py-7">
                         {CATEGORIES.map(cat => (
-                            <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`flex-shrink-0 px-8 py-4 rounded-[1.8rem] font-black text-[10px] uppercase transition-all flex items-center gap-2 ${activeCategory === cat.id ? 'bg-red-700 text-white shadow-xl shadow-red-100 scale-105' : 'bg-zinc-50 text-zinc-400 hover:bg-zinc-100 active:scale-95'}`}>
-                                <span className="text-xl leading-none">{cat.icon}</span> {cat.name}
+                            <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`flex-shrink-0 px-8 py-4 rounded-[1.8rem] font-black text-[10px] uppercase transition-all ${activeCategory === cat.id ? 'bg-red-700 text-white shadow-xl scale-105' : 'bg-zinc-50 text-zinc-400 hover:bg-zinc-100'}`}>
+                                {cat.icon} {cat.name}
                             </button>
                         ))}
                     </div>
-                    <div className="flex-1 p-6 space-y-5 pb-48 overflow-y-auto bg-zinc-50/30">
+                    <div className="flex-1 p-6 space-y-5 pb-48 overflow-y-auto bg-zinc-50/20">
                         {PRODUCTS.filter(p => p.categoryId === activeCategory).map(prod => (
-                            <div key={prod.id} onClick={() => setSelectedProduct(prod)} className="bg-white border-2 border-zinc-50 p-7 rounded-[3rem] flex justify-between items-center shadow-lg shadow-zinc-100/50 active:scale-[0.98] transition-all hover:border-red-100 cursor-pointer group">
+                            <div key={prod.id} onClick={() => setSelectedProduct(prod)} className="bg-white border-2 border-zinc-50 p-7 rounded-[3rem] flex justify-between items-center shadow-lg active:scale-95 transition-all hover:border-red-100 cursor-pointer">
                                 <div className="flex-1 pr-4">
-                                    <h3 className="text-2xl font-black text-red-950 mb-2 leading-none italic group-hover:text-red-700 transition-colors">{prod.name}</h3>
-                                    <p className="text-red-600 font-black text-xl italic drop-shadow-sm">R$ {prod.price.toFixed(2)}</p>
+                                    <h3 className="text-2xl font-black text-red-950 mb-2 leading-none italic">{prod.name}</h3>
+                                    <p className="text-red-600 font-black text-xl italic">R$ {prod.price.toFixed(2)}</p>
                                 </div>
-                                <div className="w-16 h-16 bg-red-700 text-white rounded-[1.5rem] flex items-center justify-center text-4xl font-black shadow-2xl shadow-red-200 group-hover:rotate-12 transition-transform">+</div>
+                                <div className="w-16 h-16 bg-red-700 text-white rounded-[1.5rem] flex items-center justify-center text-4xl font-black shadow-2xl">+</div>
                             </div>
                         ))}
                     </div>
                     {cart.length > 0 && (
                         <div className="fixed bottom-12 left-6 right-6 z-50 animate-slide-up max-w-lg mx-auto">
                             <Button fullWidth onClick={() => setStep('TYPE_SELECTION')} className="py-7 text-2xl flex justify-between items-center px-12 shadow-2xl rounded-[3rem] border-b-4 border-red-800">
-                                <span className="font-black italic uppercase tracking-tighter">Continuar</span>
+                                <span className="font-black italic uppercase tracking-tighter">Ver Pedido</span>
                                 <span className="bg-white/20 px-6 py-2 rounded-2xl text-xl font-black italic">R$ {total.toFixed(2)}</span>
                             </Button>
                         </div>
@@ -395,52 +406,48 @@ export default function App() {
                 <div className="flex-1 overflow-y-auto bg-white">
                     {step === 'TYPE_SELECTION' && (
                         <div className="p-8 flex flex-col items-center justify-center min-h-[90vh] animate-fade-in space-y-16">
-                            <div className="text-center">
-                                <h2 className="text-6xl font-black text-red-900 tracking-tighter italic leading-none">Como quer<br/>receber?</h2>
-                                <p className="text-[10px] font-black text-zinc-300 uppercase tracking-widest mt-6">Escolha uma opção abaixo</p>
-                            </div>
+                            <h2 className="text-6xl font-black text-red-900 tracking-tighter italic leading-none text-center">Como vai<br/>receber?</h2>
                             <div className="grid grid-cols-1 w-full gap-8 max-w-sm">
-                                <button onClick={() => { setCustomer({...customer, orderType: OrderType.DELIVERY}); setStep('FORM'); }} className="bg-zinc-50 border-2 border-zinc-100 hover:border-red-600 hover:bg-white p-14 rounded-[4.5rem] text-center shadow-2xl transition-all group active:scale-95 border-b-8 border-zinc-200">
+                                <button onClick={() => { setCustomer({...customer, orderType: OrderType.DELIVERY}); setStep('FORM'); }} className="bg-zinc-50 border-2 border-zinc-100 hover:border-red-600 p-14 rounded-[4.5rem] text-center shadow-2xl transition-all group active:scale-95 border-b-8 border-zinc-200">
                                     <span className="text-[100px] block mb-8 group-hover:scale-110 transition-transform leading-none">🛵</span>
-                                    <span className="font-black text-red-950 text-3xl uppercase italic leading-none">Entrega</span>
+                                    <span className="font-black text-red-950 text-3xl uppercase italic">Entrega</span>
                                 </button>
-                                <button onClick={() => { setCustomer({...customer, orderType: OrderType.COUNTER}); setStep('FORM'); }} className="bg-zinc-50 border-2 border-zinc-100 hover:border-red-600 hover:bg-white p-14 rounded-[4.5rem] text-center shadow-2xl transition-all group active:scale-95 border-b-8 border-zinc-200">
+                                <button onClick={() => { setCustomer({...customer, orderType: OrderType.COUNTER}); setStep('FORM'); }} className="bg-zinc-50 border-2 border-zinc-100 hover:border-red-600 p-14 rounded-[4.5rem] text-center shadow-2xl transition-all group active:scale-95 border-b-8 border-zinc-200">
                                     <span className="text-[100px] block mb-8 group-hover:scale-110 transition-transform leading-none">🥡</span>
-                                    <span className="font-black text-red-950 text-3xl uppercase italic leading-none">Balcão</span>
+                                    <span className="font-black text-red-950 text-3xl uppercase italic">Balcão</span>
                                 </button>
                             </div>
-                            <button onClick={() => setStep('MENU')} className="text-zinc-300 font-black uppercase text-[10px] tracking-[0.2em] hover:text-red-600 transition-colors">← Voltar ao Cardápio</button>
+                            <button onClick={() => setStep('MENU')} className="text-zinc-300 font-black uppercase text-[10px] tracking-widest hover:text-red-600">← Voltar</button>
                         </div>
                     )}
 
                     {step === 'FORM' && (
                         <div className="p-10 animate-fade-in pb-48">
-                            <h2 className="text-5xl font-black text-red-800 mb-12 tracking-tighter italic leading-none">Seus Dados</h2>
+                            <h2 className="text-5xl font-black text-red-800 mb-12 tracking-tighter italic leading-none">Identificação</h2>
                             <form onSubmit={(e) => { e.preventDefault(); setStep('SUMMARY'); }} className="space-y-8">
-                                <Input label="Seu Nome Completo" value={customer.name} onChange={e => setCustomer({...customer, name: e.target.value})} placeholder="Para o pedido da Sandra" required />
-                                <Input label="Seu WhatsApp" type="tel" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} placeholder="(00) 00000-0000" required />
+                                <Input label="Seu Nome" value={customer.name} onChange={e => setCustomer({...customer, name: e.target.value})} placeholder="Para o pedido" required />
+                                <Input label="WhatsApp" type="tel" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} placeholder="(00) 00000-0000" required />
                                 {customer.orderType === OrderType.DELIVERY && (
                                     <div className="animate-fade-in space-y-8">
-                                        <Input label="Endereço de Entrega" value={customer.address} onChange={e => setCustomer({...customer, address: e.target.value})} placeholder="Rua / Bairro" required />
-                                        <Input label="Número / Apto" value={customer.addressNumber} onChange={e => setCustomer({...customer, addressNumber: e.target.value})} required />
+                                        <Input label="Rua / Bairro" value={customer.address} onChange={e => setCustomer({...customer, address: e.target.value})} required />
+                                        <Input label="Número" value={customer.addressNumber} onChange={e => setCustomer({...customer, addressNumber: e.target.value})} required />
                                     </div>
                                 )}
-                                <Select label="Forma de Pagamento" options={PAYMENT_METHODS} value={customer.paymentMethod} onChange={e => setCustomer({...customer, paymentMethod: e.target.value as PaymentMethod})} />
-                                <Button type="submit" fullWidth className="py-8 text-2xl mt-16 rounded-[3rem] uppercase italic border-b-4 border-red-800">Conferir Pedido</Button>
+                                <Select label="Pagamento" options={PAYMENT_METHODS} value={customer.paymentMethod} onChange={e => setCustomer({...customer, paymentMethod: e.target.value as PaymentMethod})} />
+                                <Button type="submit" fullWidth className="py-8 text-2xl mt-16 rounded-[3rem] uppercase italic border-b-4 border-red-800">Próximo Passo</Button>
                             </form>
-                            <button onClick={() => setStep('TYPE_SELECTION')} className="w-full mt-10 text-zinc-300 font-black text-[10px] text-center uppercase tracking-widest hover:text-red-600 transition-colors">← Alterar Tipo</button>
+                            <button onClick={() => setStep('TYPE_SELECTION')} className="w-full mt-10 text-zinc-300 font-black text-[10px] text-center uppercase tracking-widest">← Alterar Tipo</button>
                         </div>
                     )}
 
                     {step === 'SUMMARY' && (
                         <div className="p-10 animate-fade-in pb-52">
                             <h2 className="text-5xl font-black text-red-800 mb-10 tracking-tighter italic leading-none">Revisão</h2>
-                            <div className="bg-zinc-50 p-10 rounded-[4rem] mb-12 space-y-9 shadow-2xl shadow-zinc-100 border-2 border-white relative overflow-hidden">
-                                <div className="absolute top-0 right-0 p-6 opacity-5 select-none text-9xl">🍔</div>
+                            <div className="bg-zinc-50 p-10 rounded-[4rem] mb-12 space-y-9 shadow-2xl border-2 border-white relative overflow-hidden">
                                 <div className="border-b-2 border-zinc-200 pb-8 relative z-10">
                                     <p className="text-4xl font-black text-red-950 italic leading-none">{customer.name.toUpperCase()}</p>
                                     <p className="text-[10px] font-black text-red-600 mt-4 uppercase tracking-[0.2em] italic bg-red-50 inline-block px-4 py-1.5 rounded-full">
-                                        {customer.orderType} • PAGAMENTO: {customer.paymentMethod}
+                                        {customer.orderType} • {customer.paymentMethod}
                                     </p>
                                 </div>
                                 <div className="space-y-7 relative z-10">
@@ -448,7 +455,7 @@ export default function App() {
                                         <div key={item.cartId} className="flex justify-between items-start">
                                             <div className="flex-1 pr-6">
                                                 <p className="font-black text-red-950 text-xl leading-none italic">{item.quantity}x {item.name}</p>
-                                                <div className="text-[10px] text-zinc-400 font-bold mt-3 uppercase leading-relaxed tracking-tighter">
+                                                <div className="text-[10px] text-zinc-400 font-bold mt-3 uppercase tracking-tighter">
                                                     {item.removedIngredients?.map(i => <span key={i} className="block text-red-400">× SEM {i}</span>)}
                                                     {item.additions?.map(i => <span key={i} className="block text-green-600">✓ COM {i}</span>)}
                                                     {item.observation?.trim() && <span className="block italic mt-2 text-zinc-500 bg-white/50 p-3 rounded-2xl border border-zinc-100">"{item.observation.trim()}"</span>}
@@ -459,23 +466,23 @@ export default function App() {
                                     ))}
                                 </div>
                                 <div className="border-t-2 border-zinc-200 pt-9 flex justify-between items-center relative z-10">
-                                    <span className="text-2xl font-black text-zinc-300 italic uppercase">Total Final</span>
-                                    <span className="text-5xl font-black text-red-700 italic leading-none drop-shadow-sm">R$ {total.toFixed(2)}</span>
+                                    <span className="text-2xl font-black text-zinc-300 italic uppercase">Total</span>
+                                    <span className="text-5xl font-black text-red-700 italic leading-none">R$ {total.toFixed(2)}</span>
                                 </div>
                             </div>
                             
-                            {/* BOTÃO FINAL (GARANTIA DE SUCESSO) */}
+                            {/* BOTÃO FINAL COM FEEDBACK DE STATUS */}
                             <div className="fixed bottom-12 left-6 right-6 z-50 max-w-lg mx-auto">
                                 <Button 
                                     onClick={handleFinishOrder} 
                                     disabled={isSending}
                                     fullWidth 
-                                    className={`py-8 text-3xl shadow-2xl rounded-[3.5rem] transition-all border-4 border-white/30 border-b-8 border-b-red-900 ${isSending ? 'opacity-70 scale-95 grayscale cursor-wait' : 'animate-pulse-slow active:translate-y-2 active:border-b-4'}`}
+                                    className={`py-8 text-3xl shadow-2xl rounded-[3.5rem] border-4 border-white/30 border-b-8 border-b-red-900 ${isSending ? 'opacity-70 scale-95 grayscale cursor-wait' : 'animate-pulse-slow active:translate-y-2 active:border-b-4'}`}
                                 >
-                                    {isSending ? 'ENVIANDO...' : 'ENVIAR AGORA! ✅'}
+                                    {isSending ? 'ENVIANDO...' : 'FECHAR PEDIDO! ✅'}
                                 </Button>
                             </div>
-                            <button onClick={() => setStep('FORM')} className="w-full mt-8 text-zinc-300 font-black text-[10px] text-center uppercase tracking-widest hover:text-red-600 transition-colors">← Corrigir Meus Dados</button>
+                            <button onClick={() => setStep('FORM')} className="w-full mt-8 text-zinc-300 font-black text-[10px] text-center uppercase tracking-widest">← Corrigir Dados</button>
                         </div>
                     )}
                 </div>
