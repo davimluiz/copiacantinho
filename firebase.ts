@@ -1,10 +1,10 @@
 
-import { initializeApp, getApp, getApps } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { initializeApp, getApp, getApps } from 'firebase/app';
+import { getFirestore } from 'firebase/firestore';
 
 /**
- * Firebase Configuration
- * Note: These variables must be set in the Vercel Project Settings as Environment Variables.
+ * Configuração do Firebase via Variáveis de Ambiente.
+ * O prefixo NEXT_PUBLIC_ é o padrão para exposição ao cliente no Vercel/Next.js.
  */
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -15,19 +15,24 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-// Singleton pattern for Firebase App and Firestore initialization
+// Log de diagnóstico para ajudar o usuário a verificar se a Vercel está entregando as chaves
+if (typeof window !== 'undefined') {
+  console.log('--- DIAGNÓSTICO DE AMBIENTE ---');
+  console.log('Projeto ID:', process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'NÃO DEFINIDO');
+  console.log('API Key:', process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? 'CONFIGURADA' : 'AUSENTE');
+  console.log('------------------------------');
+}
+
 function initialize() {
+  // Garantir que a inicialização ocorra apenas no lado do cliente
   if (typeof window === 'undefined') return null;
 
   try {
     const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-    // No Analytics, No Auth - Just Firestore
     const db = getFirestore(app);
-    
-    console.log('[Firebase] Sistema inicializado com sucesso.');
     return db;
   } catch (error) {
-    console.error("[Firebase] Erro Crítico na Inicialização:", error);
+    console.error("Falha ao inicializar Firebase:", error);
     return null;
   }
 }
