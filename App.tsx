@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from './components/Button';
 import { Input, Select } from './components/Input';
 import { 
@@ -9,11 +9,7 @@ import {
 } from './constants';
 import { Product, CustomerInfo, CartItem, PaymentMethod, Order, OrderStatus, OrderType } from './types';
 
-// --- TYPES PARA O FLUXO ---
-type OrderStep = 'MENU' | 'TYPE_SELECTION' | 'FORM' | 'SUMMARY';
-type AppView = 'HOME' | 'ORDER' | 'ADMIN' | 'ORDER_SUCCESS' | 'LOGIN';
-
-// Canal de comunicação para simular tempo real entre abas/janelas
+// Canal de comunicação para simular tempo real entre abas/janelas (Simulando Firestore Realtime)
 const orderChannel = new BroadcastChannel('sandra_orders');
 
 // --- RECEIPT COMPONENT ---
@@ -114,12 +110,12 @@ const OrderSuccessView = ({ onBack }: { onBack: () => void }) => (
       <div className="text-7xl mb-6 animate-bounce">🎉</div>
       <h2 className="text-3xl font-black text-red-600 mb-3 tracking-tighter">Pedido Realizado!</h2>
       <p className="text-red-900/60 text-base font-medium mb-8 leading-relaxed">
-        Sucesso! Agora a <strong>Sandra</strong> vai conferir os detalhes e entrará em contato com você via <strong>WhatsApp</strong> para confirmar tudo.
+        Sucesso! Agora a <strong>Sandra</strong> vai conferir os detalhes e entrará em contato com você via <strong>WhatsApp</strong> para confirmar seu pedido.
       </p>
       <div className="w-full space-y-4">
         <Button onClick={onBack} fullWidth className="py-4 text-lg">VOLTAR AO INÍCIO</Button>
       </div>
-      <p className="mt-6 text-[10px] font-black text-red-300 uppercase tracking-widest">Obrigado pela preferência!</p>
+      <p className="mt-6 text-[10px] font-black text-red-300 uppercase tracking-widest">Aguarde nosso contato!</p>
     </div>
   </div>
 );
@@ -270,34 +266,41 @@ const AdminView = ({ orders, onShowDaily, onPrint, onStatusChange }: {
 }) => (
   <div className="p-4 max-w-5xl mx-auto space-y-8 pb-48 animate-fade-in">
     <header className="flex justify-between items-center">
-      <h2 className="text-3xl font-black text-red-700 tracking-tighter">Painel de Gestão</h2>
+      <h2 className="text-3xl font-black text-red-700 tracking-tighter">Painel da Sandra</h2>
       <Button onClick={onShowDaily}>📊 Relatório</Button>
     </header>
     
     <section className="space-y-4">
-      <h3 className="text-lg font-black text-red-800/40 uppercase tracking-[0.2em]">📦 Histórico de Pedidos</h3>
+      <h3 className="text-lg font-black text-red-800/40 uppercase tracking-[0.2em]">📦 Pedidos no Sistema</h3>
       <div className="space-y-3">
-        {orders.length === 0 ? <p className="text-zinc-400 italic">Vazio...</p> : orders.map((o: Order) => (
-          <div key={o.id} className={`glass-card p-4 rounded-2xl border-l-[8px] flex justify-between items-center shadow-xl transition-all ${o.status === OrderStatus.NEW ? 'border-red-600 bg-red-50/50 animate-pulse-soft ring-4 ring-red-500/20' : 'border-zinc-300'}`}>
-            <div>
-              <div className="flex items-center gap-2">
-                <p className="font-black text-red-900 text-xl">{o.customer.name}</p>
-                {o.status === OrderStatus.NEW && <span className="bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase">NOVO</span>}
+        {orders.length === 0 ? <p className="text-zinc-400 italic">Aguardando novos pedidos...</p> : orders.map((o: Order) => (
+          <div key={o.id} className={`glass-card p-4 rounded-2xl border-l-[10px] flex justify-between items-center shadow-xl transition-all ${o.status === OrderStatus.NEW ? 'border-red-600 bg-red-50 animate-pulse-soft ring-4 ring-red-500/10' : 'border-zinc-300'}`}>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <p className="font-black text-red-900 text-xl tracking-tight">{o.customer.name}</p>
+                {o.status === OrderStatus.NEW && <span className="bg-red-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase animate-bounce">NOVO</span>}
               </div>
               <p className="text-[10px] text-zinc-500 font-bold uppercase">{new Date(o.createdAt).toLocaleString()} • {o.customer.orderType}</p>
-              <p className="font-black text-red-600 text-lg mt-1">R$ {o.total.toFixed(2)}</p>
+              <div className="flex items-center gap-4 mt-1">
+                <p className="font-black text-red-600 text-lg">R$ {o.total.toFixed(2)}</p>
+                <p className="text-[10px] text-zinc-400 font-bold">({o.customer.paymentMethod})</p>
+              </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2">
+              <button onClick={() => onPrint(o)} className="bg-zinc-800 text-white p-3 rounded-2xl shadow-xl hover:brightness-110 active:scale-95 transition-all text-sm flex items-center justify-center">🖨️</button>
               {o.status === OrderStatus.NEW && (
-                <button onClick={() => onStatusChange(o.id, OrderStatus.COMPLETED)} className="bg-green-600 text-white p-3 rounded-2xl shadow-xl hover:brightness-110 active:scale-95 transition-all">✅ Aceitar</button>
+                <button onClick={() => onStatusChange(o.id, OrderStatus.COMPLETED)} className="bg-green-600 text-white p-3 rounded-2xl shadow-xl hover:brightness-110 active:scale-95 transition-all text-sm font-black">CONFIRMAR</button>
               )}
-              <button onClick={() => onPrint(o)} className="bg-zinc-800 text-white p-3 rounded-2xl shadow-xl hover:brightness-110 active:scale-95 transition-all">🖨️</button>
             </div>
           </div>))}
       </div>
     </section>
   </div>
 );
+
+// Added missing AppView type and ensured AppStep is present
+type AppView = 'HOME' | 'LOGIN' | 'ORDER_SUCCESS' | 'ADMIN' | 'ORDER';
+type AppStep = 'MENU' | 'TYPE_SELECTION' | 'FORM' | 'SUMMARY';
 
 export default function App() {
   const [view, setView] = useState<AppView>('HOME');
@@ -310,44 +313,41 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [reportData, setReportData] = useState<any>(null);
 
-  // Estado local para o pedido em construção (sem rascunhos no Admin)
   const [currentOrder, setCurrentOrder] = useState<{
       cart: CartItem[];
       customer: CustomerInfo;
-      step: OrderStep;
+      step: AppStep;
   }>({
       cart: [],
       step: 'MENU',
       customer: { name: '', phone: '', address: '', addressNumber: '', reference: '', deliveryFee: 0, tableNumber: '', orderType: OrderType.DELIVERY, paymentMethod: PaymentMethod.PIX }
   });
 
-  // Carregar pedidos iniciais
+  // Carregar do "Firestore" (LocalStorage persistente)
   useEffect(() => {
-    const h = localStorage.getItem('sandra_orders_db');
+    const h = localStorage.getItem('sandra_pedidos');
     if (h) {
         const parsedOrders = JSON.parse(h);
         setOrders(parsedOrders.sort((a: Order, b: Order) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
     }
   }, []);
 
-  // Sincronização simulada em tempo real via BroadcastChannel
+  // Tempo Real via BroadcastChannel
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-        if (event.data.type === 'NEW_ORDER') {
-            setOrders(prev => [event.data.order, ...prev]);
-            // Alerta sonoro ou visual discreto para o admin se desejar
-        } else if (event.data.type === 'STATUS_CHANGE') {
-            setOrders(prev => prev.map(o => o.id === event.data.id ? { ...o, status: event.data.status } : o));
+        if (event.data.type === 'REFRESH_ORDERS') {
+            const h = localStorage.getItem('sandra_pedidos');
+            if (h) setOrders(JSON.parse(h).sort((a: Order, b: Order) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
         }
     };
     orderChannel.addEventListener('message', handleMessage);
     return () => orderChannel.removeEventListener('message', handleMessage);
   }, []);
 
-  // Persistência persistente no localStorage
-  useEffect(() => {
-      localStorage.setItem('sandra_orders_db', JSON.stringify(orders));
-  }, [orders]);
+  const saveToStorage = (updatedOrders: Order[]) => {
+      localStorage.setItem('sandra_pedidos', JSON.stringify(updatedOrders));
+      orderChannel.postMessage({ type: 'REFRESH_ORDERS' });
+  };
 
   useEffect(() => {
     if (receiptOrder) {
@@ -375,22 +375,19 @@ export default function App() {
         items: currentOrder.cart, 
         total, 
         createdAt: new Date().toISOString(), 
-        status: OrderStatus.NEW // Status solicitado: "novo"
+        status: OrderStatus.NEW // Salvar como "novo"
     };
 
-    // Aqui seria o salvamento no Firestore:
-    // await db.collection('pedidos').add(newOrder);
-    
-    // Simulação para demo local
-    setOrders(prev => [newOrder, ...prev]);
-    orderChannel.postMessage({ type: 'NEW_ORDER', order: newOrder });
-    
+    const updatedOrders = [newOrder, ...orders];
+    setOrders(updatedOrders);
+    saveToStorage(updatedOrders);
     setView('ORDER_SUCCESS');
   };
 
   const updateStatus = (id: string, status: OrderStatus) => {
-      setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
-      orderChannel.postMessage({ type: 'STATUS_CHANGE', id, status });
+      const updated = orders.map(o => o.id === id ? { ...o, status } : o);
+      setOrders(updated);
+      saveToStorage(updated);
   };
 
   const handleAdminAccess = () => {
@@ -413,7 +410,7 @@ export default function App() {
         {view === 'LOGIN' && <LoginView onLogin={() => { setIsLoggedIn(true); setView('ADMIN'); }} onCancel={() => setView('HOME')} />}
         {view === 'ORDER_SUCCESS' && <OrderSuccessView onBack={() => setView('HOME')} />}
         {view === 'HOME' && <CustomerHomeView onStartOrder={handleStartOrder} />}
-        {view === 'ADMIN' && <AdminView orders={orders} onShowDaily={()=>setReportData({title:'Hoje', total:orders.reduce((s,o)=>s+o.total,0), count:orders.length})} onPrint={setReceiptOrder} onStatusChange={updateStatus} />}
+        {view === 'ADMIN' && <AdminView orders={orders} onShowDaily={()=>setReportData({title:'Resumo Financeiro', total:orders.reduce((s,o)=>s+o.total,0), count:orders.length})} onPrint={setReceiptOrder} onStatusChange={updateStatus} />}
 
         {view === 'ORDER' && (
             <div className="h-screen flex flex-col animate-fade-in">
@@ -423,7 +420,7 @@ export default function App() {
                     <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-40">
                       <div className="max-w-md mx-auto">
                         <input type="search" placeholder="🔍 Procurar..." className="w-full bg-zinc-900 text-white rounded-xl p-4 mb-6 shadow-xl text-sm" value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} />
-                        <Button variant="secondary" onClick={()=>setIsManualModalOpen(true)} fullWidth className="border-dashed mb-8 text-base py-3">🍔 PERSONALIZADO</Button>
+                        <Button variant="secondary" onClick={()=>setIsManualModalOpen(true)} fullWidth className="border-dashed mb-8 text-base py-3">🍔 MONTAR MEU JEITO</Button>
                         {!currentCategoryId && !searchTerm ? (
                             <div className="grid grid-cols-2 gap-4">{CATEGORIES.map(c=>(<button key={c.id} onClick={()=>setCurrentCategoryId(c.id)} className="glass-card p-6 rounded-[2rem] flex flex-col items-center gap-2 hover:border-red-500 shadow-xl transition-all">
                                 <span className="text-4xl">{c.icon}</span><span className="font-black text-xs uppercase tracking-tighter">{c.name}</span></button>))}</div>
@@ -438,12 +435,12 @@ export default function App() {
                         )}
                       </div>
                     </div>
-                    {currentOrder.cart.length > 0 && <div className="fixed bottom-16 left-0 right-0 glass p-4 border-t-4 border-red-600 z-30 animate-slide-up"><div className="max-w-md mx-auto flex justify-between items-center"><div><p className="text-2xl font-black text-red-900 leading-none">R$ {currentOrder.cart.reduce((s,i)=>s+(i.price*i.quantity),0).toFixed(2)}</p></div><Button onClick={()=>setCurrentOrder({...currentOrder, step:'TYPE_SELECTION'})} className="px-8 py-3 text-lg">PEDIR &rarr;</Button></div></div>}
+                    {currentOrder.cart.length > 0 && <div className="fixed bottom-16 left-0 right-0 glass p-4 border-t-4 border-red-600 z-30 animate-slide-up"><div className="max-w-md mx-auto flex justify-between items-center"><div><p className="text-2xl font-black text-red-900 leading-none">R$ {currentOrder.cart.reduce((s,i)=>s+(i.price*i.quantity),0).toFixed(2)}</p></div><Button onClick={()=>setCurrentOrder({...currentOrder, step:'TYPE_SELECTION'})} className="px-8 py-3 text-lg">FINALIZAR &rarr;</Button></div></div>}
                   </>
                 )}
                 {currentOrder.step === 'TYPE_SELECTION' && (
                   <div className="flex flex-col items-center justify-center h-full p-4 space-y-8 animate-fade-in">
-                    <h2 className="text-3xl font-black text-center text-red-700 tracking-tighter">Onde quer comer?</h2>
+                    <h2 className="text-3xl font-black text-center text-red-700 tracking-tighter">Como deseja receber?</h2>
                     <div className="grid grid-cols-1 w-full max-w-sm gap-4">
                         <button onClick={()=>setCurrentOrder({...currentOrder, step:'FORM', customer:{...currentOrder.customer, orderType:OrderType.DELIVERY}})} className="glass-card p-6 rounded-[2rem] text-center border-2 border-red-600 shadow-2xl hover:scale-105 active:scale-95 transition-all">
                             <span className="text-6xl block mb-2">🛵</span><span className="text-xl font-black tracking-widest">ENTREGA</span>
@@ -452,40 +449,40 @@ export default function App() {
                             <span className="text-6xl block mb-2">🥡</span><span className="text-xl font-black tracking-widest">RETIRAR</span>
                         </button>
                     </div>
-                    <button onClick={()=>setCurrentOrder({...currentOrder, step:'MENU'})} className="font-black text-zinc-400 uppercase text-xs tracking-widest">Cardápio</button>
+                    <button onClick={()=>setCurrentOrder({...currentOrder, step:'MENU'})} className="font-black text-zinc-400 uppercase text-xs tracking-widest">Voltar</button>
                   </div>
                 )}
                 {currentOrder.step === 'FORM' && (
                   <div className="max-w-md mx-auto p-6 pt-8 space-y-6 h-full overflow-y-auto pb-40 animate-fade-in">
-                    <header className="flex justify-between items-center"><button onClick={()=>setCurrentOrder({...currentOrder, step:'TYPE_SELECTION'})} className="text-sm font-black text-red-600">← VOLTAR</button><h2 className="text-2xl font-black text-red-600 tracking-tighter">Dados</h2><div className="w-8"></div></header>
+                    <header className="flex justify-between items-center"><button onClick={()=>setCurrentOrder({...currentOrder, step:'TYPE_SELECTION'})} className="text-sm font-black text-red-600">← VOLTAR</button><h2 className="text-2xl font-black text-red-600 tracking-tighter">Seus Dados</h2><div className="w-8"></div></header>
                     <form className="space-y-4" onSubmit={e=>{e.preventDefault(); setCurrentOrder({...currentOrder, step:'SUMMARY'});}}>
-                      <Input label="Como se chama? *" value={currentOrder.customer.name} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, name:e.target.value}})} required />
-                      <Input label="WhatsApp *" type="tel" value={currentOrder.customer.phone} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, phone:e.target.value}})} required />
+                      <Input label="Seu Nome *" value={currentOrder.customer.name} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, name:e.target.value}})} required />
+                      <Input label="WhatsApp (DDD) *" type="tel" value={currentOrder.customer.phone} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, phone:e.target.value}})} required />
                       {currentOrder.customer.orderType === OrderType.DELIVERY && (
                         <div className="space-y-4 animate-fade-in">
-                          <Input label="Endereço Completo *" value={currentOrder.customer.address} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, address:e.target.value}})} required />
+                          <Input label="Rua e Bairro *" value={currentOrder.customer.address} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, address:e.target.value}})} required />
                           <div className="flex gap-3">
-                            <div className="flex-1"><Input label="Número *" value={currentOrder.customer.addressNumber} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, addressNumber:e.target.value}})} required /></div>
-                            <div className="flex-[2]"><Input label="Referência" value={currentOrder.customer.reference} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, reference:e.target.value}})} /></div>
+                            <div className="flex-1"><Input label="Nº *" value={currentOrder.customer.addressNumber} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, addressNumber:e.target.value}})} required /></div>
+                            <div className="flex-[2]"><Input label="Ref." value={currentOrder.customer.reference} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, reference:e.target.value}})} /></div>
                           </div>
                         </div>
                       )}
-                      <Select label="Pagamento" options={PAYMENT_METHODS} value={currentOrder.customer.paymentMethod} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, paymentMethod:e.target.value as PaymentMethod}})} />
-                      <div className="space-y-2"><label className="block text-red-700 text-xs font-bold ml-1">Observação Geral</label>
+                      <Select label="Forma de Pagamento" options={PAYMENT_METHODS} value={currentOrder.customer.paymentMethod} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, paymentMethod:e.target.value as PaymentMethod}})} />
+                      <div className="space-y-2"><label className="block text-red-700 text-xs font-bold ml-1">Observações do Pedido</label>
                         <textarea className="w-full bg-zinc-900 text-white p-4 rounded-2xl h-24 shadow-xl text-sm" value={currentOrder.customer.observation} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, observation:e.target.value}})} />
                       </div>
-                      <Button type="submit" fullWidth className="py-4 text-xl">REVISAR &rarr;</Button>
+                      <Button type="submit" fullWidth className="py-4 text-xl">REVISAR PEDIDO</Button>
                     </form>
                   </div>
                 )}
                 {currentOrder.step === 'SUMMARY' && (
                   <div className="max-w-md mx-auto p-6 h-full flex flex-col pb-40 animate-fade-in">
-                    <header className="flex justify-between items-center mb-6"><button onClick={()=>setCurrentOrder({...currentOrder, step:'FORM'})} className="text-sm font-black text-red-600 underline">← CORRIGIR</button><h2 className="text-2xl font-black tracking-tighter">Resumo</h2><div className="w-10"></div></header>
+                    <header className="flex justify-between items-center mb-6"><button onClick={()=>setCurrentOrder({...currentOrder, step:'FORM'})} className="text-sm font-black text-red-600 underline">← EDITAR</button><h2 className="text-2xl font-black tracking-tighter">Resumo</h2><div className="w-10"></div></header>
                     <div className="flex-1 space-y-4">
                       <div className="glass-card p-6 rounded-[2rem] border-l-[8px] border-red-600 shadow-xl">
                         <p className="text-[10px] font-black text-red-500 uppercase tracking-widest">{currentOrder.customer.orderType}</p>
                         <p className="text-2xl font-black text-red-900">{currentOrder.customer.name}</p>
-                        <p className="text-base font-bold text-red-800/70 mt-1">Pagamento: {currentOrder.customer.paymentMethod}</p>
+                        <p className="text-base font-bold text-red-800/70 mt-1">Total: R$ {currentOrder.cart.reduce((s,i)=>s+(i.price*i.quantity),0).toFixed(2)}</p>
                       </div>
                       <div className="glass-card p-6 rounded-[2rem] space-y-4 shadow-2xl overflow-y-auto max-h-[30vh]">
                         {currentOrder.cart.map(item=>(
@@ -494,9 +491,8 @@ export default function App() {
                             <span className="text-lg font-black text-red-700 whitespace-nowrap">R$ {(item.price*item.quantity).toFixed(2)}</span>
                           </div>))}
                       </div>
-                      <div className="p-2 flex flex-col items-center"><p className="text-5xl font-black text-red-700 tracking-tighter">R$ {currentOrder.cart.reduce((s,i)=>s+(i.price*i.quantity),0).toFixed(2)}</p></div>
                     </div>
-                    <div className="fixed bottom-16 left-0 right-0 glass p-6 z-30 animate-slide-up"><Button onClick={handleFinish} fullWidth className="py-6 text-2xl shadow-red-200 animate-pulse">CONFIRMAR! ✅</Button></div>
+                    <div className="fixed bottom-16 left-0 right-0 glass p-6 z-30 animate-slide-up"><Button onClick={handleFinish} fullWidth className="py-6 text-2xl shadow-red-200 animate-pulse">CONFIRMAR PEDIDO! ✅</Button></div>
                   </div>
                 )}
             </div>
@@ -508,7 +504,7 @@ export default function App() {
                 <h3 className="text-2xl font-black text-red-600 mb-6">{reportData.title}</h3>
                 <div className="space-y-6 mb-8">
                     <div className="flex flex-col"><span className="text-5xl font-black text-red-700 tracking-tighter">R$ {reportData.total.toFixed(2)}</span></div>
-                    <div className="flex flex-col"><span className="text-3xl font-black text-red-900">{reportData.count} pedidos</span></div>
+                    <div className="flex flex-col"><span className="text-3xl font-black text-red-900">{reportData.count} atendidos</span></div>
                 </div>
                 <Button onClick={()=>setReportData(null)} fullWidth>FECHAR</Button>
             </div>
@@ -519,9 +515,9 @@ export default function App() {
         <div className="fixed bottom-2 left-0 right-0 flex justify-center z-[100] no-print">
           <button 
             onClick={handleAdminAccess} 
-            className="bg-red-600/90 text-white px-4 py-1.5 rounded-full font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-red-700 active:scale-95 transition-all flex items-center gap-1.5 border border-white/50"
+            className="bg-red-600/90 text-white px-5 py-2 rounded-full font-black text-[11px] uppercase tracking-widest shadow-lg hover:bg-red-700 active:scale-95 transition-all flex items-center gap-1.5 border-2 border-white/60"
           >
-            <span>⚙️</span> Painel Sandra
+            <span>🔐</span> Painel Administrativo
           </button>
         </div>
 
@@ -532,7 +528,7 @@ export default function App() {
       <style>{`
         @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slide-up { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        @keyframes pulse-soft { 0%, 100% { background-color: rgba(254, 226, 226, 0.5); } 50% { background-color: rgba(254, 202, 202, 0.7); } }
+        @keyframes pulse-soft { 0%, 100% { background-color: rgba(254, 226, 226, 0.4); } 50% { background-color: rgba(254, 202, 202, 0.6); } }
         .animate-fade-in { animation: fade-in 0.4s ease-out; }
         .animate-slide-up { animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
         .animate-pulse-soft { animation: pulse-soft 2s infinite ease-in-out; }
