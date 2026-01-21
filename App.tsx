@@ -21,15 +21,20 @@ import {
 } from './constants';
 import { Product, CustomerInfo, CartItem, PaymentMethod, OrderStatus, OrderType } from './types';
 
-// CONFIGURAÇÃO DO FIREBASE (Variáveis de ambiente Vercel/Next.js)
+// CONFIGURAÇÃO DO FIREBASE COM FALLBACK PARA EVITAR ERRO DE INICIALIZAÇÃO SE VARIÁVEIS ESTIVEREM AUSENTES
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "",
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "",
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "",
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "",
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || ""
 };
+
+// Verificação de segurança: se as variáveis essenciais faltarem, avisar no console
+if (!firebaseConfig.apiKey) {
+  console.error("Firebase API Key ausente. Verifique as variáveis de ambiente no Vercel.");
+}
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
@@ -184,7 +189,7 @@ export default function App() {
 
   const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
-  // --- FINALIZAÇÃO DO PEDIDO (FOCO NA ROBUSTEZ) ---
+  // --- FINALIZAÇÃO DO PEDIDO ---
   const handleFinishOrder = async () => {
     if (isSending) return;
     
@@ -205,8 +210,9 @@ export default function App() {
           return details.length > 0 ? `${text} (${details.join(' | ')})` : text;
       }).join('\n');
 
-      // GRAVAÇÃO NO FIRESTORE
-      await addDoc(collection(db, 'pedidos'), {
+      // Tentativa de gravação no Firestore
+      // Adicionado um timeout manual para evitar travamento eterno se o Firebase falhar silenciosamente
+      const saveOrderPromise = addDoc(collection(db, 'pedidos'), {
         nomeCliente: customer.name,
         itens: itensString,
         total: Number(total),
@@ -217,19 +223,26 @@ export default function App() {
         pagamento: customer.paymentMethod,
         endereco: customer.orderType === OrderType.DELIVERY ? `${customer.address}, ${customer.addressNumber}` : 'Balcão'
       });
+
+      // Se em 15 segundos não responder, forçamos um erro
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Timeout ao conectar com o servidor")), 15000)
+      );
+
+      await Promise.race([saveOrderPromise, timeoutPromise]);
       
       // SUCESSO: Mudar tela IMEDIATAMENTE.
       setView('SUCCESS');
       
-      // RECARREGAR AUTOMATICAMENTE após 4 segundos para limpar tudo
+      // RECARREGAR AUTOMATICAMENTE após 3 segundos
       setTimeout(() => {
         window.location.reload();
-      }, 4000);
+      }, 3000);
 
     } catch (e) {
       console.error("Falha ao enviar pedido:", e);
-      alert("Não conseguimos enviar seu pedido. Verifique sua internet e tente novamente.");
-      setIsSending(false); // Reabilita apenas em erro
+      alert("Não conseguimos enviar seu pedido. Verifique sua internet ou se o sistema está configurado corretamente.");
+      setIsSending(false); // SÓ volta para false se der erro, permitindo tentar de novo
     }
   };
 
@@ -250,18 +263,18 @@ export default function App() {
   // --- RENDERS ---
 
   if (view === 'SUCCESS') return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-white animate-fade-in">
-      <div className="glass-card p-12 md:p-20 rounded-[4rem] max-w-md shadow-2xl border-red-50 border relative overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-white animate-fade-in fixed inset-0 z-[500]">
+      <div className="glass-card p-12 md:p-20 rounded-[4rem] max-w-md shadow-2xl border-green-100 border relative overflow-hidden">
         <div className="text-9xl mb-10 animate-bounce">🍔✅</div>
-        <h2 className="text-4xl font-black text-red-600 mb-6 tracking-tighter italic">Pedido Enviado!</h2>
+        <h2 className="text-4xl font-black text-green-600 mb-6 tracking-tighter italic">Sucesso Total!</h2>
         <div className="space-y-6">
-            <p className="text-red-900/80 font-bold text-sm uppercase tracking-widest leading-relaxed">
-                A <span className="text-red-600">Sandra</span> recebeu seu pedido!
+            <p className="text-zinc-600 font-bold text-sm uppercase tracking-widest leading-relaxed">
+                Pedido recebido com sucesso pela equipe da Sandra!
             </p>
             <div className="bg-green-50 border border-green-200 p-6 rounded-3xl">
                 <p className="text-green-700 font-black text-xs uppercase tracking-[0.2em] leading-relaxed">
-                    Aguarde a confirmação pelo <span className="text-green-900">WhatsApp</span>.<br/>
-                    A página será reiniciada em instantes...
+                    Aguarde a confirmação pelo WhatsApp.<br/>
+                    Reiniciando sistema...
                 </p>
             </div>
         </div>
@@ -272,7 +285,7 @@ export default function App() {
   if (view === 'LOGIN') return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-zinc-50">
         <div className="glass-card p-10 rounded-[3.5rem] w-full max-w-sm shadow-2xl">
-            <h2 className="text-2xl font-black text-red-700 mb-8 text-center italic">Painel Sandra</h2>
+            <h2 className="text-2xl font-black text-red-700 mb-8 text-center italic">Painel Admin</h2>
             <form onSubmit={(e) => {
                 e.preventDefault();
                 const formData = new FormData(e.currentTarget);
