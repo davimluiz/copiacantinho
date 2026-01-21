@@ -21,7 +21,7 @@ import {
 } from './constants';
 import { Product, CustomerInfo, CartItem, PaymentMethod, OrderStatus, OrderType } from './types';
 
-// CONFIGURAÇÃO DO FIREBASE (As chaves devem ser as do seu projeto real)
+// CONFIGURAÇÃO DO FIREBASE (Certifique-se de usar as chaves corretas do seu console)
 const firebaseConfig = {
   apiKey: "AIzaSy...", 
   authDomain: "projeto-sandra.firebaseapp.com",
@@ -37,20 +37,21 @@ const db = getFirestore(app);
 type AppView = 'HOME' | 'ORDER' | 'LOGIN' | 'ADMIN' | 'SUCCESS';
 type OrderStep = 'MENU' | 'TYPE_SELECTION' | 'FORM' | 'SUMMARY';
 
-// --- COMPONENTE DE RECIBO TÉRMICO ---
+// --- COMPONENTE DE RECIBO (TÉRMICO) ---
 const Receipt = ({ order }: { order: any | null }) => {
     if (!order) return null;
     const date = order.criadoEm?.toDate ? order.criadoEm.toDate().toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR');
     
     return (
-        <div className="w-full max-w-[80mm] mx-auto text-black font-mono text-[10px] p-4 bg-white printable-content border border-zinc-200">
+        <div className="w-full max-w-[80mm] mx-auto text-black font-mono text-[11px] p-4 bg-white border border-zinc-200 shadow-sm printable-content">
             <div className="text-center mb-4 border-b border-dashed border-black pb-2">
                 <h1 className="font-bold text-lg uppercase">Cantinho da Sandra</h1>
-                <p>ID: #{order.id?.slice(-4)}</p>
+                <p className="text-[9px]">PEDIDO: #{order.id?.slice(-4).toUpperCase()}</p>
             </div>
             <div className="mb-2">
                 <p><strong>CLIENTE:</strong> {order.nomeCliente}</p>
                 <p><strong>DATA:</strong> {date}</p>
+                <p><strong>TIPO:</strong> {order.tipo || 'ENTREGA'}</p>
             </div>
             <div className="border-b border-dashed border-black my-2"></div>
             <div className="mb-2">
@@ -59,15 +60,16 @@ const Receipt = ({ order }: { order: any | null }) => {
             </div>
             <div className="border-t border-dashed border-black mt-2 pt-2 text-right">
                 <p className="text-sm font-bold">TOTAL: R$ {Number(order.total).toFixed(2)}</p>
+                <p className="text-[9px] uppercase">{order.pagamento}</p>
             </div>
-            <div className="text-center mt-6 text-[8px]">
+            <div className="text-center mt-6 text-[8px] italic">
                 <p>Obrigado pela preferência!</p>
             </div>
         </div>
     );
 };
 
-// --- MODAL DE CUSTOMIZAÇÃO ---
+// --- MODAL DE PERSONALIZAÇÃO ---
 const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
   const [quantity, setQuantity] = useState(1);
   const [removedIngredients, setRemovedIngredients] = useState<string[]>([]);
@@ -100,28 +102,28 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
   const toggleAddition = (add: string) => setAdditions(prev => prev.includes(add) ? prev.filter(a => a !== add) : [...prev, add]);
 
   return (
-    <div className={`fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-      <div className="bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-fade-in">
-        <div className="p-6 border-b border-red-50 flex justify-between items-center bg-red-50/30">
-          <div><h3 className="text-2xl font-black text-red-700">{product.name}</h3><p className="text-red-500 font-bold">R$ {product.price.toFixed(2)}</p></div>
-          <button onClick={onClose} className="text-zinc-300 hover:text-red-500 text-3xl transition-colors">&times;</button>
+    <div className={`fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+      <div className="bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-fade-in border border-white/20">
+        <div className="p-6 border-b border-red-50 flex justify-between items-center bg-red-50/40">
+          <div><h3 className="text-2xl font-black text-red-700 leading-none">{product.name}</h3><p className="text-red-500 font-bold mt-1">R$ {product.price.toFixed(2)}</p></div>
+          <button onClick={onClose} className="text-zinc-300 hover:text-red-600 text-4xl transition-colors">&times;</button>
         </div>
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-6 space-y-7">
           <section>
-            <label className="block text-red-800 text-xs font-black uppercase mb-3 tracking-widest">Quantidade</label>
+            <label className="block text-red-800 text-xs font-black uppercase mb-3 tracking-[0.2em]">Quantidade</label>
             <div className="flex items-center gap-6">
-              <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 font-black text-xl">-</button>
-              <span className="text-3xl font-black text-red-900">{quantity}</span>
-              <button onClick={() => setQuantity(quantity + 1)} className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 font-black text-xl">+</button>
+              <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-14 h-14 rounded-2xl bg-red-50 text-red-600 font-black text-2xl hover:bg-red-100 active:scale-95 transition-all shadow-sm">-</button>
+              <span className="text-4xl font-black text-red-900">{quantity}</span>
+              <button onClick={() => setQuantity(quantity + 1)} className="w-14 h-14 rounded-2xl bg-red-50 text-red-600 font-black text-2xl hover:bg-red-100 active:scale-95 transition-all shadow-sm">+</button>
             </div>
           </section>
 
           {product.ingredients && (
             <section>
-              <label className="block text-red-800 text-xs font-black uppercase mb-3 tracking-widest">Retirar algo?</label>
+              <label className="block text-red-800 text-xs font-black uppercase mb-3 tracking-[0.2em]">O que quer retirar?</label>
               <div className="grid grid-cols-2 gap-2">
                 {product.ingredients.map((ing: string) => (
-                  <button key={ing} onClick={() => toggleIngredient(ing)} className={`p-3 rounded-xl text-xs font-bold border transition-all ${removedIngredients.includes(ing) ? 'bg-red-600 border-red-600 text-white shadow-md' : 'bg-white border-zinc-100 text-zinc-500'}`}>SEM {ing.toUpperCase()}</button>
+                  <button key={ing} onClick={() => toggleIngredient(ing)} className={`p-3 rounded-xl text-[10px] font-black uppercase border transition-all ${removedIngredients.includes(ing) ? 'bg-red-600 border-red-600 text-white shadow-md' : 'bg-white border-zinc-100 text-zinc-400'}`}>SEM {ing}</button>
                 ))}
               </div>
             </section>
@@ -129,12 +131,12 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
 
           {(product.categoryId === 'lanches' || product.categoryId === 'acai') && (
             <section>
-              <label className="block text-red-800 text-xs font-black uppercase mb-3 tracking-widest">Adicionais</label>
+              <label className="block text-red-800 text-xs font-black uppercase mb-3 tracking-[0.2em]">Deseja adicionar?</label>
               <div className="space-y-2">
                 {(product.categoryId === 'lanches' ? EXTRAS_OPTIONS : ACAI_PAID_EXTRAS).map(opt => (
-                  <button key={opt.name} onClick={() => toggleAddition(opt.name)} className={`w-full flex justify-between items-center p-4 rounded-xl border transition-all ${additions.includes(opt.name) ? 'bg-red-50 border-red-200 text-red-700' : 'bg-white border-zinc-100 text-zinc-500'}`}>
-                    <span className="font-bold">{opt.name}</span>
-                    <span className="font-black text-red-600">+R$ {opt.price.toFixed(2)}</span>
+                  <button key={opt.name} onClick={() => toggleAddition(opt.name)} className={`w-full flex justify-between items-center p-4 rounded-2xl border transition-all ${additions.includes(opt.name) ? 'bg-red-50 border-red-200 text-red-700 ring-2 ring-red-500/10' : 'bg-white border-zinc-100 text-zinc-500 hover:border-red-100'}`}>
+                    <span className="font-bold text-sm uppercase">{opt.name}</span>
+                    <span className="font-black text-red-600">R$ {opt.price.toFixed(2)}</span>
                   </button>
                 ))}
               </div>
@@ -142,8 +144,8 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
           )}
 
           <section>
-            <label className="block text-red-800 text-xs font-black uppercase mb-3 tracking-widest">Observações</label>
-            <textarea className="w-full bg-zinc-50 border border-zinc-100 rounded-2xl p-4 text-zinc-800 focus:outline-none focus:border-red-500 min-h-[100px]" placeholder="Alguma observação geral para este item?" value={observation} onChange={e => setObservation(e.target.value)} />
+            <label className="block text-red-800 text-xs font-black uppercase mb-3 tracking-[0.2em]">Alguma Observação?</label>
+            <textarea className="w-full bg-zinc-50 border border-zinc-100 rounded-2xl p-4 text-zinc-800 focus:outline-none focus:border-red-500 min-h-[100px] text-sm" placeholder="Ex: Carne bem passada, embalar separado..." value={observation} onChange={e => setObservation(e.target.value)} />
           </section>
         </div>
         <div className="p-6 bg-zinc-50/50 border-t border-red-50">
@@ -169,13 +171,15 @@ export default function App() {
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
   const [isSending, setIsSending] = useState(false);
 
-  // LISTENER REAL-TIME PARA O ADMINISTRADOR
+  // LISTENER REAL-TIME PARA ADMIN (Requisito Obrigatório)
   useEffect(() => {
     if (view === 'ADMIN' && isLoggedIn) {
       const q = query(collection(db, 'pedidos'), orderBy('criadoEm', 'desc'));
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const loadedOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setOrders(loadedOrders);
+      }, (error) => {
+        console.error("Erro no listener em tempo real:", error);
       });
       return () => unsubscribe();
     }
@@ -183,52 +187,51 @@ export default function App() {
 
   const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
-  // ENVIO DO PEDIDO - REQUISITOS OBRIGATÓRIOS
+  // ENVIO DO PEDIDO PARA O FIRESTORE (Requisito Obrigatório)
   const handleFinishOrder = async () => {
     if (isSending) return;
     
-    // Validação básica: não enviar pedido vazio
-    if (cart.length === 0 || !customer.name.trim()) {
-      alert("Por favor, preencha seu nome e escolha seus produtos.");
+    if (!customer.name.trim() || cart.length === 0) {
+      alert("Por favor, preencha os dados corretamente.");
       return;
     }
 
     setIsSending(true);
 
-    // Formatação dos itens para o campo 'itens' (string)
     const itensString = cart.map(item => {
         let text = `${item.quantity}x ${item.name}`;
         let details = [];
         if (item.removedIngredients?.length) details.push(`Sem: ${item.removedIngredients.join(', ')}`);
         if (item.additions?.length) details.push(`Add: ${item.additions.join(', ')}`);
         if (item.observation) details.push(`Obs: ${item.observation}`);
-        return details.length > 0 ? `${text} [${details.join(' | ')}]` : text;
+        return details.length > 0 ? `${text} (${details.join(' | ')})` : text;
     }).join('\n');
 
     try {
-      // 1. Criar novo documento usando addDoc
-      // 3. Campos obrigatórios conforme solicitado
+      // 1. Criar novo documento na coleção "pedidos"
+      // 2. Usar addDoc (conforme exigido)
+      // 3. Campos obrigatórios
       await addDoc(collection(db, 'pedidos'), {
         nomeCliente: customer.name,       // String
         itens: itensString,               // String
         total: Number(total),             // Number
         status: 'novo',                   // String
         criadoEm: serverTimestamp(),       // Timestamp
-        // Campos extras para contato da Sandra
+        // Campos de suporte
         telefone: customer.phone,
         tipo: customer.orderType,
+        endereco: customer.orderType === OrderType.DELIVERY ? `${customer.address}, ${customer.addressNumber}` : 'Balcão',
         pagamento: customer.paymentMethod
       });
       
-      // 4. Aguardar confirmação (o await garante isso)
-      // 5. Somente após sucesso, redirecionar
+      // 4 & 5. Somente após sucesso, redirecionar
       setCart([]);
       setStep('MENU');
       setView('SUCCESS');
     } catch (e) {
-      // 6. Se falhar, exibir erro e destravar o botão
-      console.error("Erro ao gravar pedido:", e);
-      alert("Erro ao enviar pedido para o sistema. Tente novamente.");
+      // 6. Se falhar, exibir erro e destravar
+      console.error("Erro fatal ao gravar pedido:", e);
+      alert("Houve uma falha técnica ao enviar o pedido. Por favor, tente novamente ou verifique sua conexão.");
     } finally {
       setIsSending(false);
     }
@@ -248,36 +251,38 @@ export default function App() {
     }, 500);
   };
 
-  // --- RENDERIZADORES ---
+  // --- RENDERS ---
 
   if (view === 'SUCCESS') return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center animate-fade-in bg-white">
-      <div className="glass-card p-12 rounded-[3.5rem] max-w-md shadow-2xl border-red-50 border">
-        <div className="text-8xl mb-8">🍔✨</div>
-        <h2 className="text-3xl font-black text-red-600 mb-4 tracking-tighter">Pedido Enviado!</h2>
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center animate-fade-in bg-white overflow-hidden relative">
+      <div className="absolute top-0 left-0 w-full h-1 bg-red-600"></div>
+      <div className="glass-card p-10 md:p-14 rounded-[3.5rem] max-w-md shadow-2xl border-red-50 border">
+        <div className="text-8xl mb-8 animate-bounce">🍔✨</div>
+        <h2 className="text-3xl font-black text-red-600 mb-5 tracking-tighter italic">Pedido Realizado!</h2>
         <p className="text-red-900/70 font-bold mb-10 leading-relaxed uppercase text-xs tracking-[0.2em]">
-          A <span className="text-red-600 underline">Sandra</span> já recebeu seu pedido e irá confirmar os detalhes com você via <span className="text-green-600">WhatsApp</span> em instantes.
+          Obrigado, <span className="text-red-600">{customer.name.split(' ')[0]}</span>!<br/>
+          A <span className="text-red-600 underline decoration-red-200">Sandra</span> recebeu seu pedido e em instantes confirmará com você pelo <span className="text-green-600 font-black">WhatsApp</span>.
         </p>
-        <Button fullWidth onClick={() => setView('HOME')} className="py-5 text-xl">VOLTAR AO INÍCIO</Button>
+        <Button fullWidth onClick={() => setView('HOME')} className="py-5 text-xl rounded-[2.5rem]">VOLTAR AO INÍCIO</Button>
       </div>
     </div>
   );
 
   if (view === 'LOGIN') return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-zinc-50">
-        <div className="glass-card p-10 rounded-[3rem] w-full max-w-sm shadow-2xl border-2 border-red-100">
-            <h2 className="text-2xl font-black text-red-600 mb-8 text-center tracking-tighter">Área da Sandra</h2>
+        <div className="glass-card p-10 rounded-[3.5rem] w-full max-w-sm shadow-2xl border-2 border-red-100">
+            <h2 className="text-2xl font-black text-red-600 mb-8 text-center tracking-tighter">Login da Sandra</h2>
             <form onSubmit={(e) => {
                 e.preventDefault();
                 const formData = new FormData(e.currentTarget);
                 if (formData.get('user') === 'sandra' && formData.get('pass') === '1234') {
                     setIsLoggedIn(true); setView('ADMIN');
-                } else alert("Senha incorreta");
+                } else alert("Acesso negado.");
             }} className="space-y-5">
-                <Input label="Usuário" name="user" required />
-                <Input label="Senha" name="pass" type="password" required />
-                <Button type="submit" fullWidth className="py-4">ENTRAR NO PAINEL</Button>
-                <button type="button" onClick={() => setView('HOME')} className="w-full text-zinc-400 font-bold text-xs uppercase tracking-widest mt-2">Voltar</button>
+                <Input label="Usuário" name="user" placeholder="sandra" required />
+                <Input label="Senha" name="pass" type="password" placeholder="****" required />
+                <Button type="submit" fullWidth className="py-4 rounded-2xl">ENTRAR NO PAINEL</Button>
+                <button type="button" onClick={() => setView('HOME')} className="w-full text-zinc-300 font-bold text-[10px] uppercase tracking-widest mt-2 hover:text-red-400 transition-colors">Cancelar</button>
             </form>
         </div>
     </div>
@@ -285,48 +290,60 @@ export default function App() {
 
   if (view === 'ADMIN') return (
     <div className="min-h-screen p-4 md:p-8 bg-zinc-50 pb-24 animate-fade-in">
-      <header className="flex justify-between items-center mb-10 max-w-6xl mx-auto">
+      <header className="flex justify-between items-center mb-12 max-w-6xl mx-auto bg-white p-6 rounded-[2.5rem] shadow-sm">
         <div>
-          <h2 className="text-3xl font-black text-red-700 tracking-tighter italic leading-none">Painel de Pedidos</h2>
-          <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mt-1">Conectado em tempo real ao Firebase</p>
+          <h2 className="text-3xl font-black text-red-700 tracking-tighter leading-none italic">Pedidos da Sandra</h2>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+            <p className="text-zinc-400 text-[9px] font-black uppercase tracking-widest">Tempo Real Ativado</p>
+          </div>
         </div>
-        <Button variant="secondary" onClick={() => { setIsLoggedIn(false); setView('HOME'); }} className="px-4 py-2">SAIR</Button>
+        <Button variant="secondary" onClick={() => { setIsLoggedIn(false); setView('HOME'); }} className="px-5 py-2 text-xs rounded-xl">SAIR</Button>
       </header>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
         {orders.map(o => (
-          <div key={o.id} className={`glass-card p-6 rounded-[2.5rem] border-l-[12px] shadow-xl transition-all relative ${o.status === 'novo' ? 'border-red-600 bg-white ring-4 ring-red-500/10' : 'border-zinc-200 opacity-60'}`}>
-            <div className="flex justify-between items-start mb-4">
+          <div key={o.id} className={`glass-card p-7 rounded-[3rem] border-l-[12px] shadow-2xl transition-all relative overflow-hidden ${o.status === 'novo' ? 'border-red-600 bg-white' : 'border-zinc-200 opacity-70 scale-[0.98]'}`}>
+            <div className="flex justify-between items-start mb-5">
               <div className="pr-4">
-                <p className="text-xl font-black text-red-900 leading-tight">{o.nomeCliente}</p>
-                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">
-                   PAGAMENTO: {o.pagamento}
+                <p className="text-2xl font-black text-red-900 leading-tight mb-1">{o.nomeCliente}</p>
+                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+                   {o.pagamento} • {o.tipo}
                 </p>
               </div>
-              {o.status === 'novo' && <span className="bg-red-600 text-white text-[9px] font-black px-2 py-1 rounded-full animate-bounce">NOVO</span>}
+              {o.status === 'novo' && (
+                <span className="bg-red-600 text-white text-[9px] font-black px-3 py-1.5 rounded-full shadow-lg shadow-red-200 animate-pulse">NOVO</span>
+              )}
             </div>
             
-            <div className="bg-zinc-50 rounded-2xl p-4 mb-4 text-[11px] font-mono text-zinc-700 whitespace-pre-wrap border border-zinc-100 max-h-[150px] overflow-y-auto">
+            <div className="bg-zinc-50/50 rounded-2xl p-5 mb-5 text-[11px] font-mono text-zinc-700 whitespace-pre-wrap border border-zinc-100 max-h-[160px] overflow-y-auto leading-relaxed">
               {o.itens}
             </div>
             
-            <div className="flex justify-between items-center mb-6">
-               <p className="text-xl font-black text-red-600">R$ {Number(o.total).toFixed(2)}</p>
-               <button onClick={() => printOrder(o)} className="p-3 bg-zinc-800 text-white rounded-2xl shadow-lg active:scale-90 transition-transform">🖨️</button>
+            <div className="flex justify-between items-center mb-7">
+               <div>
+                 <p className="text-[9px] font-black text-zinc-300 uppercase tracking-widest">Valor Total</p>
+                 <p className="text-3xl font-black text-red-600 italic">R$ {Number(o.total).toFixed(2)}</p>
+               </div>
+               <button onClick={() => printOrder(o)} className="w-14 h-14 bg-zinc-900 text-white rounded-2xl shadow-xl flex items-center justify-center hover:bg-black active:scale-90 transition-all text-2xl">🖨️</button>
             </div>
 
-            {o.status === 'novo' && (
-              <Button fullWidth onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 border-green-500 py-3 font-black text-xs">
-                CONCLUIR PEDIDO
+            {o.status === 'novo' ? (
+              <Button fullWidth onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 hover:bg-green-700 border-green-500 py-4 font-black text-xs rounded-2xl shadow-green-100">
+                PRONTO / CONCLUIR
               </Button>
+            ) : (
+              <div className="w-full text-center p-3 bg-zinc-100 rounded-2xl text-zinc-400 font-black text-[10px] uppercase tracking-widest">
+                Pedido Concluído
+              </div>
             )}
           </div>
         ))}
 
         {orders.length === 0 && (
-          <div className="col-span-full flex flex-col items-center justify-center py-40 text-zinc-300">
-            <span className="text-6xl mb-4 animate-pulse">🥪</span>
-            <p className="italic font-bold text-xl tracking-tight">Aguardando novos pedidos...</p>
+          <div className="col-span-full flex flex-col items-center justify-center py-48 text-zinc-300">
+            <div className="text-7xl mb-6 opacity-30 animate-bounce">🥪</div>
+            <p className="italic font-black text-xl tracking-tighter opacity-40">Aguardando novos pedidos...</p>
           </div>
         )}
       </div>
@@ -338,53 +355,54 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white md:bg-zinc-50/30">
       {view === 'HOME' && (
         <div className="min-h-screen flex flex-col items-center justify-center p-6 animate-fade-in">
-          <div className="glass-card p-10 md:p-16 rounded-[4rem] text-center shadow-2xl max-w-md w-full border-red-50 bg-white">
-            <div className="text-7xl mb-6">🍔</div>
-            <h1 className="text-4xl font-black text-red-600 mb-2 tracking-tighter italic leading-none">Cantinho da Sandra</h1>
-            <p className="text-red-900/30 font-black uppercase tracking-[0.3em] text-[10px] mb-12">O Melhor Lanche da Região</p>
-            <Button fullWidth onClick={() => setView('ORDER')} className="text-xl py-6 shadow-2xl shadow-red-100 flex items-center justify-center gap-4 group">
-              FAZER MEU PEDIDO <span className="text-2xl group-hover:translate-x-1 transition-transform">🚀</span>
+          <div className="glass-card p-12 md:p-20 rounded-[4.5rem] text-center shadow-2xl max-w-md w-full border-red-50 bg-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-red-600/5 rounded-full -mr-16 -mt-16"></div>
+            <div className="text-8xl mb-8 animate-float">🍔</div>
+            <h1 className="text-5xl font-black text-red-600 mb-3 tracking-tighter italic leading-none">Sandra</h1>
+            <p className="text-red-900/30 font-black uppercase tracking-[0.4em] text-[10px] mb-14">Lanches & Porções</p>
+            <Button fullWidth onClick={() => setView('ORDER')} className="text-2xl py-7 shadow-2xl shadow-red-100 flex items-center justify-center gap-4 group rounded-[3rem]">
+              COMEÇAR PEDIDO <span className="text-3xl group-hover:translate-x-2 transition-transform">➡</span>
             </Button>
-            <button onClick={() => setView('LOGIN')} className="mt-14 text-zinc-300 text-[10px] font-bold uppercase tracking-widest hover:text-red-500 transition-colors">Acesso Administrativo</button>
+            <button onClick={() => setView('LOGIN')} className="mt-16 text-zinc-300 text-[10px] font-black uppercase tracking-[0.2em] hover:text-red-500 transition-colors">Painel Admin</button>
           </div>
         </div>
       )}
 
       {view === 'ORDER' && (
-        <div className="max-w-xl mx-auto min-h-screen flex flex-col bg-white">
+        <div className="max-w-xl mx-auto min-h-screen flex flex-col bg-white md:shadow-2xl">
             {step === 'MENU' && (
                 <>
-                    <header className="p-4 bg-white sticky top-0 z-50 flex justify-between items-center border-b border-zinc-50 shadow-sm">
-                        <button onClick={() => setView('HOME')} className="text-red-600 font-black text-xs uppercase tracking-widest">← Início</button>
-                        <h2 className="font-black text-red-700 uppercase tracking-widest text-sm">Cardápio</h2>
-                        <div className="w-10"></div>
+                    <header className="p-5 bg-white sticky top-0 z-50 flex justify-between items-center border-b border-zinc-50">
+                        <button onClick={() => setView('HOME')} className="text-red-600 font-black text-xs uppercase tracking-widest px-3 py-1 hover:bg-red-50 rounded-lg">← Voltar</button>
+                        <h2 className="font-black text-red-700 uppercase tracking-[0.2em] text-[11px]">Cardápio</h2>
+                        <div className="w-12"></div>
                     </header>
-                    <div className="p-4 flex gap-2 overflow-x-auto no-scrollbar py-6">
+                    <div className="p-4 flex gap-2 overflow-x-auto no-scrollbar py-6 bg-white border-b border-zinc-50">
                         {CATEGORIES.map(cat => (
-                            <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`flex-shrink-0 px-6 py-3 rounded-2xl font-black text-[10px] uppercase transition-all ${activeCategory === cat.id ? 'bg-red-600 text-white shadow-lg scale-105' : 'bg-zinc-100 text-zinc-400'}`}>
+                            <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`flex-shrink-0 px-7 py-3.5 rounded-[1.5rem] font-black text-[10px] uppercase transition-all shadow-sm ${activeCategory === cat.id ? 'bg-red-600 text-white shadow-lg scale-105' : 'bg-zinc-50 text-zinc-400 hover:bg-zinc-100'}`}>
                                 {cat.icon} {cat.name}
                             </button>
                         ))}
                     </div>
-                    <div className="flex-1 p-4 space-y-3 pb-36 overflow-y-auto">
+                    <div className="flex-1 p-5 space-y-4 pb-40 overflow-y-auto">
                         {PRODUCTS.filter(p => p.categoryId === activeCategory).map(prod => (
-                            <div key={prod.id} onClick={() => setSelectedProduct(prod)} className="bg-white border border-zinc-100 p-5 rounded-[2.5rem] flex justify-between items-center shadow-sm active:scale-95 transition-all">
-                                <div>
-                                    <h3 className="text-lg font-black text-red-900 mb-1 leading-tight">{prod.name}</h3>
-                                    <p className="text-red-600 font-black text-base">R$ {prod.price.toFixed(2)}</p>
+                            <div key={prod.id} onClick={() => setSelectedProduct(prod)} className="bg-white border border-zinc-100 p-6 rounded-[2.8rem] flex justify-between items-center shadow-sm active:scale-95 transition-all hover:border-red-100 group">
+                                <div className="flex-1 pr-4">
+                                    <h3 className="text-xl font-black text-red-900 mb-1 leading-none group-hover:text-red-600 transition-colors">{prod.name}</h3>
+                                    <p className="text-red-600 font-black text-lg italic">R$ {prod.price.toFixed(2)}</p>
                                 </div>
-                                <div className="w-12 h-12 bg-red-600 text-white rounded-2xl flex items-center justify-center text-2xl font-black shadow-lg shadow-red-100">+</div>
+                                <div className="w-14 h-14 bg-red-600 text-white rounded-[1.5rem] flex items-center justify-center text-3xl font-black shadow-lg shadow-red-100 group-hover:scale-110 transition-transform">+</div>
                             </div>
                         ))}
                     </div>
                     {cart.length > 0 && (
-                        <div className="fixed bottom-8 left-4 right-4 z-50 animate-slide-up">
-                            <Button fullWidth onClick={() => setStep('TYPE_SELECTION')} className="py-5 text-xl flex justify-between items-center px-10 shadow-2xl rounded-[3rem]">
-                                <span className="font-bold">CONCLUIR PEDIDO</span>
-                                <span className="bg-white/20 px-4 py-1 rounded-2xl text-lg font-black italic">R$ {total.toFixed(2)}</span>
+                        <div className="fixed bottom-10 left-6 right-6 z-50 animate-slide-up max-w-lg mx-auto">
+                            <Button fullWidth onClick={() => setStep('TYPE_SELECTION')} className="py-6 text-xl flex justify-between items-center px-10 shadow-2xl rounded-[3rem] ring-4 ring-red-600/10">
+                                <span className="font-black">CONTINUAR</span>
+                                <span className="bg-white/20 px-5 py-1.5 rounded-2xl text-xl font-black italic">R$ {total.toFixed(2)}</span>
                             </Button>
                         </div>
                     )}
@@ -392,84 +410,86 @@ export default function App() {
             )}
 
             {step === 'TYPE_SELECTION' && (
-                <div className="p-6 flex flex-col items-center justify-center min-h-[85vh] animate-fade-in space-y-12">
-                    <h2 className="text-4xl font-black text-red-700 text-center tracking-tighter leading-none">Qual o modo de entrega?</h2>
-                    <div className="grid grid-cols-1 w-full gap-5 max-w-xs">
-                        <button onClick={() => { setCustomer({...customer, orderType: OrderType.DELIVERY}); setStep('FORM'); }} className="bg-white border-2 border-zinc-50 hover:border-red-500 p-10 rounded-[4rem] text-center shadow-2xl transition-all group active:scale-95">
-                            <span className="text-7xl block mb-4 group-hover:scale-110 transition-transform">🛵</span>
-                            <span className="font-black text-red-900 text-xl tracking-widest uppercase">ENTREGA</span>
+                <div className="p-6 flex flex-col items-center justify-center min-h-[90vh] animate-fade-in space-y-12">
+                    <div className="text-center">
+                      <p className="text-red-600 font-black text-[11px] tracking-[0.3em] uppercase mb-4">Escolha uma opção</p>
+                      <h2 className="text-5xl font-black text-red-800 tracking-tighter leading-none italic">Delivery ou<br/>Retirada?</h2>
+                    </div>
+                    <div className="grid grid-cols-1 w-full gap-6 max-w-xs">
+                        <button onClick={() => { setCustomer({...customer, orderType: OrderType.DELIVERY}); setStep('FORM'); }} className="bg-white border-2 border-zinc-50 hover:border-red-500 p-12 rounded-[4rem] text-center shadow-2xl transition-all group active:scale-95">
+                            <span className="text-8xl block mb-6 group-hover:scale-110 transition-transform">🛵</span>
+                            <span className="font-black text-red-900 text-2xl tracking-tighter italic">ENTREGA</span>
                         </button>
-                        <button onClick={() => { setCustomer({...customer, orderType: OrderType.COUNTER}); setStep('FORM'); }} className="bg-white border-2 border-zinc-50 hover:border-red-500 p-10 rounded-[4rem] text-center shadow-2xl transition-all group active:scale-95">
-                            <span className="text-7xl block mb-4 group-hover:scale-110 transition-transform">🥡</span>
-                            <span className="font-black text-red-900 text-xl tracking-widest uppercase">RETIRADA</span>
+                        <button onClick={() => { setCustomer({...customer, orderType: OrderType.COUNTER}); setStep('FORM'); }} className="bg-white border-2 border-zinc-50 hover:border-red-500 p-12 rounded-[4rem] text-center shadow-2xl transition-all group active:scale-95">
+                            <span className="text-8xl block mb-6 group-hover:scale-110 transition-transform">🥡</span>
+                            <span className="font-black text-red-900 text-2xl tracking-tighter italic">RETIRADA</span>
                         </button>
                     </div>
-                    <button onClick={() => setStep('MENU')} className="text-zinc-400 font-bold uppercase text-[10px] tracking-widest hover:text-red-600 transition-colors">← Voltar</button>
+                    <button onClick={() => setStep('MENU')} className="text-zinc-300 font-bold uppercase text-[10px] tracking-widest hover:text-red-600 transition-colors">← Voltar ao Cardápio</button>
                 </div>
             )}
 
             {step === 'FORM' && (
-                <div className="p-6 animate-fade-in pb-40">
-                    <h2 className="text-3xl font-black text-red-700 mb-8 tracking-tighter italic">Seus Dados</h2>
-                    <form onSubmit={(e) => { e.preventDefault(); setStep('SUMMARY'); }} className="space-y-5">
-                        <Input label="Seu Nome Completo" value={customer.name} onChange={e => setCustomer({...customer, name: e.target.value})} placeholder="Para sabermos quem é" required />
-                        <Input label="Telefone com DDD" type="tel" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} placeholder="(00) 00000-0000" required />
+                <div className="p-8 animate-fade-in pb-40">
+                    <h2 className="text-4xl font-black text-red-700 mb-10 tracking-tighter italic">Dados do Pedido</h2>
+                    <form onSubmit={(e) => { e.preventDefault(); setStep('SUMMARY'); }} className="space-y-6">
+                        <Input label="Seu Nome Completo" value={customer.name} onChange={e => setCustomer({...customer, name: e.target.value})} placeholder="Para identificarmos você" required />
+                        <Input label="WhatsApp (com DDD)" type="tel" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} placeholder="(00) 00000-0000" required />
                         {customer.orderType === OrderType.DELIVERY && (
-                            <div className="animate-fade-in space-y-5">
-                                <Input label="Endereço e Bairro" value={customer.address} onChange={e => setCustomer({...customer, address: e.target.value})} placeholder="Ex: Rua A, Bairro B" required />
-                                <Input label="Número" value={customer.addressNumber} onChange={e => setCustomer({...customer, addressNumber: e.target.value})} placeholder="123" required />
+                            <div className="animate-fade-in space-y-6">
+                                <Input label="Rua / Bairro" value={customer.address} onChange={e => setCustomer({...customer, address: e.target.value})} placeholder="Rua Central, Bairro Novo" required />
+                                <Input label="Número da Casa" value={customer.addressNumber} onChange={e => setCustomer({...customer, addressNumber: e.target.value})} placeholder="123-A" required />
                             </div>
                         )}
-                        <Select label="Forma de Pagamento" options={PAYMENT_METHODS} value={customer.paymentMethod} onChange={e => setCustomer({...customer, paymentMethod: e.target.value as PaymentMethod})} />
-                        <Button type="submit" fullWidth className="py-5 text-xl mt-10">CONTINUAR</Button>
+                        <Select label="Como vai pagar?" options={PAYMENT_METHODS} value={customer.paymentMethod} onChange={e => setCustomer({...customer, paymentMethod: e.target.value as PaymentMethod})} />
+                        <Button type="submit" fullWidth className="py-6 text-2xl mt-12 rounded-[2.5rem] shadow-red-200">CONTINUAR</Button>
                     </form>
-                    <button onClick={() => setStep('TYPE_SELECTION')} className="w-full mt-6 text-zinc-400 font-bold uppercase text-[10px] tracking-widest text-center">← Voltar</button>
+                    <button onClick={() => setStep('TYPE_SELECTION')} className="w-full mt-8 text-zinc-300 font-bold uppercase text-[10px] tracking-widest text-center hover:text-red-500">← Alterar Modo</button>
                 </div>
             )}
 
             {step === 'SUMMARY' && (
-                <div className="p-6 animate-fade-in pb-44">
-                    <h2 className="text-3xl font-black text-red-700 mb-6 tracking-tighter">Resumo do Pedido</h2>
-                    <div className="bg-zinc-50 p-8 rounded-[3rem] mb-8 space-y-6 shadow-inner border border-zinc-100">
-                        <div className="border-b border-zinc-200 pb-5">
-                            <p className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-1">Informações de Contato</p>
-                            <p className="text-2xl font-black text-red-900 leading-tight">{customer.name}</p>
-                            <p className="text-sm font-bold text-zinc-500 mt-1">{customer.phone}</p>
-                            <p className="text-[10px] font-black text-red-600 mt-2 uppercase">
+                <div className="p-8 animate-fade-in pb-44">
+                    <h2 className="text-4xl font-black text-red-700 mb-8 tracking-tighter italic">Quase lá!</h2>
+                    <div className="bg-zinc-50 p-9 rounded-[3.5rem] mb-10 space-y-7 shadow-inner border border-zinc-100">
+                        <div className="border-b border-zinc-200 pb-6">
+                            <p className="text-[10px] font-black text-red-400 uppercase tracking-[0.3em] mb-2">Informações</p>
+                            <p className="text-3xl font-black text-red-900 leading-tight italic">{customer.name}</p>
+                            <p className="text-[10px] font-black text-red-600 mt-3 uppercase tracking-tighter">
                                 {customer.orderType} • PAGAMENTO: {customer.paymentMethod}
                             </p>
                         </div>
-                        <div className="space-y-4">
+                        <div className="space-y-5">
                             {cart.map(item => (
                                 <div key={item.cartId} className="flex justify-between items-start">
                                     <div className="flex-1 pr-4">
-                                        <p className="font-black text-red-900 leading-tight">{item.quantity}x {item.name}</p>
-                                        <div className="text-[9px] text-zinc-400 font-bold mt-1 uppercase leading-relaxed">
+                                        <p className="font-black text-red-900 leading-tight text-lg">{item.quantity}x {item.name}</p>
+                                        <div className="text-[10px] text-zinc-400 font-bold mt-2 uppercase leading-relaxed">
                                             {item.removedIngredients?.map(i => <span key={i} className="block text-red-400">× {i}</span>)}
-                                            {item.additions?.map(i => <span key={i} className="block text-green-600">✓ {i}</span>)}
-                                            {item.observation && <span className="block italic mt-1 text-zinc-500 lowercase">"{item.observation}"</span>}
+                                            {item.additions?.map(i => <span key={i} className="block text-green-600 font-black">✓ {i}</span>)}
+                                            {item.observation && <span className="block italic mt-1 text-zinc-500 border-l-2 border-red-200 pl-2">"{item.observation}"</span>}
                                         </div>
                                     </div>
-                                    <p className="font-black text-red-700 whitespace-nowrap">R$ {(item.price * item.quantity).toFixed(2)}</p>
+                                    <p className="font-black text-red-700 whitespace-nowrap text-lg italic">R$ {(item.price * item.quantity).toFixed(2)}</p>
                                 </div>
                             ))}
                         </div>
-                        <div className="border-t border-zinc-200 pt-5 flex justify-between items-center">
-                            <span className="text-xl font-black text-zinc-300">TOTAL</span>
-                            <span className="text-4xl font-black text-red-600 italic">R$ {total.toFixed(2)}</span>
+                        <div className="border-t border-zinc-200 pt-7 flex justify-between items-center">
+                            <span className="text-xl font-black text-zinc-300 italic">TOTAL GERAL</span>
+                            <span className="text-4xl font-black text-red-600 italic leading-none">R$ {total.toFixed(2)}</span>
                         </div>
                     </div>
-                    <div className="fixed bottom-10 left-6 right-6 z-50">
+                    <div className="fixed bottom-10 left-6 right-6 z-50 max-w-lg mx-auto">
                         <Button 
                             onClick={handleFinishOrder} 
                             disabled={isSending}
                             fullWidth 
-                            className={`py-6 text-2xl shadow-2xl shadow-red-200 rounded-[3rem] transition-all ${isSending ? 'opacity-70 scale-95 cursor-not-allowed' : 'animate-pulse-slow'}`}
+                            className={`py-7 text-3xl shadow-2xl shadow-red-200 rounded-[3rem] border-4 border-white/20 transition-all ${isSending ? 'opacity-70 scale-95 cursor-wait' : 'animate-pulse-slow'}`}
                         >
-                            {isSending ? 'PROCESSANDO...' : 'FECHAR PEDIDO! ✅'}
+                            {isSending ? 'GRAVANDO...' : 'FAZER PEDIDO! ✅'}
                         </Button>
                     </div>
-                    <button onClick={() => setStep('FORM')} className="w-full mt-4 text-zinc-400 font-bold uppercase text-[10px] tracking-widest text-center">← Alterar Dados</button>
+                    <button onClick={() => setStep('FORM')} className="w-full mt-6 text-zinc-300 font-bold uppercase text-[10px] tracking-widest text-center hover:text-red-500">← Corrigir Dados</button>
                 </div>
             )}
         </div>
@@ -483,17 +503,23 @@ export default function App() {
       />
 
       <style>{`
-        @keyframes fade-in { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fade-in { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        @keyframes pulse-slow { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }
-        .animate-fade-in { animation: fade-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        .animate-slide-up { animation: slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes pulse-slow { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+        
+        .animate-fade-in { animation: fade-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-slide-up { animation: slide-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         .animate-pulse-slow { animation: pulse-slow 2s infinite ease-in-out; }
+        .animate-float { animation: float 5s infinite ease-in-out; }
+        
         .no-scrollbar::-webkit-scrollbar { display: none; }
+        
         @media print {
             .no-print { display: none !important; }
-            body { background: white !important; margin: 0; padding: 0; }
-            .printable-area { display: block !important; }
+            body, html { background: white !important; margin: 0; padding: 0; }
+            #root > *:not(.printable-area) { display: none !important; }
+            .printable-area { display: block !important; width: 100% !important; }
         }
       `}</style>
     </div>
