@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from './components/Button';
 import { Input, Select } from './components/Input';
 import { 
-    CATEGORIES, PRODUCTS, PAYMENT_METHODS, ORDER_TYPES, 
+    CATEGORIES, PRODUCTS, PAYMENT_METHODS, 
     EXTRAS_OPTIONS, FRANGUINHO_SIDES,
     ACAI_PACKAGING, ACAI_COMPLEMENTS, ACAI_TOPPINGS, ACAI_FRUITS, ACAI_PAID_EXTRAS
 } from './constants';
@@ -13,13 +13,8 @@ import { Product, CustomerInfo, CartItem, PaymentMethod, Order, OrderStatus, Ord
 type OrderStep = 'MENU' | 'TYPE_SELECTION' | 'FORM' | 'SUMMARY';
 type AppView = 'HOME' | 'ORDER' | 'ADMIN' | 'ORDER_SUCCESS' | 'LOGIN';
 
-interface OrderDraft {
-    id: string;
-    customer: CustomerInfo;
-    cart: CartItem[];
-    step: OrderStep;
-    updatedAt: number;
-}
+// Canal de comunicação para simular tempo real entre abas/janelas
+const orderChannel = new BroadcastChannel('sandra_orders');
 
 // --- RECEIPT COMPONENT ---
 const Receipt = ({ order }: { order: Order | null }) => {
@@ -140,11 +135,7 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: { product: Produc
 
   useEffect(() => {
     if (isOpen && product) {
-      setQuantity(1);
-      setRemovedIngredients([]);
-      setAdditions([]);
-      setObservation('');
-      setPackaging(ACAI_PACKAGING[0]);
+      setQuantity(1); setRemovedIngredients([]); setAdditions([]); setObservation(''); setPackaging(ACAI_PACKAGING[0]);
     }
   }, [isOpen, product]);
 
@@ -177,7 +168,7 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: { product: Produc
   const toggleAddition = (add: string, isAcomp: boolean = false) => {
     if (isAcomp && product.maxSides !== undefined) {
         if (!additions.includes(add) && additions.length >= product.maxSides) {
-            alert(`Máximo de ${product.maxSides} acompanhamentos permitido.`);
+            alert(`Máximo de ${product.maxSides} acompanhamentos.`);
             return;
         }
     }
@@ -188,7 +179,7 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: { product: Produc
     <div className={`fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
       <div className="bg-zinc-900 border border-red-900/20 w-full max-w-lg rounded-[2rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
         <div className="p-4 border-b border-red-900/10 flex justify-between items-start">
-          <div><h3 className="text-xl font-black text-white">{product.name}</h3><p className="text-red-500 font-bold text-base">A partir de R$ {product.price.toFixed(2)}</p></div>
+          <div><h3 className="text-xl font-black text-white">{product.name}</h3><p className="text-red-500 font-bold text-base">R$ {product.price.toFixed(2)}</p></div>
           <button onClick={onClose} className="text-zinc-500 text-2xl font-bold">&times;</button>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
@@ -274,23 +265,36 @@ const CustomerHomeView = ({ onStartOrder }: any) => (
   </div>
 );
 
-const AdminView = ({ orders, drafts, onSelectDraft, onDeleteDraft, onShowDaily, onPrint }: any) => (
+const AdminView = ({ orders, onShowDaily, onPrint, onStatusChange }: { 
+    orders: Order[], onShowDaily: () => void, onPrint: (o: Order) => void, onStatusChange: (id: string, s: OrderStatus) => void 
+}) => (
   <div className="p-4 max-w-5xl mx-auto space-y-8 pb-48 animate-fade-in">
-    <header className="flex justify-between items-center"><h2 className="text-3xl font-black text-red-700 tracking-tighter">Painel de Gestão</h2><Button onClick={onShowDaily}>📊 Relatório</Button></header>
-    <section className="space-y-4"><h3 className="text-lg font-black text-red-800/40 uppercase tracking-[0.2em]">🕒 Pedidos em Aberto</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{drafts.length === 0 ? <p className="text-zinc-400 italic">Nenhum rascunho...</p> : drafts.map((d: any) => (
-          <div key={d.id} className="glass-card p-4 rounded-2xl flex justify-between items-center border-l-[6px] border-yellow-500 shadow-xl transition-all hover:translate-x-1">
-            <div className="cursor-pointer flex-1" onClick={() => onSelectDraft(d.id)}><p className="font-black text-red-900 text-lg">{d.customer.name || 'Sem Nome'}</p>
-              <p className="text-[10px] text-zinc-500 font-bold uppercase mt-1">{d.cart.length} itens • {new Date(d.updatedAt).toLocaleTimeString()}</p></div>
-            <button onClick={() => onDeleteDraft(d.id)} className="p-2 bg-red-50 text-red-300 hover:text-red-600 rounded-xl">🗑️</button>
-          </div>))}</div>
-    </section>
-    <section className="space-y-4"><h3 className="text-lg font-black text-red-800/40 uppercase tracking-[0.2em]">✅ Histórico Recente</h3>
-      <div className="space-y-3">{orders.length === 0 ? <p className="text-zinc-400 italic">Vazio...</p> : orders.map((o: any) => (
-          <div key={o.id} className="glass-card p-4 rounded-2xl border-l-[6px] border-red-600 flex justify-between items-center shadow-xl">
-            <div><p className="font-black text-red-900 text-xl">{o.customer.name}</p><p className="text-[10px] text-zinc-500 font-bold uppercase">{new Date(o.createdAt).toLocaleString()}</p><p className="font-black text-red-600 text-lg mt-1">R$ {o.total.toFixed(2)}</p></div>
-            <button onClick={() => onPrint(o)} className="bg-red-600 text-white p-3 rounded-2xl shadow-xl hover:brightness-110 active:scale-95 transition-all">🖨️</button>
-          </div>))}</div>
+    <header className="flex justify-between items-center">
+      <h2 className="text-3xl font-black text-red-700 tracking-tighter">Painel de Gestão</h2>
+      <Button onClick={onShowDaily}>📊 Relatório</Button>
+    </header>
+    
+    <section className="space-y-4">
+      <h3 className="text-lg font-black text-red-800/40 uppercase tracking-[0.2em]">📦 Histórico de Pedidos</h3>
+      <div className="space-y-3">
+        {orders.length === 0 ? <p className="text-zinc-400 italic">Vazio...</p> : orders.map((o: Order) => (
+          <div key={o.id} className={`glass-card p-4 rounded-2xl border-l-[8px] flex justify-between items-center shadow-xl transition-all ${o.status === OrderStatus.NEW ? 'border-red-600 bg-red-50/50 animate-pulse-soft ring-4 ring-red-500/20' : 'border-zinc-300'}`}>
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="font-black text-red-900 text-xl">{o.customer.name}</p>
+                {o.status === OrderStatus.NEW && <span className="bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase">NOVO</span>}
+              </div>
+              <p className="text-[10px] text-zinc-500 font-bold uppercase">{new Date(o.createdAt).toLocaleString()} • {o.customer.orderType}</p>
+              <p className="font-black text-red-600 text-lg mt-1">R$ {o.total.toFixed(2)}</p>
+            </div>
+            <div className="flex gap-2">
+              {o.status === OrderStatus.NEW && (
+                <button onClick={() => onStatusChange(o.id, OrderStatus.COMPLETED)} className="bg-green-600 text-white p-3 rounded-2xl shadow-xl hover:brightness-110 active:scale-95 transition-all">✅ Aceitar</button>
+              )}
+              <button onClick={() => onPrint(o)} className="bg-zinc-800 text-white p-3 rounded-2xl shadow-xl hover:brightness-110 active:scale-95 transition-all">🖨️</button>
+            </div>
+          </div>))}
+      </div>
     </section>
   </div>
 );
@@ -298,8 +302,6 @@ const AdminView = ({ orders, drafts, onSelectDraft, onDeleteDraft, onShowDaily, 
 export default function App() {
   const [view, setView] = useState<AppView>('HOME');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
-  const [drafts, setDrafts] = useState<OrderDraft[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -308,15 +310,44 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [reportData, setReportData] = useState<any>(null);
 
+  // Estado local para o pedido em construção (sem rascunhos no Admin)
+  const [currentOrder, setCurrentOrder] = useState<{
+      cart: CartItem[];
+      customer: CustomerInfo;
+      step: OrderStep;
+  }>({
+      cart: [],
+      step: 'MENU',
+      customer: { name: '', phone: '', address: '', addressNumber: '', reference: '', deliveryFee: 0, tableNumber: '', orderType: OrderType.DELIVERY, paymentMethod: PaymentMethod.PIX }
+  });
+
+  // Carregar pedidos iniciais
   useEffect(() => {
-    const d = localStorage.getItem('drafts');
-    const h = localStorage.getItem('orders');
-    if (d) setDrafts(JSON.parse(d));
-    if (h) setOrders(JSON.parse(h));
+    const h = localStorage.getItem('sandra_orders_db');
+    if (h) {
+        const parsedOrders = JSON.parse(h);
+        setOrders(parsedOrders.sort((a: Order, b: Order) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    }
   }, []);
 
-  useEffect(() => localStorage.setItem('drafts', JSON.stringify(drafts)), [drafts]);
-  useEffect(() => localStorage.setItem('orders', JSON.stringify(orders)), [orders]);
+  // Sincronização simulada em tempo real via BroadcastChannel
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+        if (event.data.type === 'NEW_ORDER') {
+            setOrders(prev => [event.data.order, ...prev]);
+            // Alerta sonoro ou visual discreto para o admin se desejar
+        } else if (event.data.type === 'STATUS_CHANGE') {
+            setOrders(prev => prev.map(o => o.id === event.data.id ? { ...o, status: event.data.status } : o));
+        }
+    };
+    orderChannel.addEventListener('message', handleMessage);
+    return () => orderChannel.removeEventListener('message', handleMessage);
+  }, []);
+
+  // Persistência persistente no localStorage
+  useEffect(() => {
+      localStorage.setItem('sandra_orders_db', JSON.stringify(orders));
+  }, [orders]);
 
   useEffect(() => {
     if (receiptOrder) {
@@ -328,37 +359,43 @@ export default function App() {
     }
   }, [receiptOrder]);
 
-  const activeDraft = drafts.find(d => d.id === activeDraftId);
-  const updateDraft = (updates: Partial<OrderDraft>) => {
-    if (!activeDraftId) return;
-    setDrafts(prev => prev.map(d => d.id === activeDraftId ? { ...d, ...updates, updatedAt: Date.now() } : d));
-  };
-
   const handleStartOrder = () => {
-    const id = Date.now().toString();
-    const newDraft: OrderDraft = {
-        id, cart: [], step: 'MENU', updatedAt: Date.now(),
+    setCurrentOrder({
+        cart: [], step: 'MENU',
         customer: { name: '', phone: '', address: '', addressNumber: '', reference: '', deliveryFee: 0, tableNumber: '', orderType: OrderType.DELIVERY, paymentMethod: PaymentMethod.PIX }
-    };
-    setDrafts(prev => [...prev, newDraft]);
-    setActiveDraftId(id);
+    });
     setView('ORDER');
   };
 
   const handleFinish = () => {
-    if (!activeDraft) return;
-    const total = activeDraft.cart.reduce((s, i) => s + (i.price * i.quantity), 0);
-    const newOrder: Order = { id: activeDraft.id, customer: activeDraft.customer, items: activeDraft.cart, total, createdAt: new Date().toISOString(), status: OrderStatus.PENDING };
+    const total = currentOrder.cart.reduce((s, i) => s + (i.price * i.quantity), 0);
+    const newOrder: Order = { 
+        id: Date.now().toString(), 
+        customer: currentOrder.customer, 
+        items: currentOrder.cart, 
+        total, 
+        createdAt: new Date().toISOString(), 
+        status: OrderStatus.NEW // Status solicitado: "novo"
+    };
+
+    // Aqui seria o salvamento no Firestore:
+    // await db.collection('pedidos').add(newOrder);
+    
+    // Simulação para demo local
     setOrders(prev => [newOrder, ...prev]);
-    setDrafts(prev => prev.filter(d => d.id !== activeDraftId));
-    setActiveDraftId(null);
+    orderChannel.postMessage({ type: 'NEW_ORDER', order: newOrder });
+    
     setView('ORDER_SUCCESS');
+  };
+
+  const updateStatus = (id: string, status: OrderStatus) => {
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
+      orderChannel.postMessage({ type: 'STATUS_CHANGE', id, status });
   };
 
   const handleAdminAccess = () => {
     if (isLoggedIn) {
       setView(view === 'ADMIN' ? 'HOME' : 'ADMIN');
-      setActiveDraftId(null);
     } else {
       setView('LOGIN');
     }
@@ -376,11 +413,11 @@ export default function App() {
         {view === 'LOGIN' && <LoginView onLogin={() => { setIsLoggedIn(true); setView('ADMIN'); }} onCancel={() => setView('HOME')} />}
         {view === 'ORDER_SUCCESS' && <OrderSuccessView onBack={() => setView('HOME')} />}
         {view === 'HOME' && <CustomerHomeView onStartOrder={handleStartOrder} />}
-        {view === 'ADMIN' && <AdminView orders={orders} drafts={drafts} onSelectDraft={(id:string)=>{setActiveDraftId(id); setView('ORDER');}} onDeleteDraft={(id:string)=>confirm('Excluir?') && setDrafts(p=>p.filter(d=>d.id!==id))} onShowDaily={()=>setReportData({title:'Hoje', total:orders.reduce((s,o)=>s+o.total,0), count:orders.length})} onPrint={setReceiptOrder} />}
+        {view === 'ADMIN' && <AdminView orders={orders} onShowDaily={()=>setReportData({title:'Hoje', total:orders.reduce((s,o)=>s+o.total,0), count:orders.length})} onPrint={setReceiptOrder} onStatusChange={updateStatus} />}
 
-        {view === 'ORDER' && activeDraft && (
+        {view === 'ORDER' && (
             <div className="h-screen flex flex-col animate-fade-in">
-                {activeDraft.step === 'MENU' && (
+                {currentOrder.step === 'MENU' && (
                   <>
                     <header className="p-3 glass sticky top-0 z-20 flex justify-between items-center"><button onClick={()=>setView('HOME')} className="text-sm font-bold text-red-600 px-2">X CANCELAR</button><h2 className="text-base font-black uppercase">Cardápio</h2><div className="w-10"></div></header>
                     <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-40">
@@ -401,63 +438,63 @@ export default function App() {
                         )}
                       </div>
                     </div>
-                    {activeDraft.cart.length > 0 && <div className="fixed bottom-16 left-0 right-0 glass p-4 border-t-4 border-red-600 z-30 animate-slide-up"><div className="max-w-md mx-auto flex justify-between items-center"><div><p className="text-2xl font-black text-red-900 leading-none">R$ {activeDraft.cart.reduce((s,i)=>s+(i.price*i.quantity),0).toFixed(2)}</p></div><Button onClick={()=>updateDraft({step:'TYPE_SELECTION'})} className="px-8 py-3 text-lg">PEDIR &rarr;</Button></div></div>}
+                    {currentOrder.cart.length > 0 && <div className="fixed bottom-16 left-0 right-0 glass p-4 border-t-4 border-red-600 z-30 animate-slide-up"><div className="max-w-md mx-auto flex justify-between items-center"><div><p className="text-2xl font-black text-red-900 leading-none">R$ {currentOrder.cart.reduce((s,i)=>s+(i.price*i.quantity),0).toFixed(2)}</p></div><Button onClick={()=>setCurrentOrder({...currentOrder, step:'TYPE_SELECTION'})} className="px-8 py-3 text-lg">PEDIR &rarr;</Button></div></div>}
                   </>
                 )}
-                {activeDraft.step === 'TYPE_SELECTION' && (
+                {currentOrder.step === 'TYPE_SELECTION' && (
                   <div className="flex flex-col items-center justify-center h-full p-4 space-y-8 animate-fade-in">
                     <h2 className="text-3xl font-black text-center text-red-700 tracking-tighter">Onde quer comer?</h2>
                     <div className="grid grid-cols-1 w-full max-w-sm gap-4">
-                        <button onClick={()=>updateDraft({step:'FORM', customer:{...activeDraft.customer, orderType:OrderType.DELIVERY}})} className="glass-card p-6 rounded-[2rem] text-center border-2 border-red-600 shadow-2xl hover:scale-105 active:scale-95 transition-all">
+                        <button onClick={()=>setCurrentOrder({...currentOrder, step:'FORM', customer:{...currentOrder.customer, orderType:OrderType.DELIVERY}})} className="glass-card p-6 rounded-[2rem] text-center border-2 border-red-600 shadow-2xl hover:scale-105 active:scale-95 transition-all">
                             <span className="text-6xl block mb-2">🛵</span><span className="text-xl font-black tracking-widest">ENTREGA</span>
                         </button>
-                        <button onClick={()=>updateDraft({step:'FORM', customer:{...activeDraft.customer, orderType:OrderType.COUNTER}})} className="glass-card p-6 rounded-[2rem] text-center border-2 border-zinc-200 shadow-2xl hover:scale-105 active:scale-95 transition-all">
+                        <button onClick={()=>setCurrentOrder({...currentOrder, step:'FORM', customer:{...currentOrder.customer, orderType:OrderType.COUNTER}})} className="glass-card p-6 rounded-[2rem] text-center border-2 border-zinc-200 shadow-2xl hover:scale-105 active:scale-95 transition-all">
                             <span className="text-6xl block mb-2">🥡</span><span className="text-xl font-black tracking-widest">RETIRAR</span>
                         </button>
                     </div>
-                    <button onClick={()=>updateDraft({step:'MENU'})} className="font-black text-zinc-400 uppercase text-xs tracking-widest">Cardápio</button>
+                    <button onClick={()=>setCurrentOrder({...currentOrder, step:'MENU'})} className="font-black text-zinc-400 uppercase text-xs tracking-widest">Cardápio</button>
                   </div>
                 )}
-                {activeDraft.step === 'FORM' && (
+                {currentOrder.step === 'FORM' && (
                   <div className="max-w-md mx-auto p-6 pt-8 space-y-6 h-full overflow-y-auto pb-40 animate-fade-in">
-                    <header className="flex justify-between items-center"><button onClick={()=>updateDraft({step:'TYPE_SELECTION'})} className="text-sm font-black text-red-600">← VOLTAR</button><h2 className="text-2xl font-black text-red-600 tracking-tighter">Dados</h2><div className="w-8"></div></header>
-                    <form className="space-y-4" onSubmit={e=>{e.preventDefault(); updateDraft({step:'SUMMARY'});}}>
-                      <Input label="Como se chama? *" value={activeDraft.customer.name} onChange={e=>updateDraft({customer:{...activeDraft.customer, name:e.target.value}})} required />
-                      <Input label="WhatsApp *" type="tel" value={activeDraft.customer.phone} onChange={e=>updateDraft({customer:{...activeDraft.customer, phone:e.target.value}})} required />
-                      {activeDraft.customer.orderType === OrderType.DELIVERY && (
+                    <header className="flex justify-between items-center"><button onClick={()=>setCurrentOrder({...currentOrder, step:'TYPE_SELECTION'})} className="text-sm font-black text-red-600">← VOLTAR</button><h2 className="text-2xl font-black text-red-600 tracking-tighter">Dados</h2><div className="w-8"></div></header>
+                    <form className="space-y-4" onSubmit={e=>{e.preventDefault(); setCurrentOrder({...currentOrder, step:'SUMMARY'});}}>
+                      <Input label="Como se chama? *" value={currentOrder.customer.name} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, name:e.target.value}})} required />
+                      <Input label="WhatsApp *" type="tel" value={currentOrder.customer.phone} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, phone:e.target.value}})} required />
+                      {currentOrder.customer.orderType === OrderType.DELIVERY && (
                         <div className="space-y-4 animate-fade-in">
-                          <Input label="Endereço Completo *" value={activeDraft.customer.address} onChange={e=>updateDraft({customer:{...activeDraft.customer, address:e.target.value}})} required />
+                          <Input label="Endereço Completo *" value={currentOrder.customer.address} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, address:e.target.value}})} required />
                           <div className="flex gap-3">
-                            <div className="flex-1"><Input label="Número *" value={activeDraft.customer.addressNumber} onChange={e=>updateDraft({customer:{...activeDraft.customer, addressNumber:e.target.value}})} required /></div>
-                            <div className="flex-[2]"><Input label="Referência" value={activeDraft.customer.reference} onChange={e=>updateDraft({customer:{...activeDraft.customer, reference:e.target.value}})} /></div>
+                            <div className="flex-1"><Input label="Número *" value={currentOrder.customer.addressNumber} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, addressNumber:e.target.value}})} required /></div>
+                            <div className="flex-[2]"><Input label="Referência" value={currentOrder.customer.reference} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, reference:e.target.value}})} /></div>
                           </div>
                         </div>
                       )}
-                      <Select label="Pagamento" options={PAYMENT_METHODS} value={activeDraft.customer.paymentMethod} onChange={e=>updateDraft({customer:{...activeDraft.customer, paymentMethod:e.target.value as PaymentMethod}})} />
+                      <Select label="Pagamento" options={PAYMENT_METHODS} value={currentOrder.customer.paymentMethod} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, paymentMethod:e.target.value as PaymentMethod}})} />
                       <div className="space-y-2"><label className="block text-red-700 text-xs font-bold ml-1">Observação Geral</label>
-                        <textarea className="w-full bg-zinc-900 text-white p-4 rounded-2xl h-24 shadow-xl text-sm" value={activeDraft.customer.observation} onChange={e=>updateDraft({customer:{...activeDraft.customer, observation:e.target.value}})} />
+                        <textarea className="w-full bg-zinc-900 text-white p-4 rounded-2xl h-24 shadow-xl text-sm" value={currentOrder.customer.observation} onChange={e=>setCurrentOrder({...currentOrder, customer:{...currentOrder.customer, observation:e.target.value}})} />
                       </div>
                       <Button type="submit" fullWidth className="py-4 text-xl">REVISAR &rarr;</Button>
                     </form>
                   </div>
                 )}
-                {activeDraft.step === 'SUMMARY' && (
+                {currentOrder.step === 'SUMMARY' && (
                   <div className="max-w-md mx-auto p-6 h-full flex flex-col pb-40 animate-fade-in">
-                    <header className="flex justify-between items-center mb-6"><button onClick={()=>updateDraft({step:'FORM'})} className="text-sm font-black text-red-600 underline">← CORRIGIR</button><h2 className="text-2xl font-black tracking-tighter">Resumo</h2><div className="w-10"></div></header>
+                    <header className="flex justify-between items-center mb-6"><button onClick={()=>setCurrentOrder({...currentOrder, step:'FORM'})} className="text-sm font-black text-red-600 underline">← CORRIGIR</button><h2 className="text-2xl font-black tracking-tighter">Resumo</h2><div className="w-10"></div></header>
                     <div className="flex-1 space-y-4">
                       <div className="glass-card p-6 rounded-[2rem] border-l-[8px] border-red-600 shadow-xl">
-                        <p className="text-[10px] font-black text-red-500 uppercase tracking-widest">{activeDraft.customer.orderType}</p>
-                        <p className="text-2xl font-black text-red-900">{activeDraft.customer.name}</p>
-                        <p className="text-base font-bold text-red-800/70 mt-1">Pagamento: {activeDraft.customer.paymentMethod}</p>
+                        <p className="text-[10px] font-black text-red-500 uppercase tracking-widest">{currentOrder.customer.orderType}</p>
+                        <p className="text-2xl font-black text-red-900">{currentOrder.customer.name}</p>
+                        <p className="text-base font-bold text-red-800/70 mt-1">Pagamento: {currentOrder.customer.paymentMethod}</p>
                       </div>
                       <div className="glass-card p-6 rounded-[2rem] space-y-4 shadow-2xl overflow-y-auto max-h-[30vh]">
-                        {activeDraft.cart.map(item=>(
+                        {currentOrder.cart.map(item=>(
                           <div key={item.cartId} className="flex justify-between items-start font-bold border-b-2 border-red-50 pb-2 last:border-0 last:pb-0">
                             <div className="flex-1 pr-4"><p className="text-lg font-black text-red-900 leading-tight">{item.quantity}x {item.name}</p></div>
                             <span className="text-lg font-black text-red-700 whitespace-nowrap">R$ {(item.price*item.quantity).toFixed(2)}</span>
                           </div>))}
                       </div>
-                      <div className="p-2 flex flex-col items-center"><p className="text-5xl font-black text-red-700 tracking-tighter">R$ {activeDraft.cart.reduce((s,i)=>s+(i.price*i.quantity),0).toFixed(2)}</p></div>
+                      <div className="p-2 flex flex-col items-center"><p className="text-5xl font-black text-red-700 tracking-tighter">R$ {currentOrder.cart.reduce((s,i)=>s+(i.price*i.quantity),0).toFixed(2)}</p></div>
                     </div>
                     <div className="fixed bottom-16 left-0 right-0 glass p-6 z-30 animate-slide-up"><Button onClick={handleFinish} fullWidth className="py-6 text-2xl shadow-red-200 animate-pulse">CONFIRMAR! ✅</Button></div>
                   </div>
@@ -478,7 +515,7 @@ export default function App() {
           </div>
         )}
 
-        {/* BOTAO ADMIN NO RODAPÉ - VERMELHO - DISCRETO */}
+        {/* BOTAO ADMIN NO RODAPÉ */}
         <div className="fixed bottom-2 left-0 right-0 flex justify-center z-[100] no-print">
           <button 
             onClick={handleAdminAccess} 
@@ -488,15 +525,17 @@ export default function App() {
           </button>
         </div>
 
-        <ProductModal product={selectedProduct} isOpen={!!selectedProduct} onClose={()=>setSelectedProduct(null)} onConfirm={item=>{updateDraft({cart:[...(activeDraft?.cart||[]), item]}); setSelectedProduct(null);}} />
-        <ManualItemModal isOpen={isManualModalOpen} onClose={()=>setIsManualModalOpen(false)} onConfirm={item=>{updateDraft({cart:[...(activeDraft?.cart||[]), item]}); setIsManualModalOpen(false);}} />
+        <ProductModal product={selectedProduct} isOpen={!!selectedProduct} onClose={()=>setSelectedProduct(null)} onConfirm={item=>{setCurrentOrder({...currentOrder, cart:[...(currentOrder.cart), item]}); setSelectedProduct(null);}} />
+        <ManualItemModal isOpen={isManualModalOpen} onClose={()=>setIsManualModalOpen(false)} onConfirm={item=>{setCurrentOrder({...currentOrder, cart:[...(currentOrder.cart), item]}); setIsManualModalOpen(false);}} />
       </div>
 
       <style>{`
         @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slide-up { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes pulse-soft { 0%, 100% { background-color: rgba(254, 226, 226, 0.5); } 50% { background-color: rgba(254, 202, 202, 0.7); } }
         .animate-fade-in { animation: fade-in 0.4s ease-out; }
         .animate-slide-up { animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+        .animate-pulse-soft { animation: pulse-soft 2s infinite ease-in-out; }
         
         @media print {
           .no-print { display: none !important; }

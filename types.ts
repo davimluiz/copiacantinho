@@ -1,3 +1,4 @@
+
 export enum PaymentMethod {
   PIX = 'PIX',
   CASH = 'DINHEIRO',
@@ -13,6 +14,7 @@ export enum OrderType {
 }
 
 export enum OrderStatus {
+  NEW = 'novo',
   PENDING = 'PENDENTE',
   COMPLETED = 'CONCLUÍDO',
   CANCELLED = 'CANCELADO'
@@ -24,8 +26,8 @@ export interface Product {
   price: number;
   categoryId: string;
   description?: string;
-  ingredients?: string[]; // Lista de ingredientes padrão (ex: Pão, Bife, Salada)
-  maxSides?: number; // Quantidade máxima de acompanhamentos gratuitos (para Franguinho)
+  ingredients?: string[];
+  maxSides?: number;
 }
 
 export interface Category {
@@ -35,31 +37,26 @@ export interface Category {
 }
 
 export interface CartItem extends Product {
-  cartId: string; // Identificador único no carrinho (para diferenciar x-burguer com salada de x-burguer sem)
+  cartId: string;
   quantity: number;
-  removedIngredients?: string[]; // Itens que o cliente desmarcou
-  additions?: string[]; // Extras selecionados
-  observation?: string; // Usado para sabores ou observações do item
-  packaging?: string; // Para Açaí: Mesa, Com Tampa, Sem Tampa
+  removedIngredients?: string[];
+  additions?: string[];
+  observation?: string;
+  packaging?: string;
 }
 
 export interface CustomerInfo {
   name: string;
   phone: string;
-  
-  // Endereço (Apenas para Entrega)
   address: string;
-  addressNumber: string; // Novo campo para o número
+  addressNumber: string;
   reference: string;
-  deliveryFee?: number; // Taxa de entrega manual
-  
-  // Mesa (Apenas para Mesa)
+  deliveryFee?: number;
   tableNumber: string;
-
   orderType: OrderType;
   paymentMethod: PaymentMethod;
-  observation?: string; // Observação geral do pedido
-  usePaidStamp?: boolean; // Se deve incluir campo de carimbo de pago
+  observation?: string;
+  usePaidStamp?: boolean;
 }
 
 export interface Order {
