@@ -21,7 +21,7 @@ import {
 } from './constants';
 import { Product, CustomerInfo, CartItem, PaymentMethod, OrderStatus, OrderType } from './types';
 
-// CONFIGURAÇÃO DO FIREBASE (Certifique-se de usar as chaves corretas do seu console)
+// CONFIGURAÇÃO DO FIREBASE
 const firebaseConfig = {
   apiKey: "AIzaSy...", 
   authDomain: "projeto-sandra.firebaseapp.com",
@@ -37,7 +37,7 @@ const db = getFirestore(app);
 type AppView = 'HOME' | 'ORDER' | 'LOGIN' | 'ADMIN' | 'SUCCESS';
 type OrderStep = 'MENU' | 'TYPE_SELECTION' | 'FORM' | 'SUMMARY';
 
-// --- COMPONENTE DE RECIBO (TÉRMICO) ---
+// --- COMPONENTE DE RECIBO (PARA IMPRESSÃO TÉRMICA VIA NAVEGADOR) ---
 const Receipt = ({ order }: { order: any | null }) => {
     if (!order) return null;
     const date = order.criadoEm?.toDate ? order.criadoEm.toDate().toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR');
@@ -62,14 +62,11 @@ const Receipt = ({ order }: { order: any | null }) => {
                 <p className="text-sm font-bold">TOTAL: R$ {Number(order.total).toFixed(2)}</p>
                 <p className="text-[9px] uppercase">{order.pagamento}</p>
             </div>
-            <div className="text-center mt-6 text-[8px] italic">
-                <p>Obrigado pela preferência!</p>
-            </div>
         </div>
     );
 };
 
-// --- MODAL DE PERSONALIZAÇÃO ---
+// --- MODAL DE SELEÇÃO DE PRODUTO ---
 const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
   const [quantity, setQuantity] = useState(1);
   const [removedIngredients, setRemovedIngredients] = useState<string[]>([]);
@@ -103,7 +100,7 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
 
   return (
     <div className={`fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-      <div className="bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-fade-in border border-white/20">
+      <div className="bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-fade-in">
         <div className="p-6 border-b border-red-50 flex justify-between items-center bg-red-50/40">
           <div><h3 className="text-2xl font-black text-red-700 leading-none">{product.name}</h3><p className="text-red-500 font-bold mt-1">R$ {product.price.toFixed(2)}</p></div>
           <button onClick={onClose} className="text-zinc-300 hover:text-red-600 text-4xl transition-colors">&times;</button>
@@ -112,15 +109,15 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
           <section>
             <label className="block text-red-800 text-xs font-black uppercase mb-3 tracking-[0.2em]">Quantidade</label>
             <div className="flex items-center gap-6">
-              <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-14 h-14 rounded-2xl bg-red-50 text-red-600 font-black text-2xl hover:bg-red-100 active:scale-95 transition-all shadow-sm">-</button>
+              <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-14 h-14 rounded-2xl bg-red-50 text-red-600 font-black text-2xl hover:bg-red-100">-</button>
               <span className="text-4xl font-black text-red-900">{quantity}</span>
-              <button onClick={() => setQuantity(quantity + 1)} className="w-14 h-14 rounded-2xl bg-red-50 text-red-600 font-black text-2xl hover:bg-red-100 active:scale-95 transition-all shadow-sm">+</button>
+              <button onClick={() => setQuantity(quantity + 1)} className="w-14 h-14 rounded-2xl bg-red-50 text-red-600 font-black text-2xl hover:bg-red-100">+</button>
             </div>
           </section>
 
           {product.ingredients && (
             <section>
-              <label className="block text-red-800 text-xs font-black uppercase mb-3 tracking-[0.2em]">O que quer retirar?</label>
+              <label className="block text-red-800 text-xs font-black uppercase mb-3 tracking-[0.2em]">Retirar algo?</label>
               <div className="grid grid-cols-2 gap-2">
                 {product.ingredients.map((ing: string) => (
                   <button key={ing} onClick={() => toggleIngredient(ing)} className={`p-3 rounded-xl text-[10px] font-black uppercase border transition-all ${removedIngredients.includes(ing) ? 'bg-red-600 border-red-600 text-white shadow-md' : 'bg-white border-zinc-100 text-zinc-400'}`}>SEM {ing}</button>
@@ -131,12 +128,12 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
 
           {(product.categoryId === 'lanches' || product.categoryId === 'acai') && (
             <section>
-              <label className="block text-red-800 text-xs font-black uppercase mb-3 tracking-[0.2em]">Deseja adicionar?</label>
+              <label className="block text-red-800 text-xs font-black uppercase mb-3 tracking-[0.2em]">Adicionais</label>
               <div className="space-y-2">
                 {(product.categoryId === 'lanches' ? EXTRAS_OPTIONS : ACAI_PAID_EXTRAS).map(opt => (
-                  <button key={opt.name} onClick={() => toggleAddition(opt.name)} className={`w-full flex justify-between items-center p-4 rounded-2xl border transition-all ${additions.includes(opt.name) ? 'bg-red-50 border-red-200 text-red-700 ring-2 ring-red-500/10' : 'bg-white border-zinc-100 text-zinc-500 hover:border-red-100'}`}>
+                  <button key={opt.name} onClick={() => toggleAddition(opt.name)} className={`w-full flex justify-between items-center p-4 rounded-2xl border transition-all ${additions.includes(opt.name) ? 'bg-red-50 border-red-200 text-red-700' : 'bg-white border-zinc-100 text-zinc-500'}`}>
                     <span className="font-bold text-sm uppercase">{opt.name}</span>
-                    <span className="font-black text-red-600">R$ {opt.price.toFixed(2)}</span>
+                    <span className="font-black text-red-600">+R$ {opt.price.toFixed(2)}</span>
                   </button>
                 ))}
               </div>
@@ -144,8 +141,8 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
           )}
 
           <section>
-            <label className="block text-red-800 text-xs font-black uppercase mb-3 tracking-[0.2em]">Alguma Observação?</label>
-            <textarea className="w-full bg-zinc-50 border border-zinc-100 rounded-2xl p-4 text-zinc-800 focus:outline-none focus:border-red-500 min-h-[100px] text-sm" placeholder="Ex: Carne bem passada, embalar separado..." value={observation} onChange={e => setObservation(e.target.value)} />
+            <label className="block text-red-800 text-xs font-black uppercase mb-3 tracking-[0.2em]">Observação</label>
+            <textarea className="w-full bg-zinc-50 border border-zinc-100 rounded-2xl p-4 text-zinc-800 focus:outline-none focus:border-red-500 min-h-[100px] text-sm" placeholder="Ex: Carne bem passada..." value={observation} onChange={e => setObservation(e.target.value)} />
           </section>
         </div>
         <div className="p-6 bg-zinc-50/50 border-t border-red-50">
@@ -171,7 +168,7 @@ export default function App() {
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
   const [isSending, setIsSending] = useState(false);
 
-  // LISTENER REAL-TIME PARA ADMIN (Requisito Obrigatório)
+  // LISTENER REAL-TIME PARA O PAINEL ADMIN
   useEffect(() => {
     if (view === 'ADMIN' && isLoggedIn) {
       const q = query(collection(db, 'pedidos'), orderBy('criadoEm', 'desc'));
@@ -179,7 +176,7 @@ export default function App() {
         const loadedOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setOrders(loadedOrders);
       }, (error) => {
-        console.error("Erro no listener em tempo real:", error);
+        console.error("Erro no listener Firestore:", error);
       });
       return () => unsubscribe();
     }
@@ -187,17 +184,18 @@ export default function App() {
 
   const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
-  // ENVIO DO PEDIDO PARA O FIRESTORE (Requisito Obrigatório)
+  // --- FINALIZAÇÃO DO PEDIDO (FOCO NO FLUXO DE SUCESSO) ---
   const handleFinishOrder = async () => {
-    if (isSending) return;
+    if (isSending) return; // Evita cliques duplos enquanto processa
     
     if (!customer.name.trim() || cart.length === 0) {
-      alert("Por favor, preencha os dados corretamente.");
+      alert("Por favor, preencha seu nome e certifique-se de que o carrinho não está vazio.");
       return;
     }
 
     setIsSending(true);
 
+    // Formatação da string de itens para salvar no Firestore (Requisito Obrigatório)
     const itensString = cart.map(item => {
         let text = `${item.quantity}x ${item.name}`;
         let details = [];
@@ -208,31 +206,30 @@ export default function App() {
     }).join('\n');
 
     try {
-      // 1. Criar novo documento na coleção "pedidos"
-      // 2. Usar addDoc (conforme exigido)
-      // 3. Campos obrigatórios
+      // 1. Criar novo documento usando addDoc
+      // 2. Aguardar a gravação ser concluída com sucesso
       await addDoc(collection(db, 'pedidos'), {
-        nomeCliente: customer.name,       // String
-        itens: itensString,               // String
-        total: Number(total),             // Number
-        status: 'novo',                   // String
-        criadoEm: serverTimestamp(),       // Timestamp
-        // Campos de suporte
+        nomeCliente: customer.name,       // String (Obrigatório)
+        itens: itensString,               // String (Obrigatório)
+        total: Number(total),             // Number (Obrigatório)
+        status: 'novo',                   // String (Obrigatório)
+        criadoEm: serverTimestamp(),       // Timestamp (Obrigatório)
         telefone: customer.phone,
         tipo: customer.orderType,
-        endereco: customer.orderType === OrderType.DELIVERY ? `${customer.address}, ${customer.addressNumber}` : 'Balcão',
-        pagamento: customer.paymentMethod
+        pagamento: customer.paymentMethod,
+        endereco: customer.orderType === OrderType.DELIVERY ? `${customer.address}, ${customer.addressNumber}` : 'Retirada no Balcão'
       });
       
-      // 4 & 5. Somente após sucesso, redirecionar
-      setCart([]);
-      setStep('MENU');
-      setView('SUCCESS');
+      // 3. Somente APÓS SUCESSO, limpar estados e redirecionar
+      setCart([]); // Limpa o carrinho
+      setStep('MENU'); // Reseta o passo do pedido
+      setView('SUCCESS'); // Redireciona para a tela de confirmação
     } catch (e) {
-      // 6. Se falhar, exibir erro e destravar
-      console.error("Erro fatal ao gravar pedido:", e);
-      alert("Houve uma falha técnica ao enviar o pedido. Por favor, tente novamente ou verifique sua conexão.");
+      // 4. Se falhar, exibe erro e DESTRAVA o botão
+      console.error("Erro ao gravar pedido no Firebase:", e);
+      alert("Ops! Houve um erro ao enviar seu pedido para o sistema da Sandra. Verifique sua conexão e tente novamente.");
     } finally {
+      // 5. Encerra o estado de processamento
       setIsSending(false);
     }
   };
@@ -251,38 +248,44 @@ export default function App() {
     }, 500);
   };
 
-  // --- RENDERS ---
+  // --- RENDERS DE TELAS ESPECÍFICAS ---
 
   if (view === 'SUCCESS') return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center animate-fade-in bg-white overflow-hidden relative">
-      <div className="absolute top-0 left-0 w-full h-1 bg-red-600"></div>
-      <div className="glass-card p-10 md:p-14 rounded-[3.5rem] max-w-md shadow-2xl border-red-50 border">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center animate-fade-in bg-zinc-50 overflow-hidden relative">
+      <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-500 to-red-600"></div>
+      <div className="glass-card p-10 md:p-16 rounded-[4rem] max-w-md shadow-2xl border-white border relative">
         <div className="text-8xl mb-8 animate-bounce">🍔✨</div>
-        <h2 className="text-3xl font-black text-red-600 mb-5 tracking-tighter italic">Pedido Realizado!</h2>
-        <p className="text-red-900/70 font-bold mb-10 leading-relaxed uppercase text-xs tracking-[0.2em]">
-          Obrigado, <span className="text-red-600">{customer.name.split(' ')[0]}</span>!<br/>
-          A <span className="text-red-600 underline decoration-red-200">Sandra</span> recebeu seu pedido e em instantes confirmará com você pelo <span className="text-green-600 font-black">WhatsApp</span>.
-        </p>
-        <Button fullWidth onClick={() => setView('HOME')} className="py-5 text-xl rounded-[2.5rem]">VOLTAR AO INÍCIO</Button>
+        <h2 className="text-4xl font-black text-red-600 mb-4 tracking-tighter italic">Pedido Enviado!</h2>
+        <div className="space-y-4 mb-12">
+            <p className="text-red-900/80 font-bold text-sm leading-relaxed uppercase tracking-widest">
+                A <span className="text-red-600 font-black underline decoration-red-200">Sandra</span> já recebeu seu pedido e está separando os itens!
+            </p>
+            <div className="bg-green-50 border border-green-100 p-4 rounded-3xl">
+                <p className="text-green-700 font-black text-xs uppercase tracking-[0.1em]">
+                    Fique atento ao seu <span className="text-green-800">WhatsApp</span>, pois confirmaremos tudo por lá em instantes.
+                </p>
+            </div>
+        </div>
+        <Button fullWidth onClick={() => setView('HOME')} className="py-6 text-xl rounded-[2.5rem] shadow-red-100">VOLTAR AO INÍCIO</Button>
       </div>
     </div>
   );
 
   if (view === 'LOGIN') return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-zinc-50">
-        <div className="glass-card p-10 rounded-[3.5rem] w-full max-w-sm shadow-2xl border-2 border-red-100">
-            <h2 className="text-2xl font-black text-red-600 mb-8 text-center tracking-tighter">Login da Sandra</h2>
+    <div className="min-h-screen flex items-center justify-center p-6 bg-zinc-100">
+        <div className="glass-card p-10 rounded-[3.5rem] w-full max-w-sm shadow-2xl border-2 border-red-50">
+            <h2 className="text-2xl font-black text-red-700 mb-8 text-center italic">Área Administrativa</h2>
             <form onSubmit={(e) => {
                 e.preventDefault();
                 const formData = new FormData(e.currentTarget);
                 if (formData.get('user') === 'sandra' && formData.get('pass') === '1234') {
                     setIsLoggedIn(true); setView('ADMIN');
-                } else alert("Acesso negado.");
+                } else alert("Usuário ou senha incorretos.");
             }} className="space-y-5">
                 <Input label="Usuário" name="user" placeholder="sandra" required />
                 <Input label="Senha" name="pass" type="password" placeholder="****" required />
-                <Button type="submit" fullWidth className="py-4 rounded-2xl">ENTRAR NO PAINEL</Button>
-                <button type="button" onClick={() => setView('HOME')} className="w-full text-zinc-300 font-bold text-[10px] uppercase tracking-widest mt-2 hover:text-red-400 transition-colors">Cancelar</button>
+                <Button type="submit" fullWidth className="py-4">ENTRAR NO PAINEL</Button>
+                <button type="button" onClick={() => setView('HOME')} className="w-full text-zinc-300 font-bold text-[10px] uppercase tracking-widest mt-2 hover:text-red-400">Cancelar</button>
             </form>
         </div>
     </div>
@@ -292,28 +295,24 @@ export default function App() {
     <div className="min-h-screen p-4 md:p-8 bg-zinc-50 pb-24 animate-fade-in">
       <header className="flex justify-between items-center mb-12 max-w-6xl mx-auto bg-white p-6 rounded-[2.5rem] shadow-sm">
         <div>
-          <h2 className="text-3xl font-black text-red-700 tracking-tighter leading-none italic">Pedidos da Sandra</h2>
+          <h2 className="text-3xl font-black text-red-700 tracking-tighter italic leading-none">Pedidos em Tempo Real</h2>
           <div className="flex items-center gap-2 mt-2">
             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-            <p className="text-zinc-400 text-[9px] font-black uppercase tracking-widest">Tempo Real Ativado</p>
+            <p className="text-zinc-400 text-[9px] font-black uppercase tracking-widest">Conectado ao Firebase</p>
           </div>
         </div>
-        <Button variant="secondary" onClick={() => { setIsLoggedIn(false); setView('HOME'); }} className="px-5 py-2 text-xs rounded-xl">SAIR</Button>
+        <Button variant="secondary" onClick={() => { setIsLoggedIn(false); setView('HOME'); }} className="px-5 py-2 text-xs">SAIR</Button>
       </header>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
         {orders.map(o => (
-          <div key={o.id} className={`glass-card p-7 rounded-[3rem] border-l-[12px] shadow-2xl transition-all relative overflow-hidden ${o.status === 'novo' ? 'border-red-600 bg-white' : 'border-zinc-200 opacity-70 scale-[0.98]'}`}>
+          <div key={o.id} className={`glass-card p-7 rounded-[3rem] border-l-[12px] shadow-xl transition-all relative overflow-hidden ${o.status === 'novo' ? 'border-red-600 bg-white' : 'border-zinc-200 opacity-60 scale-95'}`}>
             <div className="flex justify-between items-start mb-5">
               <div className="pr-4">
                 <p className="text-2xl font-black text-red-900 leading-tight mb-1">{o.nomeCliente}</p>
-                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
-                   {o.pagamento} • {o.tipo}
-                </p>
+                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{o.tipo} • {o.pagamento}</p>
               </div>
-              {o.status === 'novo' && (
-                <span className="bg-red-600 text-white text-[9px] font-black px-3 py-1.5 rounded-full shadow-lg shadow-red-200 animate-pulse">NOVO</span>
-              )}
+              {o.status === 'novo' && <span className="bg-red-600 text-white text-[9px] font-black px-3 py-1.5 rounded-full shadow-lg shadow-red-200 animate-pulse">NOVO</span>}
             </div>
             
             <div className="bg-zinc-50/50 rounded-2xl p-5 mb-5 text-[11px] font-mono text-zinc-700 whitespace-pre-wrap border border-zinc-100 max-h-[160px] overflow-y-auto leading-relaxed">
@@ -322,27 +321,25 @@ export default function App() {
             
             <div className="flex justify-between items-center mb-7">
                <div>
-                 <p className="text-[9px] font-black text-zinc-300 uppercase tracking-widest">Valor Total</p>
+                 <p className="text-[9px] font-black text-zinc-300 uppercase tracking-widest">Total</p>
                  <p className="text-3xl font-black text-red-600 italic">R$ {Number(o.total).toFixed(2)}</p>
                </div>
                <button onClick={() => printOrder(o)} className="w-14 h-14 bg-zinc-900 text-white rounded-2xl shadow-xl flex items-center justify-center hover:bg-black active:scale-90 transition-all text-2xl">🖨️</button>
             </div>
 
             {o.status === 'novo' ? (
-              <Button fullWidth onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 hover:bg-green-700 border-green-500 py-4 font-black text-xs rounded-2xl shadow-green-100">
-                PRONTO / CONCLUIR
+              <Button fullWidth onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 hover:bg-green-700 border-green-500 py-4 font-black text-xs rounded-2xl">
+                CONCLUIR PEDIDO
               </Button>
             ) : (
-              <div className="w-full text-center p-3 bg-zinc-100 rounded-2xl text-zinc-400 font-black text-[10px] uppercase tracking-widest">
-                Pedido Concluído
-              </div>
+              <div className="w-full text-center p-3 bg-zinc-100 rounded-2xl text-zinc-400 font-black text-[10px] uppercase tracking-widest">Pedido Concluído</div>
             )}
           </div>
         ))}
 
         {orders.length === 0 && (
           <div className="col-span-full flex flex-col items-center justify-center py-48 text-zinc-300">
-            <div className="text-7xl mb-6 opacity-30 animate-bounce">🥪</div>
+            <div className="text-7xl mb-6 opacity-30">🥪</div>
             <p className="italic font-black text-xl tracking-tighter opacity-40">Aguardando novos pedidos...</p>
           </div>
         )}
@@ -355,18 +352,18 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-white md:bg-zinc-50/30">
+    <div className="min-h-screen bg-white md:bg-zinc-50/20">
       {view === 'HOME' && (
         <div className="min-h-screen flex flex-col items-center justify-center p-6 animate-fade-in">
-          <div className="glass-card p-12 md:p-20 rounded-[4.5rem] text-center shadow-2xl max-w-md w-full border-red-50 bg-white relative overflow-hidden">
+          <div className="glass-card p-12 md:p-20 rounded-[4.5rem] text-center shadow-2xl max-w-md w-full border-white border bg-white relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-red-600/5 rounded-full -mr-16 -mt-16"></div>
             <div className="text-8xl mb-8 animate-float">🍔</div>
-            <h1 className="text-5xl font-black text-red-600 mb-3 tracking-tighter italic leading-none">Sandra</h1>
-            <p className="text-red-900/30 font-black uppercase tracking-[0.4em] text-[10px] mb-14">Lanches & Porções</p>
+            <h1 className="text-5xl font-black text-red-600 mb-3 tracking-tighter italic leading-none">Cantinho da Sandra</h1>
+            <p className="text-red-900/30 font-black uppercase tracking-[0.4em] text-[10px] mb-14">Qualidade em Cada Detalhe</p>
             <Button fullWidth onClick={() => setView('ORDER')} className="text-2xl py-7 shadow-2xl shadow-red-100 flex items-center justify-center gap-4 group rounded-[3rem]">
-              COMEÇAR PEDIDO <span className="text-3xl group-hover:translate-x-2 transition-transform">➡</span>
+              QUERO PEDIR AGORA <span className="text-3xl group-hover:translate-x-2 transition-transform">➡</span>
             </Button>
-            <button onClick={() => setView('LOGIN')} className="mt-16 text-zinc-300 text-[10px] font-black uppercase tracking-[0.2em] hover:text-red-500 transition-colors">Painel Admin</button>
+            <button onClick={() => setView('LOGIN')} className="mt-16 text-zinc-300 text-[10px] font-black uppercase tracking-[0.2em] hover:text-red-500">Painel de Controle</button>
           </div>
         </div>
       )}
@@ -375,8 +372,8 @@ export default function App() {
         <div className="max-w-xl mx-auto min-h-screen flex flex-col bg-white md:shadow-2xl">
             {step === 'MENU' && (
                 <>
-                    <header className="p-5 bg-white sticky top-0 z-50 flex justify-between items-center border-b border-zinc-50">
-                        <button onClick={() => setView('HOME')} className="text-red-600 font-black text-xs uppercase tracking-widest px-3 py-1 hover:bg-red-50 rounded-lg">← Voltar</button>
+                    <header className="p-5 bg-white sticky top-0 z-50 flex justify-between items-center border-b border-zinc-50 shadow-sm">
+                        <button onClick={() => setView('HOME')} className="text-red-600 font-black text-xs uppercase tracking-widest px-3 py-1 hover:bg-red-50 rounded-lg">← Início</button>
                         <h2 className="font-black text-red-700 uppercase tracking-[0.2em] text-[11px]">Cardápio</h2>
                         <div className="w-12"></div>
                     </header>
@@ -387,7 +384,7 @@ export default function App() {
                             </button>
                         ))}
                     </div>
-                    <div className="flex-1 p-5 space-y-4 pb-40 overflow-y-auto">
+                    <div className="flex-1 p-5 space-y-4 pb-44 overflow-y-auto">
                         {PRODUCTS.filter(p => p.categoryId === activeCategory).map(prod => (
                             <div key={prod.id} onClick={() => setSelectedProduct(prod)} className="bg-white border border-zinc-100 p-6 rounded-[2.8rem] flex justify-between items-center shadow-sm active:scale-95 transition-all hover:border-red-100 group">
                                 <div className="flex-1 pr-4">
@@ -401,7 +398,7 @@ export default function App() {
                     {cart.length > 0 && (
                         <div className="fixed bottom-10 left-6 right-6 z-50 animate-slide-up max-w-lg mx-auto">
                             <Button fullWidth onClick={() => setStep('TYPE_SELECTION')} className="py-6 text-xl flex justify-between items-center px-10 shadow-2xl rounded-[3rem] ring-4 ring-red-600/10">
-                                <span className="font-black">CONTINUAR</span>
+                                <span className="font-black">REVISAR PEDIDO</span>
                                 <span className="bg-white/20 px-5 py-1.5 rounded-2xl text-xl font-black italic">R$ {total.toFixed(2)}</span>
                             </Button>
                         </div>
@@ -412,51 +409,51 @@ export default function App() {
             {step === 'TYPE_SELECTION' && (
                 <div className="p-6 flex flex-col items-center justify-center min-h-[90vh] animate-fade-in space-y-12">
                     <div className="text-center">
-                      <p className="text-red-600 font-black text-[11px] tracking-[0.3em] uppercase mb-4">Escolha uma opção</p>
-                      <h2 className="text-5xl font-black text-red-800 tracking-tighter leading-none italic">Delivery ou<br/>Retirada?</h2>
+                      <p className="text-red-600 font-black text-[11px] tracking-[0.3em] uppercase mb-4">Como deseja receber?</p>
+                      <h2 className="text-5xl font-black text-red-800 tracking-tighter leading-none italic">Delivery ou<br/>Balcão?</h2>
                     </div>
                     <div className="grid grid-cols-1 w-full gap-6 max-w-xs">
                         <button onClick={() => { setCustomer({...customer, orderType: OrderType.DELIVERY}); setStep('FORM'); }} className="bg-white border-2 border-zinc-50 hover:border-red-500 p-12 rounded-[4rem] text-center shadow-2xl transition-all group active:scale-95">
                             <span className="text-8xl block mb-6 group-hover:scale-110 transition-transform">🛵</span>
-                            <span className="font-black text-red-900 text-2xl tracking-tighter italic">ENTREGA</span>
+                            <span className="font-black text-red-900 text-2xl tracking-tighter italic uppercase">ENTREGA</span>
                         </button>
                         <button onClick={() => { setCustomer({...customer, orderType: OrderType.COUNTER}); setStep('FORM'); }} className="bg-white border-2 border-zinc-50 hover:border-red-500 p-12 rounded-[4rem] text-center shadow-2xl transition-all group active:scale-95">
                             <span className="text-8xl block mb-6 group-hover:scale-110 transition-transform">🥡</span>
-                            <span className="font-black text-red-900 text-2xl tracking-tighter italic">RETIRADA</span>
+                            <span className="font-black text-red-900 text-2xl tracking-tighter italic uppercase">RETIRADA</span>
                         </button>
                     </div>
-                    <button onClick={() => setStep('MENU')} className="text-zinc-300 font-bold uppercase text-[10px] tracking-widest hover:text-red-600 transition-colors">← Voltar ao Cardápio</button>
+                    <button onClick={() => setStep('MENU')} className="text-zinc-300 font-bold uppercase text-[10px] tracking-widest hover:text-red-600">← Voltar</button>
                 </div>
             )}
 
             {step === 'FORM' && (
                 <div className="p-8 animate-fade-in pb-40">
-                    <h2 className="text-4xl font-black text-red-700 mb-10 tracking-tighter italic">Dados do Pedido</h2>
+                    <h2 className="text-4xl font-black text-red-700 mb-10 tracking-tighter italic">Seus Dados</h2>
                     <form onSubmit={(e) => { e.preventDefault(); setStep('SUMMARY'); }} className="space-y-6">
-                        <Input label="Seu Nome Completo" value={customer.name} onChange={e => setCustomer({...customer, name: e.target.value})} placeholder="Para identificarmos você" required />
-                        <Input label="WhatsApp (com DDD)" type="tel" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} placeholder="(00) 00000-0000" required />
+                        <Input label="Qual seu Nome?" value={customer.name} onChange={e => setCustomer({...customer, name: e.target.value})} placeholder="Para identificarmos seu lanche" required />
+                        <Input label="Seu WhatsApp" type="tel" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} placeholder="(00) 00000-0000" required />
                         {customer.orderType === OrderType.DELIVERY && (
                             <div className="animate-fade-in space-y-6">
-                                <Input label="Rua / Bairro" value={customer.address} onChange={e => setCustomer({...customer, address: e.target.value})} placeholder="Rua Central, Bairro Novo" required />
-                                <Input label="Número da Casa" value={customer.addressNumber} onChange={e => setCustomer({...customer, addressNumber: e.target.value})} placeholder="123-A" required />
+                                <Input label="Endereço (Rua e Bairro)" value={customer.address} onChange={e => setCustomer({...customer, address: e.target.value})} placeholder="Rua Central, Bairro X" required />
+                                <Input label="Número" value={customer.addressNumber} onChange={e => setCustomer({...customer, addressNumber: e.target.value})} placeholder="123" required />
                             </div>
                         )}
-                        <Select label="Como vai pagar?" options={PAYMENT_METHODS} value={customer.paymentMethod} onChange={e => setCustomer({...customer, paymentMethod: e.target.value as PaymentMethod})} />
-                        <Button type="submit" fullWidth className="py-6 text-2xl mt-12 rounded-[2.5rem] shadow-red-200">CONTINUAR</Button>
+                        <Select label="Forma de Pagamento" options={PAYMENT_METHODS} value={customer.paymentMethod} onChange={e => setCustomer({...customer, paymentMethod: e.target.value as PaymentMethod})} />
+                        <Button type="submit" fullWidth className="py-6 text-2xl mt-12 rounded-[2.5rem]">CONFERIR E FINALIZAR</Button>
                     </form>
-                    <button onClick={() => setStep('TYPE_SELECTION')} className="w-full mt-8 text-zinc-300 font-bold uppercase text-[10px] tracking-widest text-center hover:text-red-500">← Alterar Modo</button>
+                    <button onClick={() => setStep('TYPE_SELECTION')} className="w-full mt-8 text-zinc-300 font-bold uppercase text-[10px] tracking-widest text-center hover:text-red-500">← Voltar</button>
                 </div>
             )}
 
             {step === 'SUMMARY' && (
                 <div className="p-8 animate-fade-in pb-44">
-                    <h2 className="text-4xl font-black text-red-700 mb-8 tracking-tighter italic">Quase lá!</h2>
+                    <h2 className="text-4xl font-black text-red-700 mb-8 tracking-tighter italic">Resumo Final</h2>
                     <div className="bg-zinc-50 p-9 rounded-[3.5rem] mb-10 space-y-7 shadow-inner border border-zinc-100">
                         <div className="border-b border-zinc-200 pb-6">
-                            <p className="text-[10px] font-black text-red-400 uppercase tracking-[0.3em] mb-2">Informações</p>
+                            <p className="text-[10px] font-black text-red-400 uppercase tracking-[0.3em] mb-2">Cliente</p>
                             <p className="text-3xl font-black text-red-900 leading-tight italic">{customer.name}</p>
                             <p className="text-[10px] font-black text-red-600 mt-3 uppercase tracking-tighter">
-                                {customer.orderType} • PAGAMENTO: {customer.paymentMethod}
+                                MODO: {customer.orderType} • PAGAMENTO: {customer.paymentMethod}
                             </p>
                         </div>
                         <div className="space-y-5">
@@ -467,15 +464,15 @@ export default function App() {
                                         <div className="text-[10px] text-zinc-400 font-bold mt-2 uppercase leading-relaxed">
                                             {item.removedIngredients?.map(i => <span key={i} className="block text-red-400">× {i}</span>)}
                                             {item.additions?.map(i => <span key={i} className="block text-green-600 font-black">✓ {i}</span>)}
-                                            {item.observation && <span className="block italic mt-1 text-zinc-500 border-l-2 border-red-200 pl-2">"{item.observation}"</span>}
+                                            {item.observation && <span className="block italic mt-1 text-zinc-500 border-l-2 border-red-100 pl-2">"{item.observation}"</span>}
                                         </div>
                                     </div>
-                                    <p className="font-black text-red-700 whitespace-nowrap text-lg italic">R$ {(item.price * item.quantity).toFixed(2)}</p>
+                                    <p className="font-black text-red-700 text-lg italic">R$ {(item.price * item.quantity).toFixed(2)}</p>
                                 </div>
                             ))}
                         </div>
                         <div className="border-t border-zinc-200 pt-7 flex justify-between items-center">
-                            <span className="text-xl font-black text-zinc-300 italic">TOTAL GERAL</span>
+                            <span className="text-xl font-black text-zinc-300 italic">VALOR TOTAL</span>
                             <span className="text-4xl font-black text-red-600 italic leading-none">R$ {total.toFixed(2)}</span>
                         </div>
                     </div>
@@ -486,10 +483,10 @@ export default function App() {
                             fullWidth 
                             className={`py-7 text-3xl shadow-2xl shadow-red-200 rounded-[3rem] border-4 border-white/20 transition-all ${isSending ? 'opacity-70 scale-95 cursor-wait' : 'animate-pulse-slow'}`}
                         >
-                            {isSending ? 'GRAVANDO...' : 'FAZER PEDIDO! ✅'}
+                            {isSending ? 'GRAVANDO...' : 'CONFIRMAR PEDIDO! ✅'}
                         </Button>
                     </div>
-                    <button onClick={() => setStep('FORM')} className="w-full mt-6 text-zinc-300 font-bold uppercase text-[10px] tracking-widest text-center hover:text-red-500">← Corrigir Dados</button>
+                    <button onClick={() => setStep('FORM')} className="w-full mt-6 text-zinc-300 font-bold uppercase text-[10px] tracking-widest text-center hover:text-red-500">← Alterar Dados</button>
                 </div>
             )}
         </div>
