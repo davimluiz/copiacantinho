@@ -21,7 +21,7 @@ import {
 } from './constants';
 import { Product, CustomerInfo, CartItem, PaymentMethod, OrderStatus, OrderType } from './types';
 
-// CONFIGURAÇÃO DO FIREBASE COM FALLBACK PARA EVITAR ERRO DE INICIALIZAÇÃO SE VARIÁVEIS ESTIVEREM AUSENTES
+// CONFIGURAÇÃO DO FIREBASE (Vercel Environment Variables)
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "",
@@ -30,11 +30,6 @@ const firebaseConfig = {
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "",
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || ""
 };
-
-// Verificação de segurança: se as variáveis essenciais faltarem, avisar no console
-if (!firebaseConfig.apiKey) {
-  console.error("Firebase API Key ausente. Verifique as variáveis de ambiente no Vercel.");
-}
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
@@ -193,14 +188,20 @@ export default function App() {
   const handleFinishOrder = async () => {
     if (isSending) return;
     
-    if (!customer.name.trim() || cart.length === 0) {
-      alert("Por favor, preencha os dados e escolha seus produtos.");
+    // Validação inicial
+    const clientName = customer.name?.trim();
+    if (!clientName || cart.length === 0) {
+      alert("Por favor, preencha o nome e adicione itens.");
       return;
     }
 
     setIsSending(true);
 
     try {
+      // 1. Sanitização do Total (Garantir que não é NaN)
+      const safeTotal = isNaN(total) ? 0 : Number(total.toFixed(2));
+
+      // 2. Formatação dos Itens como string serializável
       const itensString = cart.map(item => {
           let text = `${item.quantity}x ${item.name}`;
           let details = [];
@@ -210,39 +211,42 @@ export default function App() {
           return details.length > 0 ? `${text} (${details.join(' | ')})` : text;
       }).join('\n');
 
-      // Tentativa de gravação no Firestore
-      // Adicionado um timeout manual para evitar travamento eterno se o Firebase falhar silenciosamente
-      const saveOrderPromise = addDoc(collection(db, 'pedidos'), {
-        nomeCliente: customer.name,
-        itens: itensString,
-        total: Number(total),
+      // 3. Montagem do Payload Seguro (Sem undefined)
+      const payload = {
+        nomeCliente: clientName,
+        itens: itensString || "Sem descrição",
+        total: safeTotal,
         status: 'novo',
         criadoEm: serverTimestamp(),
-        telefone: customer.phone,
-        tipo: customer.orderType,
-        pagamento: customer.paymentMethod,
-        endereco: customer.orderType === OrderType.DELIVERY ? `${customer.address}, ${customer.addressNumber}` : 'Balcão'
-      });
+        telefone: customer.phone || "Não informado",
+        tipo: customer.orderType || "BALCÃO",
+        pagamento: customer.paymentMethod || "PIX",
+        endereco: customer.orderType === OrderType.DELIVERY 
+            ? `${customer.address || "S/E"}, ${customer.addressNumber || "S/N"}` 
+            : 'Balcão'
+      };
 
-      // Se em 15 segundos não responder, forçamos um erro
+      // 4. Gravação no Firestore com tratamento de timeout
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("Timeout ao conectar com o servidor")), 15000)
+        setTimeout(() => reject(new Error("Timeout de conexão")), 12000)
       );
 
-      await Promise.race([saveOrderPromise, timeoutPromise]);
+      const dbPromise = addDoc(collection(db, 'pedidos'), payload);
       
-      // SUCESSO: Mudar tela IMEDIATAMENTE.
+      await Promise.race([dbPromise, timeoutPromise]);
+      
+      // 5. Fluxo de Sucesso Definitivo
       setView('SUCCESS');
       
-      // RECARREGAR AUTOMATICAMENTE após 3 segundos
+      // RELOAD APÓS 3 SEGUNDOS
       setTimeout(() => {
         window.location.reload();
-      }, 3000);
+      }, 3500);
 
-    } catch (e) {
-      console.error("Falha ao enviar pedido:", e);
-      alert("Não conseguimos enviar seu pedido. Verifique sua internet ou se o sistema está configurado corretamente.");
-      setIsSending(false); // SÓ volta para false se der erro, permitindo tentar de novo
+    } catch (e: any) {
+      console.error("Erro ao gravar no Firestore:", e);
+      alert(`Erro: ${e.message || "Erro desconhecido"}. Verifique sua internet.`);
+      setIsSending(false); // Reabilita em erro
     }
   };
 
@@ -263,18 +267,17 @@ export default function App() {
   // --- RENDERS ---
 
   if (view === 'SUCCESS') return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-white animate-fade-in fixed inset-0 z-[500]">
-      <div className="glass-card p-12 md:p-20 rounded-[4rem] max-w-md shadow-2xl border-green-100 border relative overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-zinc-50 animate-fade-in fixed inset-0 z-[500]">
+      <div className="glass-card p-12 md:p-20 rounded-[4rem] max-w-md shadow-2xl border-green-200 border-2 relative overflow-hidden bg-white">
         <div className="text-9xl mb-10 animate-bounce">🍔✅</div>
-        <h2 className="text-4xl font-black text-green-600 mb-6 tracking-tighter italic">Sucesso Total!</h2>
+        <h2 className="text-4xl font-black text-green-600 mb-6 tracking-tighter italic uppercase">Pedido Gravado!</h2>
         <div className="space-y-6">
-            <p className="text-zinc-600 font-bold text-sm uppercase tracking-widest leading-relaxed">
-                Pedido recebido com sucesso pela equipe da Sandra!
+            <p className="text-zinc-500 font-bold text-sm uppercase tracking-widest leading-relaxed">
+                A <span className="text-red-600">Sandra</span> recebeu seu pedido no sistema.
             </p>
             <div className="bg-green-50 border border-green-200 p-6 rounded-3xl">
                 <p className="text-green-700 font-black text-xs uppercase tracking-[0.2em] leading-relaxed">
-                    Aguarde a confirmação pelo WhatsApp.<br/>
-                    Reiniciando sistema...
+                    Sua página será reiniciada para um novo pedido...
                 </p>
             </div>
         </div>
@@ -283,7 +286,7 @@ export default function App() {
   );
 
   if (view === 'LOGIN') return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-zinc-50">
+    <div className="min-h-screen flex items-center justify-center p-6 bg-zinc-100">
         <div className="glass-card p-10 rounded-[3.5rem] w-full max-w-sm shadow-2xl">
             <h2 className="text-2xl font-black text-red-700 mb-8 text-center italic">Painel Admin</h2>
             <form onSubmit={(e) => {
@@ -291,7 +294,7 @@ export default function App() {
                 const formData = new FormData(e.currentTarget);
                 if (formData.get('user') === 'sandra' && formData.get('pass') === '1234') {
                     setIsLoggedIn(true); setView('ADMIN');
-                } else alert("Senha incorreta.");
+                } else alert("Acesso negado.");
             }} className="space-y-5">
                 <Input label="Usuário" name="user" required />
                 <Input label="Senha" name="pass" type="password" required />
@@ -311,23 +314,23 @@ export default function App() {
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
         {orders.map(o => (
-          <div key={o.id} className={`glass-card p-7 rounded-[3rem] border-l-[12px] shadow-xl transition-all relative ${o.status === 'novo' ? 'border-red-600' : 'border-zinc-200 opacity-60'}`}>
+          <div key={o.id} className={`glass-card p-7 rounded-[3rem] border-l-[12px] shadow-xl transition-all relative ${o.status === 'novo' ? 'border-red-600 bg-white' : 'border-zinc-200 opacity-60'}`}>
             <div className="flex justify-between items-start mb-5">
               <div>
                 <p className="text-2xl font-black text-red-900 leading-tight">{o.nomeCliente}</p>
                 <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{o.tipo} • {o.pagamento}</p>
               </div>
-              {o.status === 'novo' && <span className="bg-red-600 text-white text-[9px] font-black px-3 py-1.5 rounded-full animate-pulse">NOVO</span>}
+              {o.status === 'novo' && <span className="bg-red-600 text-white text-[9px] font-black px-3 py-1.5 rounded-full animate-pulse shadow-lg">NOVO</span>}
             </div>
-            <div className="bg-zinc-50/50 rounded-2xl p-5 mb-5 text-[11px] font-mono whitespace-pre-wrap max-h-[160px] overflow-y-auto">
+            <div className="bg-zinc-50/50 rounded-2xl p-5 mb-5 text-[11px] font-mono whitespace-pre-wrap max-h-[160px] overflow-y-auto leading-relaxed text-zinc-800">
               {o.itens}
             </div>
             <div className="flex justify-between items-center mb-7">
-               <p className="text-3xl font-black text-red-600">R$ {Number(o.total).toFixed(2)}</p>
-               <button onClick={() => printOrder(o)} className="w-12 h-12 bg-zinc-900 text-white rounded-xl flex items-center justify-center text-2xl">🖨️</button>
+               <p className="text-3xl font-black text-red-600">R$ {Number(o.total || 0).toFixed(2)}</p>
+               <button onClick={() => printOrder(o)} className="w-12 h-12 bg-zinc-900 text-white rounded-xl flex items-center justify-center text-2xl hover:scale-105 active:scale-90 transition-transform">🖨️</button>
             </div>
             {o.status === 'novo' && (
-              <Button fullWidth onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 border-green-500 py-4 font-black text-xs">FINALIZAR</Button>
+              <Button fullWidth onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 border-green-500 py-4 font-black text-xs rounded-2xl">CONCLUÍDO</Button>
             )}
           </div>
         ))}
@@ -340,14 +343,14 @@ export default function App() {
     <div className="min-h-screen bg-white">
       {view === 'HOME' && (
         <div className="min-h-screen flex flex-col items-center justify-center p-6 animate-fade-in">
-          <div className="glass-card p-12 md:p-20 rounded-[4.5rem] text-center shadow-2xl max-w-md w-full border-red-50 bg-white relative">
+          <div className="glass-card p-12 md:p-20 rounded-[4.5rem] text-center shadow-2xl max-w-md w-full border-red-50 bg-white relative overflow-hidden">
             <div className="text-8xl mb-8 animate-float">🍔</div>
-            <h1 className="text-5xl font-black text-red-600 mb-3 tracking-tighter italic leading-none">Sandra</h1>
+            <h1 className="text-5xl font-black text-red-600 mb-3 tracking-tighter italic leading-none">Cantinho da Sandra</h1>
             <p className="text-red-900/30 font-black uppercase tracking-[0.4em] text-[10px] mb-14">Lanches de Verdade</p>
             <Button fullWidth onClick={() => setView('ORDER')} className="text-2xl py-7 shadow-2xl shadow-red-100 flex items-center justify-center gap-4 group rounded-[3rem]">
-              QUERO PEDIR <span className="text-3xl group-hover:translate-x-2 transition-transform">➡</span>
+              COMEÇAR PEDIDO <span className="text-3xl group-hover:translate-x-2 transition-transform">➡</span>
             </Button>
-            <button onClick={() => setView('LOGIN')} className="mt-16 text-zinc-100 text-[10px] uppercase tracking-widest">Acesso Restrito</button>
+            <button onClick={() => setView('LOGIN')} className="mt-16 text-zinc-100 text-[10px] uppercase tracking-widest">Painel Admin</button>
           </div>
         </div>
       )}
@@ -357,21 +360,21 @@ export default function App() {
             {step === 'MENU' && (
                 <>
                     <header className="p-5 bg-white sticky top-0 z-50 flex justify-between items-center border-b border-zinc-50 shadow-sm">
-                        <button onClick={() => setView('HOME')} className="text-red-600 font-black text-xs uppercase tracking-widest">← Início</button>
+                        <button onClick={() => setView('HOME')} className="text-red-600 font-black text-xs uppercase tracking-widest px-2">← Início</button>
                         <h2 className="font-black text-red-700 uppercase tracking-[0.2em] text-[11px]">Cardápio</h2>
                         <div className="w-12"></div>
                     </header>
                     <div className="p-4 flex gap-2 overflow-x-auto no-scrollbar py-6">
                         {CATEGORIES.map(cat => (
-                            <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`flex-shrink-0 px-7 py-3.5 rounded-[1.5rem] font-black text-[10px] uppercase transition-all ${activeCategory === cat.id ? 'bg-red-600 text-white shadow-lg scale-105' : 'bg-zinc-50 text-zinc-400'}`}>
+                            <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`flex-shrink-0 px-7 py-3.5 rounded-[1.5rem] font-black text-[10px] uppercase transition-all ${activeCategory === cat.id ? 'bg-red-600 text-white shadow-lg scale-105' : 'bg-zinc-50 text-zinc-400 hover:bg-zinc-100'}`}>
                                 {cat.icon} {cat.name}
                             </button>
                         ))}
                     </div>
                     <div className="flex-1 p-5 space-y-4 pb-44 overflow-y-auto">
                         {PRODUCTS.filter(p => p.categoryId === activeCategory).map(prod => (
-                            <div key={prod.id} onClick={() => setSelectedProduct(prod)} className="bg-white border border-zinc-100 p-6 rounded-[2.8rem] flex justify-between items-center shadow-sm active:scale-95 transition-all">
-                                <div>
+                            <div key={prod.id} onClick={() => setSelectedProduct(prod)} className="bg-white border border-zinc-100 p-6 rounded-[2.8rem] flex justify-between items-center shadow-sm active:scale-95 transition-all hover:border-red-100">
+                                <div className="flex-1 pr-2">
                                     <h3 className="text-xl font-black text-red-900 mb-1 leading-none">{prod.name}</h3>
                                     <p className="text-red-600 font-black text-lg italic">R$ {prod.price.toFixed(2)}</p>
                                 </div>
@@ -382,7 +385,7 @@ export default function App() {
                     {cart.length > 0 && (
                         <div className="fixed bottom-10 left-6 right-6 z-50 animate-slide-up max-w-lg mx-auto">
                             <Button fullWidth onClick={() => setStep('TYPE_SELECTION')} className="py-6 text-xl flex justify-between items-center px-10 shadow-2xl rounded-[3rem]">
-                                <span className="font-black italic uppercase">Fechar Pedido</span>
+                                <span className="font-black italic uppercase">Revisar</span>
                                 <span className="bg-white/20 px-5 py-1.5 rounded-2xl text-xl font-black italic">R$ {total.toFixed(2)}</span>
                             </Button>
                         </div>
@@ -394,7 +397,7 @@ export default function App() {
                 <div className="flex-1 overflow-y-auto">
                     {step === 'TYPE_SELECTION' && (
                         <div className="p-6 flex flex-col items-center justify-center min-h-[90vh] animate-fade-in space-y-12">
-                            <h2 className="text-5xl font-black text-red-800 tracking-tighter text-center italic">Como vai<br/>receber?</h2>
+                            <h2 className="text-5xl font-black text-red-800 tracking-tighter text-center italic leading-none">Para onde vai<br/>o lanche?</h2>
                             <div className="grid grid-cols-1 w-full gap-6 max-w-xs">
                                 <button onClick={() => { setCustomer({...customer, orderType: OrderType.DELIVERY}); setStep('FORM'); }} className="bg-white border-2 border-zinc-50 hover:border-red-500 p-12 rounded-[4rem] text-center shadow-2xl transition-all group active:scale-95">
                                     <span className="text-8xl block mb-6 group-hover:scale-110 transition-transform">🛵</span>
@@ -402,10 +405,10 @@ export default function App() {
                                 </button>
                                 <button onClick={() => { setCustomer({...customer, orderType: OrderType.COUNTER}); setStep('FORM'); }} className="bg-white border-2 border-zinc-50 hover:border-red-500 p-12 rounded-[4rem] text-center shadow-2xl transition-all group active:scale-95">
                                     <span className="text-8xl block mb-6 group-hover:scale-110 transition-transform">🥡</span>
-                                    <span className="font-black text-red-900 text-2xl uppercase italic">Retirada</span>
+                                    <span className="font-black text-red-900 text-2xl uppercase italic">Balcão</span>
                                 </button>
                             </div>
-                            <button onClick={() => setStep('MENU')} className="text-zinc-300 font-bold uppercase text-[10px]">← Voltar ao Menu</button>
+                            <button onClick={() => setStep('MENU')} className="text-zinc-300 font-bold uppercase text-[10px] tracking-widest hover:text-red-500">← Voltar</button>
                         </div>
                     )}
 
@@ -413,8 +416,8 @@ export default function App() {
                         <div className="p-8 animate-fade-in pb-40">
                             <h2 className="text-4xl font-black text-red-700 mb-10 tracking-tighter italic">Seus Dados</h2>
                             <form onSubmit={(e) => { e.preventDefault(); setStep('SUMMARY'); }} className="space-y-6">
-                                <Input label="Seu Nome" value={customer.name} onChange={e => setCustomer({...customer, name: e.target.value})} placeholder="Para sabermos quem é" required />
-                                <Input label="Seu WhatsApp" type="tel" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} placeholder="(00) 00000-0000" required />
+                                <Input label="Seu Nome" value={customer.name} onChange={e => setCustomer({...customer, name: e.target.value})} placeholder="Como você quer ser chamado?" required />
+                                <Input label="WhatsApp" type="tel" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} placeholder="(00) 00000-0000" required />
                                 {customer.orderType === OrderType.DELIVERY && (
                                     <div className="animate-fade-in space-y-6">
                                         <Input label="Endereço" value={customer.address} onChange={e => setCustomer({...customer, address: e.target.value})} required />
@@ -422,9 +425,9 @@ export default function App() {
                                     </div>
                                 )}
                                 <Select label="Pagamento" options={PAYMENT_METHODS} value={customer.paymentMethod} onChange={e => setCustomer({...customer, paymentMethod: e.target.value as PaymentMethod})} />
-                                <Button type="submit" fullWidth className="py-6 text-2xl mt-12 rounded-[2.5rem]">CONFERIR TUDO</Button>
+                                <Button type="submit" fullWidth className="py-6 text-2xl mt-12 rounded-[2.5rem] uppercase">Continuar</Button>
                             </form>
-                            <button onClick={() => setStep('TYPE_SELECTION')} className="w-full mt-8 text-zinc-300 font-bold text-[10px] text-center uppercase tracking-widest">← Alterar Opção</button>
+                            <button onClick={() => setStep('TYPE_SELECTION')} className="w-full mt-8 text-zinc-300 font-bold text-[10px] text-center uppercase tracking-widest hover:text-red-500">← Voltar</button>
                         </div>
                     )}
 
@@ -446,7 +449,7 @@ export default function App() {
                                                 <div className="text-[10px] text-zinc-400 font-bold mt-2 uppercase">
                                                     {item.removedIngredients?.map(i => <span key={i} className="block text-red-400">× {i}</span>)}
                                                     {item.additions?.map(i => <span key={i} className="block text-green-600">✓ {i}</span>)}
-                                                    {item.observation && <span className="block italic mt-1 text-zinc-500 pl-2 border-l border-red-200">"{item.observation}"</span>}
+                                                    {item.observation && <span className="block italic mt-1 text-zinc-500 pl-2 border-l-2 border-red-100">"{item.observation}"</span>}
                                                 </div>
                                             </div>
                                             <p className="font-black text-red-700 text-lg italic">R$ {(item.price * item.quantity).toFixed(2)}</p>
@@ -454,7 +457,7 @@ export default function App() {
                                     ))}
                                 </div>
                                 <div className="border-t border-zinc-200 pt-7 flex justify-between items-center">
-                                    <span className="text-xl font-black text-zinc-300 italic">TOTAL GERAL</span>
+                                    <span className="text-xl font-black text-zinc-300 italic uppercase">Total</span>
                                     <span className="text-4xl font-black text-red-600 italic leading-none">R$ {total.toFixed(2)}</span>
                                 </div>
                             </div>
@@ -467,10 +470,10 @@ export default function App() {
                                     fullWidth 
                                     className={`py-7 text-3xl shadow-2xl rounded-[3rem] transition-all border-4 border-white/20 ${isSending ? 'opacity-70 scale-95 cursor-wait' : 'animate-pulse-slow'}`}
                                 >
-                                    {isSending ? 'GRAVANDO...' : 'CONFIRMAR PEDIDO! ✅'}
+                                    {isSending ? 'GRAVANDO...' : 'ENVIAR PEDIDO! ✅'}
                                 </Button>
                             </div>
-                            <button onClick={() => setStep('FORM')} className="w-full mt-6 text-zinc-300 font-bold text-[10px] text-center uppercase tracking-widest">← Corrigir Dados</button>
+                            <button onClick={() => setStep('FORM')} className="w-full mt-6 text-zinc-300 font-bold text-[10px] text-center uppercase tracking-widest hover:text-red-500">← Corrigir Dados</button>
                         </div>
                     )}
                 </div>
