@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+import { initializeApp, getApp, getApps } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { 
   getFirestore, 
   collection, 
@@ -21,7 +21,7 @@ import {
 } from './constants';
 import { Product, CustomerInfo, CartItem, PaymentMethod, OrderStatus, OrderType } from './types';
 
-// CONFIGURAÇÃO DO FIREBASE (Vercel Environment Variables)
+// CONFIGURAÇÃO DO FIREBASE - Inicialização Única
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "",
@@ -31,7 +31,8 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || ""
 };
 
-const app = initializeApp(firebaseConfig);
+// Singleton para garantir que o Firebase não reinicialize no client
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 
 type AppView = 'HOME' | 'ORDER' | 'LOGIN' | 'ADMIN' | 'SUCCESS';
@@ -45,22 +46,23 @@ const Receipt = ({ order }: { order: any | null }) => {
     return (
         <div className="w-full max-w-[80mm] mx-auto text-black font-mono text-[11px] p-4 bg-white border border-zinc-200 shadow-sm printable-content">
             <div className="text-center mb-4 border-b border-dashed border-black pb-2">
-                <h1 className="font-bold text-lg uppercase">Cantinho da Sandra</h1>
-                <p className="text-[9px]">PEDIDO: #{order.id?.slice(-4).toUpperCase()}</p>
+                <h1 className="font-bold text-lg uppercase italic">Cantinho da Sandra</h1>
+                <p className="text-[9px]">ID: {order.id?.slice(-6).toUpperCase()}</p>
             </div>
             <div className="mb-2">
-                <p><strong>CLIENTE:</strong> {order.nomeCliente}</p>
+                <p><strong>CLIENTE:</strong> {String(order.nomeCliente).toUpperCase()}</p>
                 <p><strong>DATA:</strong> {date}</p>
-                <p><strong>TIPO:</strong> {order.tipo || 'ENTREGA'}</p>
+                <p><strong>FONE:</strong> {order.telefone || 'N/I'}</p>
+                <p><strong>TIPO:</strong> {order.tipo || 'BALCÃO'}</p>
             </div>
             <div className="border-b border-dashed border-black my-2"></div>
             <div className="mb-2">
-                <p className="font-bold mb-1">DETALHES:</p>
-                <p className="whitespace-pre-wrap leading-tight">{order.itens}</p>
+                <p className="font-bold mb-1">PRODUTOS:</p>
+                <p className="whitespace-pre-wrap leading-tight text-[10px]">{order.itens}</p>
             </div>
             <div className="border-t border-dashed border-black mt-2 pt-2 text-right">
-                <p className="text-sm font-bold">TOTAL: R$ {Number(order.total).toFixed(2)}</p>
-                <p className="text-[9px] uppercase">{order.pagamento}</p>
+                <p className="text-sm font-bold">TOTAL: R$ {Number(order.total || 0).toFixed(2)}</p>
+                <p className="text-[9px] uppercase font-bold">{order.pagamento}</p>
             </div>
         </div>
     );
@@ -91,7 +93,7 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
     onConfirm({
       ...product, cartId: Date.now().toString(), quantity,
       removedIngredients, additions, observation,
-      price: product.price + extraPrice
+      price: Number(product.price) + Number(extraPrice)
     });
   };
 
@@ -99,28 +101,28 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
   const toggleAddition = (add: string) => setAdditions(prev => prev.includes(add) ? prev.filter(a => a !== add) : [...prev, add]);
 
   return (
-    <div className={`fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-      <div className="bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-fade-in">
-        <div className="p-6 border-b border-red-50 flex justify-between items-center bg-red-50/40">
-          <div><h3 className="text-2xl font-black text-red-700 leading-none">{product.name}</h3><p className="text-red-500 font-bold mt-1">R$ {product.price.toFixed(2)}</p></div>
-          <button onClick={onClose} className="text-zinc-300 hover:text-red-600 text-4xl transition-colors">&times;</button>
+    <div className={`fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+      <div className="bg-white w-full max-w-lg rounded-[3rem] overflow-hidden shadow-2xl flex flex-col max-h-[92vh] animate-fade-in">
+        <div className="p-7 border-b border-red-50 flex justify-between items-center bg-red-50/30">
+          <div><h3 className="text-2xl font-black text-red-800 leading-none italic">{product.name}</h3><p className="text-red-600 font-black mt-2">R$ {product.price.toFixed(2)}</p></div>
+          <button onClick={onClose} className="text-zinc-300 hover:text-red-600 text-5xl leading-none transition-colors">&times;</button>
         </div>
-        <div className="flex-1 overflow-y-auto p-6 space-y-7">
+        <div className="flex-1 overflow-y-auto p-7 space-y-8">
           <section>
-            <label className="block text-red-800 text-xs font-black uppercase mb-3 tracking-[0.2em]">Quantidade</label>
-            <div className="flex items-center gap-6">
-              <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-14 h-14 rounded-2xl bg-red-50 text-red-600 font-black text-2xl hover:bg-red-100">-</button>
-              <span className="text-4xl font-black text-red-900">{quantity}</span>
-              <button onClick={() => setQuantity(quantity + 1)} className="w-14 h-14 rounded-2xl bg-red-50 text-red-600 font-black text-2xl hover:bg-red-100">+</button>
+            <label className="block text-red-900/40 text-[10px] font-black uppercase mb-4 tracking-[0.3em]">Quantidade</label>
+            <div className="flex items-center gap-8">
+              <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-16 h-16 rounded-[1.5rem] bg-zinc-50 text-red-600 font-black text-3xl hover:bg-zinc-100 active:scale-90 transition-all">-</button>
+              <span className="text-5xl font-black text-red-900 italic">{quantity}</span>
+              <button onClick={() => setQuantity(quantity + 1)} className="w-16 h-16 rounded-[1.5rem] bg-zinc-50 text-red-600 font-black text-3xl hover:bg-zinc-100 active:scale-90 transition-all">+</button>
             </div>
           </section>
 
           {product.ingredients && (
             <section>
-              <label className="block text-red-800 text-xs font-black uppercase mb-3 tracking-[0.2em]">Retirar algo?</label>
-              <div className="grid grid-cols-2 gap-2">
+              <label className="block text-red-900/40 text-[10px] font-black uppercase mb-4 tracking-[0.3em]">Retirar?</label>
+              <div className="grid grid-cols-2 gap-3">
                 {product.ingredients.map((ing: string) => (
-                  <button key={ing} onClick={() => toggleIngredient(ing)} className={`p-3 rounded-xl text-[10px] font-black uppercase border transition-all ${removedIngredients.includes(ing) ? 'bg-red-600 border-red-600 text-white shadow-md' : 'bg-white border-zinc-100 text-zinc-400'}`}>SEM {ing}</button>
+                  <button key={ing} onClick={() => toggleIngredient(ing)} className={`p-4 rounded-2xl text-[10px] font-black uppercase border-2 transition-all ${removedIngredients.includes(ing) ? 'bg-red-600 border-red-600 text-white shadow-lg' : 'bg-white border-zinc-100 text-zinc-300'}`}>SEM {ing}</button>
                 ))}
               </div>
             </section>
@@ -128,12 +130,12 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
 
           {(product.categoryId === 'lanches' || product.categoryId === 'acai') && (
             <section>
-              <label className="block text-red-800 text-xs font-black uppercase mb-3 tracking-[0.2em]">Adicionais</label>
-              <div className="space-y-2">
+              <label className="block text-red-900/40 text-[10px] font-black uppercase mb-4 tracking-[0.3em]">Adicionais</label>
+              <div className="space-y-3">
                 {(product.categoryId === 'lanches' ? EXTRAS_OPTIONS : ACAI_PAID_EXTRAS).map(opt => (
-                  <button key={opt.name} onClick={() => toggleAddition(opt.name)} className={`w-full flex justify-between items-center p-4 rounded-2xl border transition-all ${additions.includes(opt.name) ? 'bg-red-50 border-red-200 text-red-700' : 'bg-white border-zinc-100 text-zinc-500'}`}>
-                    <span className="font-bold text-sm uppercase">{opt.name}</span>
-                    <span className="font-black text-red-600">+R$ {opt.price.toFixed(2)}</span>
+                  <button key={opt.name} onClick={() => toggleAddition(opt.name)} className={`w-full flex justify-between items-center p-5 rounded-[1.5rem] border-2 transition-all ${additions.includes(opt.name) ? 'bg-red-50 border-red-200 text-red-800' : 'bg-white border-zinc-100 text-zinc-400'}`}>
+                    <span className="font-black text-xs uppercase italic">{opt.name}</span>
+                    <span className="font-black text-red-600 text-sm">+ R$ {opt.price.toFixed(2)}</span>
                   </button>
                 ))}
               </div>
@@ -141,12 +143,12 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
           )}
 
           <section>
-            <label className="block text-red-800 text-xs font-black uppercase mb-3 tracking-[0.2em]">Observação</label>
-            <textarea className="w-full bg-zinc-50 border border-zinc-100 rounded-2xl p-4 text-zinc-800 focus:outline-none focus:border-red-500 min-h-[100px] text-sm" placeholder="Ex: Carne bem passada..." value={observation} onChange={e => setObservation(e.target.value)} />
+            <label className="block text-red-900/40 text-[10px] font-black uppercase mb-4 tracking-[0.3em]">Observação</label>
+            <textarea className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-[2rem] p-6 text-zinc-800 focus:outline-none focus:border-red-500 min-h-[120px] text-sm font-medium" placeholder="Ex: Carne bem passada..." value={observation} onChange={e => setObservation(e.target.value)} />
           </section>
         </div>
-        <div className="p-6 bg-zinc-50/50 border-t border-red-50">
-          <Button fullWidth onClick={handleConfirm} className="py-4 text-lg">ADICIONAR AO CARRINHO</Button>
+        <div className="p-7 bg-zinc-50/80 border-t border-zinc-100">
+          <Button fullWidth onClick={handleConfirm} className="py-5 text-lg rounded-[2rem]">ADICIONAR AO CARRINHO</Button>
         </div>
       </div>
     </div>
@@ -176,77 +178,69 @@ export default function App() {
         const loadedOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setOrders(loadedOrders);
       }, (error) => {
-        console.error("Erro Firestore:", error);
+        console.error("Erro Firestore Listener:", error);
       });
       return () => unsubscribe();
     }
   }, [view, isLoggedIn]);
 
-  const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+  const total = cart.reduce((acc, item) => acc + (Number(item.price) * Number(item.quantity)), 0);
 
-  // --- FINALIZAÇÃO DO PEDIDO ---
+  // --- FINALIZAÇÃO DO PEDIDO (LIMPEZA TOTAL DE CAMPOS) ---
   const handleFinishOrder = async () => {
     if (isSending) return;
     
-    // Validação inicial
-    const clientName = customer.name?.trim();
+    const clientName = String(customer.name || "").trim();
     if (!clientName || cart.length === 0) {
-      alert("Por favor, preencha o nome e adicione itens.");
+      alert("Por favor, preencha o seu nome e escolha seus lanches.");
       return;
     }
 
     setIsSending(true);
 
     try {
-      // 1. Sanitização do Total (Garantir que não é NaN)
-      const safeTotal = isNaN(total) ? 0 : Number(total.toFixed(2));
+      // 1. Sanitização do Total (Garantia de Número válido)
+      const finalTotal = isNaN(total) ? 0 : Number(Number(total).toFixed(2));
 
-      // 2. Formatação dos Itens como string serializável
-      const itensString = cart.map(item => {
-          let text = `${item.quantity}x ${item.name}`;
-          let details = [];
-          if (item.removedIngredients?.length) details.push(`Sem: ${item.removedIngredients.join(', ')}`);
-          if (item.additions?.length) details.push(`Add: ${item.additions.join(', ')}`);
-          if (item.observation) details.push(`Obs: ${item.observation}`);
-          return details.length > 0 ? `${text} (${details.join(' | ')})` : text;
+      // 2. Normalização dos Itens (String plana para evitar erros de nested objects)
+      const itensFormatados = cart.map(item => {
+          let desc = `${item.quantity}x ${item.name}`;
+          const extras = [];
+          if (item.removedIngredients?.length) extras.push(`SEM: ${item.removedIngredients.join(', ')}`);
+          if (item.additions?.length) extras.push(`COM: ${item.additions.join(', ')}`);
+          if (item.observation?.trim()) extras.push(`OBS: ${item.observation.trim()}`);
+          return extras.length > 0 ? `${desc} (${extras.join(' | ')})` : desc;
       }).join('\n');
 
-      // 3. Montagem do Payload Seguro (Sem undefined)
+      // 3. Payload Seguro (NADA de undefined ou objetos complexos)
       const payload = {
         nomeCliente: clientName,
-        itens: itensString || "Sem descrição",
-        total: safeTotal,
-        status: 'novo',
-        criadoEm: serverTimestamp(),
-        telefone: customer.phone || "Não informado",
-        tipo: customer.orderType || "BALCÃO",
-        pagamento: customer.paymentMethod || "PIX",
+        itens: String(itensFormatados || "Lanche"),
+        total: finalTotal,
+        status: "novo",
+        criadoEm: serverTimestamp(), // O SDK cuida disso
+        telefone: String(customer.phone || "Não informado"),
+        tipo: String(customer.orderType || "BALCÃO"),
+        pagamento: String(customer.paymentMethod || "PIX"),
         endereco: customer.orderType === OrderType.DELIVERY 
-            ? `${customer.address || "S/E"}, ${customer.addressNumber || "S/N"}` 
-            : 'Balcão'
+            ? `${String(customer.address || "S/E")}, ${String(customer.addressNumber || "S/N")}` 
+            : "Balcão"
       };
 
-      // 4. Gravação no Firestore com tratamento de timeout
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("Timeout de conexão")), 12000)
-      );
-
-      const dbPromise = addDoc(collection(db, 'pedidos'), payload);
+      // 4. Execução do addDoc (O SDK do Firebase lida com retries internamente)
+      await addDoc(collection(db, 'pedidos'), payload);
       
-      await Promise.race([dbPromise, timeoutPromise]);
-      
-      // 5. Fluxo de Sucesso Definitivo
+      // 5. Sucesso: Troca a interface e agenda o reload
       setView('SUCCESS');
       
-      // RELOAD APÓS 3 SEGUNDOS
       setTimeout(() => {
         window.location.reload();
-      }, 3500);
+      }, 4000);
 
-    } catch (e: any) {
-      console.error("Erro ao gravar no Firestore:", e);
-      alert(`Erro: ${e.message || "Erro desconhecido"}. Verifique sua internet.`);
-      setIsSending(false); // Reabilita em erro
+    } catch (error: any) {
+      console.error("FALHA AO GRAVAR PEDIDO:", error);
+      alert(`Erro no envio: ${error.message || "Verifique sua conexão"}. Tente novamente.`);
+      setIsSending(false);
     }
   };
 
@@ -268,16 +262,17 @@ export default function App() {
 
   if (view === 'SUCCESS') return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-zinc-50 animate-fade-in fixed inset-0 z-[500]">
-      <div className="glass-card p-12 md:p-20 rounded-[4rem] max-w-md shadow-2xl border-green-200 border-2 relative overflow-hidden bg-white">
-        <div className="text-9xl mb-10 animate-bounce">🍔✅</div>
-        <h2 className="text-4xl font-black text-green-600 mb-6 tracking-tighter italic uppercase">Pedido Gravado!</h2>
+      <div className="glass-card p-12 md:p-20 rounded-[5rem] max-w-md shadow-2xl border-green-200 border-2 relative overflow-hidden bg-white">
+        <div className="text-[120px] mb-12 animate-bounce leading-none">✅</div>
+        <h2 className="text-4xl font-black text-green-600 mb-6 tracking-tighter italic uppercase leading-tight">Pedido Enviado!</h2>
         <div className="space-y-6">
-            <p className="text-zinc-500 font-bold text-sm uppercase tracking-widest leading-relaxed">
-                A <span className="text-red-600">Sandra</span> recebeu seu pedido no sistema.
+            <p className="text-zinc-400 font-black text-[10px] uppercase tracking-[0.3em] leading-relaxed">
+                A <span className="text-red-600">Sandra</span> recebeu seu pedido.
             </p>
-            <div className="bg-green-50 border border-green-200 p-6 rounded-3xl">
-                <p className="text-green-700 font-black text-xs uppercase tracking-[0.2em] leading-relaxed">
-                    Sua página será reiniciada para um novo pedido...
+            <div className="bg-green-50 border border-green-100 p-8 rounded-[2.5rem] shadow-inner">
+                <p className="text-green-800 font-black text-[11px] uppercase tracking-widest leading-loose">
+                    Agora é só aguardar!<br/>
+                    Sistema reiniciando...
                 </p>
             </div>
         </div>
@@ -286,51 +281,54 @@ export default function App() {
   );
 
   if (view === 'LOGIN') return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-zinc-100">
-        <div className="glass-card p-10 rounded-[3.5rem] w-full max-w-sm shadow-2xl">
-            <h2 className="text-2xl font-black text-red-700 mb-8 text-center italic">Painel Admin</h2>
+    <div className="min-h-screen flex items-center justify-center p-6 bg-zinc-50">
+        <div className="glass-card p-12 rounded-[4rem] w-full max-w-sm shadow-2xl bg-white border border-red-50">
+            <h2 className="text-3xl font-black text-red-800 mb-10 text-center italic leading-none">Sandra Admin</h2>
             <form onSubmit={(e) => {
                 e.preventDefault();
                 const formData = new FormData(e.currentTarget);
                 if (formData.get('user') === 'sandra' && formData.get('pass') === '1234') {
                     setIsLoggedIn(true); setView('ADMIN');
-                } else alert("Acesso negado.");
-            }} className="space-y-5">
+                } else alert("Senha incorreta!");
+            }} className="space-y-6">
                 <Input label="Usuário" name="user" required />
                 <Input label="Senha" name="pass" type="password" required />
-                <Button type="submit" fullWidth className="py-4">ENTRAR</Button>
-                <button type="button" onClick={() => setView('HOME')} className="w-full text-zinc-300 font-bold text-[10px] mt-2">Voltar</button>
+                <Button type="submit" fullWidth className="py-5 rounded-[1.5rem]">ACESSAR PAINEL</Button>
+                <button type="button" onClick={() => setView('HOME')} className="w-full text-zinc-300 font-black text-[10px] mt-4 uppercase tracking-widest hover:text-red-600 transition-colors">← Voltar</button>
             </form>
         </div>
     </div>
   );
 
   if (view === 'ADMIN') return (
-    <div className="min-h-screen p-4 md:p-8 bg-zinc-50 pb-24 animate-fade-in">
-      <header className="flex justify-between items-center mb-10 max-w-6xl mx-auto bg-white p-6 rounded-[2.5rem] shadow-sm">
-        <h2 className="text-3xl font-black text-red-700 italic">Cozinha da Sandra</h2>
-        <Button variant="secondary" onClick={() => { setIsLoggedIn(false); setView('HOME'); }} className="px-5 py-2 text-xs">SAIR</Button>
+    <div className="min-h-screen p-6 md:p-12 bg-zinc-50 pb-32 animate-fade-in">
+      <header className="flex justify-between items-center mb-12 max-w-7xl mx-auto bg-white p-8 rounded-[3rem] shadow-sm border border-red-50">
+        <div>
+            <h2 className="text-4xl font-black text-red-800 italic leading-none">Cozinha</h2>
+            <p className="text-[10px] text-zinc-300 font-black uppercase tracking-widest mt-2">Gestão de Pedidos</p>
+        </div>
+        <Button variant="secondary" onClick={() => { setIsLoggedIn(false); setView('HOME'); }} className="px-8 py-3 rounded-2xl text-[10px] font-black uppercase">SAIR</Button>
       </header>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 max-w-7xl mx-auto">
         {orders.map(o => (
-          <div key={o.id} className={`glass-card p-7 rounded-[3rem] border-l-[12px] shadow-xl transition-all relative ${o.status === 'novo' ? 'border-red-600 bg-white' : 'border-zinc-200 opacity-60'}`}>
-            <div className="flex justify-between items-start mb-5">
+          <div key={o.id} className={`glass-card p-8 rounded-[3.5rem] border-l-[14px] shadow-2xl transition-all relative overflow-hidden bg-white ${o.status === 'novo' ? 'border-red-600' : 'border-zinc-100 opacity-60'}`}>
+            <div className="flex justify-between items-start mb-6">
               <div>
-                <p className="text-2xl font-black text-red-900 leading-tight">{o.nomeCliente}</p>
-                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{o.tipo} • {o.pagamento}</p>
+                <p className="text-3xl font-black text-red-950 leading-none italic">{o.nomeCliente}</p>
+                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mt-3">{o.tipo || 'ENTREGA'} • {o.pagamento}</p>
               </div>
-              {o.status === 'novo' && <span className="bg-red-600 text-white text-[9px] font-black px-3 py-1.5 rounded-full animate-pulse shadow-lg">NOVO</span>}
+              {o.status === 'novo' && <span className="bg-red-600 text-white text-[9px] font-black px-4 py-2 rounded-full shadow-lg shadow-red-100 uppercase italic">Novo</span>}
             </div>
-            <div className="bg-zinc-50/50 rounded-2xl p-5 mb-5 text-[11px] font-mono whitespace-pre-wrap max-h-[160px] overflow-y-auto leading-relaxed text-zinc-800">
+            <div className="bg-zinc-50/50 rounded-[2rem] p-6 mb-6 text-[11px] font-bold whitespace-pre-wrap max-h-[180px] overflow-y-auto leading-relaxed text-zinc-700 border border-zinc-50">
               {o.itens}
             </div>
-            <div className="flex justify-between items-center mb-7">
-               <p className="text-3xl font-black text-red-600">R$ {Number(o.total || 0).toFixed(2)}</p>
-               <button onClick={() => printOrder(o)} className="w-12 h-12 bg-zinc-900 text-white rounded-xl flex items-center justify-center text-2xl hover:scale-105 active:scale-90 transition-transform">🖨️</button>
+            <div className="flex justify-between items-center mb-8">
+               <p className="text-4xl font-black text-red-700 italic">R$ {Number(o.total || 0).toFixed(2)}</p>
+               <button onClick={() => printOrder(o)} className="w-14 h-14 bg-zinc-900 text-white rounded-[1.2rem] flex items-center justify-center text-3xl hover:scale-105 active:scale-90 transition-transform shadow-xl">🖨️</button>
             </div>
             {o.status === 'novo' && (
-              <Button fullWidth onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 border-green-500 py-4 font-black text-xs rounded-2xl">CONCLUÍDO</Button>
+              <Button fullWidth onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 border-green-500 py-5 rounded-[1.8rem] text-xs font-black uppercase">Concluir Pedido</Button>
             )}
           </div>
         ))}
@@ -342,51 +340,51 @@ export default function App() {
   return (
     <div className="min-h-screen bg-white">
       {view === 'HOME' && (
-        <div className="min-h-screen flex flex-col items-center justify-center p-6 animate-fade-in">
-          <div className="glass-card p-12 md:p-20 rounded-[4.5rem] text-center shadow-2xl max-w-md w-full border-red-50 bg-white relative overflow-hidden">
-            <div className="text-8xl mb-8 animate-float">🍔</div>
-            <h1 className="text-5xl font-black text-red-600 mb-3 tracking-tighter italic leading-none">Cantinho da Sandra</h1>
-            <p className="text-red-900/30 font-black uppercase tracking-[0.4em] text-[10px] mb-14">Lanches de Verdade</p>
-            <Button fullWidth onClick={() => setView('ORDER')} className="text-2xl py-7 shadow-2xl shadow-red-100 flex items-center justify-center gap-4 group rounded-[3rem]">
-              COMEÇAR PEDIDO <span className="text-3xl group-hover:translate-x-2 transition-transform">➡</span>
+        <div className="min-h-screen flex flex-col items-center justify-center p-6 animate-fade-in bg-zinc-50">
+          <div className="glass-card p-14 md:p-24 rounded-[5rem] text-center shadow-2xl max-w-md w-full border-red-50 bg-white relative overflow-hidden border-b-8 border-red-100">
+            <div className="text-[120px] mb-10 animate-float leading-none drop-shadow-2xl">🍔</div>
+            <h1 className="text-6xl font-black text-red-800 mb-4 tracking-tighter italic leading-none">Cantinho da Sandra</h1>
+            <p className="text-red-900/20 font-black uppercase tracking-[0.5em] text-[11px] mb-16">O melhor lanche da região</p>
+            <Button fullWidth onClick={() => setView('ORDER')} className="text-2xl py-8 shadow-2xl shadow-red-100 flex items-center justify-center gap-5 group rounded-[3rem] border-b-4 border-red-800">
+              FAZER PEDIDO <span className="text-4xl group-hover:translate-x-3 transition-transform">➡</span>
             </Button>
-            <button onClick={() => setView('LOGIN')} className="mt-16 text-zinc-100 text-[10px] uppercase tracking-widest">Painel Admin</button>
+            <button onClick={() => setView('LOGIN')} className="mt-20 text-zinc-200 text-[10px] font-black uppercase tracking-[0.3em] hover:text-red-300 transition-colors italic">Área Administrativa</button>
           </div>
         </div>
       )}
 
       {view === 'ORDER' && (
-        <div className="max-w-xl mx-auto min-h-screen flex flex-col bg-white">
+        <div className="max-w-xl mx-auto min-h-screen flex flex-col bg-white border-x border-zinc-50 shadow-2xl shadow-zinc-200">
             {step === 'MENU' && (
                 <>
-                    <header className="p-5 bg-white sticky top-0 z-50 flex justify-between items-center border-b border-zinc-50 shadow-sm">
-                        <button onClick={() => setView('HOME')} className="text-red-600 font-black text-xs uppercase tracking-widest px-2">← Início</button>
-                        <h2 className="font-black text-red-700 uppercase tracking-[0.2em] text-[11px]">Cardápio</h2>
+                    <header className="p-6 bg-white sticky top-0 z-50 flex justify-between items-center border-b border-zinc-100 shadow-sm backdrop-blur-md bg-white/90">
+                        <button onClick={() => setView('HOME')} className="text-red-700 font-black text-[10px] uppercase tracking-widest px-3 py-1 bg-red-50 rounded-full">← Início</button>
+                        <h2 className="font-black text-red-900 uppercase tracking-[0.2em] text-[10px] italic">Cardápio Oficial</h2>
                         <div className="w-12"></div>
                     </header>
-                    <div className="p-4 flex gap-2 overflow-x-auto no-scrollbar py-6">
+                    <div className="p-5 flex gap-3 overflow-x-auto no-scrollbar py-7 border-b border-zinc-50">
                         {CATEGORIES.map(cat => (
-                            <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`flex-shrink-0 px-7 py-3.5 rounded-[1.5rem] font-black text-[10px] uppercase transition-all ${activeCategory === cat.id ? 'bg-red-600 text-white shadow-lg scale-105' : 'bg-zinc-50 text-zinc-400 hover:bg-zinc-100'}`}>
-                                {cat.icon} {cat.name}
+                            <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`flex-shrink-0 px-8 py-4 rounded-[1.8rem] font-black text-[10px] uppercase transition-all flex items-center gap-2 ${activeCategory === cat.id ? 'bg-red-700 text-white shadow-xl shadow-red-100 scale-105' : 'bg-zinc-50 text-zinc-400 hover:bg-zinc-100 active:scale-95'}`}>
+                                <span className="text-xl leading-none">{cat.icon}</span> {cat.name}
                             </button>
                         ))}
                     </div>
-                    <div className="flex-1 p-5 space-y-4 pb-44 overflow-y-auto">
+                    <div className="flex-1 p-6 space-y-5 pb-48 overflow-y-auto bg-zinc-50/30">
                         {PRODUCTS.filter(p => p.categoryId === activeCategory).map(prod => (
-                            <div key={prod.id} onClick={() => setSelectedProduct(prod)} className="bg-white border border-zinc-100 p-6 rounded-[2.8rem] flex justify-between items-center shadow-sm active:scale-95 transition-all hover:border-red-100">
-                                <div className="flex-1 pr-2">
-                                    <h3 className="text-xl font-black text-red-900 mb-1 leading-none">{prod.name}</h3>
-                                    <p className="text-red-600 font-black text-lg italic">R$ {prod.price.toFixed(2)}</p>
+                            <div key={prod.id} onClick={() => setSelectedProduct(prod)} className="bg-white border-2 border-zinc-50 p-7 rounded-[3rem] flex justify-between items-center shadow-lg shadow-zinc-100/50 active:scale-[0.98] transition-all hover:border-red-100 cursor-pointer group">
+                                <div className="flex-1 pr-4">
+                                    <h3 className="text-2xl font-black text-red-950 mb-2 leading-none italic group-hover:text-red-700 transition-colors">{prod.name}</h3>
+                                    <p className="text-red-600 font-black text-xl italic drop-shadow-sm">R$ {prod.price.toFixed(2)}</p>
                                 </div>
-                                <div className="w-14 h-14 bg-red-600 text-white rounded-[1.5rem] flex items-center justify-center text-3xl font-black shadow-lg shadow-red-100">+</div>
+                                <div className="w-16 h-16 bg-red-700 text-white rounded-[1.5rem] flex items-center justify-center text-4xl font-black shadow-2xl shadow-red-200 group-hover:rotate-12 transition-transform">+</div>
                             </div>
                         ))}
                     </div>
                     {cart.length > 0 && (
-                        <div className="fixed bottom-10 left-6 right-6 z-50 animate-slide-up max-w-lg mx-auto">
-                            <Button fullWidth onClick={() => setStep('TYPE_SELECTION')} className="py-6 text-xl flex justify-between items-center px-10 shadow-2xl rounded-[3rem]">
-                                <span className="font-black italic uppercase">Revisar</span>
-                                <span className="bg-white/20 px-5 py-1.5 rounded-2xl text-xl font-black italic">R$ {total.toFixed(2)}</span>
+                        <div className="fixed bottom-12 left-6 right-6 z-50 animate-slide-up max-w-lg mx-auto">
+                            <Button fullWidth onClick={() => setStep('TYPE_SELECTION')} className="py-7 text-2xl flex justify-between items-center px-12 shadow-2xl rounded-[3rem] border-b-4 border-red-800">
+                                <span className="font-black italic uppercase tracking-tighter">Continuar</span>
+                                <span className="bg-white/20 px-6 py-2 rounded-2xl text-xl font-black italic">R$ {total.toFixed(2)}</span>
                             </Button>
                         </div>
                     )}
@@ -394,86 +392,90 @@ export default function App() {
             )}
 
             {(step === 'TYPE_SELECTION' || step === 'FORM' || step === 'SUMMARY') && (
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto bg-white">
                     {step === 'TYPE_SELECTION' && (
-                        <div className="p-6 flex flex-col items-center justify-center min-h-[90vh] animate-fade-in space-y-12">
-                            <h2 className="text-5xl font-black text-red-800 tracking-tighter text-center italic leading-none">Para onde vai<br/>o lanche?</h2>
-                            <div className="grid grid-cols-1 w-full gap-6 max-w-xs">
-                                <button onClick={() => { setCustomer({...customer, orderType: OrderType.DELIVERY}); setStep('FORM'); }} className="bg-white border-2 border-zinc-50 hover:border-red-500 p-12 rounded-[4rem] text-center shadow-2xl transition-all group active:scale-95">
-                                    <span className="text-8xl block mb-6 group-hover:scale-110 transition-transform">🛵</span>
-                                    <span className="font-black text-red-900 text-2xl uppercase italic">Entrega</span>
+                        <div className="p-8 flex flex-col items-center justify-center min-h-[90vh] animate-fade-in space-y-16">
+                            <div className="text-center">
+                                <h2 className="text-6xl font-black text-red-900 tracking-tighter italic leading-none">Como quer<br/>receber?</h2>
+                                <p className="text-[10px] font-black text-zinc-300 uppercase tracking-widest mt-6">Escolha uma opção abaixo</p>
+                            </div>
+                            <div className="grid grid-cols-1 w-full gap-8 max-w-sm">
+                                <button onClick={() => { setCustomer({...customer, orderType: OrderType.DELIVERY}); setStep('FORM'); }} className="bg-zinc-50 border-2 border-zinc-100 hover:border-red-600 hover:bg-white p-14 rounded-[4.5rem] text-center shadow-2xl transition-all group active:scale-95 border-b-8 border-zinc-200">
+                                    <span className="text-[100px] block mb-8 group-hover:scale-110 transition-transform leading-none">🛵</span>
+                                    <span className="font-black text-red-950 text-3xl uppercase italic leading-none">Entrega</span>
                                 </button>
-                                <button onClick={() => { setCustomer({...customer, orderType: OrderType.COUNTER}); setStep('FORM'); }} className="bg-white border-2 border-zinc-50 hover:border-red-500 p-12 rounded-[4rem] text-center shadow-2xl transition-all group active:scale-95">
-                                    <span className="text-8xl block mb-6 group-hover:scale-110 transition-transform">🥡</span>
-                                    <span className="font-black text-red-900 text-2xl uppercase italic">Balcão</span>
+                                <button onClick={() => { setCustomer({...customer, orderType: OrderType.COUNTER}); setStep('FORM'); }} className="bg-zinc-50 border-2 border-zinc-100 hover:border-red-600 hover:bg-white p-14 rounded-[4.5rem] text-center shadow-2xl transition-all group active:scale-95 border-b-8 border-zinc-200">
+                                    <span className="text-[100px] block mb-8 group-hover:scale-110 transition-transform leading-none">🥡</span>
+                                    <span className="font-black text-red-950 text-3xl uppercase italic leading-none">Balcão</span>
                                 </button>
                             </div>
-                            <button onClick={() => setStep('MENU')} className="text-zinc-300 font-bold uppercase text-[10px] tracking-widest hover:text-red-500">← Voltar</button>
+                            <button onClick={() => setStep('MENU')} className="text-zinc-300 font-black uppercase text-[10px] tracking-[0.2em] hover:text-red-600 transition-colors">← Voltar ao Cardápio</button>
                         </div>
                     )}
 
                     {step === 'FORM' && (
-                        <div className="p-8 animate-fade-in pb-40">
-                            <h2 className="text-4xl font-black text-red-700 mb-10 tracking-tighter italic">Seus Dados</h2>
-                            <form onSubmit={(e) => { e.preventDefault(); setStep('SUMMARY'); }} className="space-y-6">
-                                <Input label="Seu Nome" value={customer.name} onChange={e => setCustomer({...customer, name: e.target.value})} placeholder="Como você quer ser chamado?" required />
-                                <Input label="WhatsApp" type="tel" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} placeholder="(00) 00000-0000" required />
+                        <div className="p-10 animate-fade-in pb-48">
+                            <h2 className="text-5xl font-black text-red-800 mb-12 tracking-tighter italic leading-none">Seus Dados</h2>
+                            <form onSubmit={(e) => { e.preventDefault(); setStep('SUMMARY'); }} className="space-y-8">
+                                <Input label="Seu Nome Completo" value={customer.name} onChange={e => setCustomer({...customer, name: e.target.value})} placeholder="Para o pedido da Sandra" required />
+                                <Input label="Seu WhatsApp" type="tel" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} placeholder="(00) 00000-0000" required />
                                 {customer.orderType === OrderType.DELIVERY && (
-                                    <div className="animate-fade-in space-y-6">
-                                        <Input label="Endereço" value={customer.address} onChange={e => setCustomer({...customer, address: e.target.value})} required />
-                                        <Input label="Número" value={customer.addressNumber} onChange={e => setCustomer({...customer, addressNumber: e.target.value})} required />
+                                    <div className="animate-fade-in space-y-8">
+                                        <Input label="Endereço de Entrega" value={customer.address} onChange={e => setCustomer({...customer, address: e.target.value})} placeholder="Rua / Bairro" required />
+                                        <Input label="Número / Apto" value={customer.addressNumber} onChange={e => setCustomer({...customer, addressNumber: e.target.value})} required />
                                     </div>
                                 )}
-                                <Select label="Pagamento" options={PAYMENT_METHODS} value={customer.paymentMethod} onChange={e => setCustomer({...customer, paymentMethod: e.target.value as PaymentMethod})} />
-                                <Button type="submit" fullWidth className="py-6 text-2xl mt-12 rounded-[2.5rem] uppercase">Continuar</Button>
+                                <Select label="Forma de Pagamento" options={PAYMENT_METHODS} value={customer.paymentMethod} onChange={e => setCustomer({...customer, paymentMethod: e.target.value as PaymentMethod})} />
+                                <Button type="submit" fullWidth className="py-8 text-2xl mt-16 rounded-[3rem] uppercase italic border-b-4 border-red-800">Conferir Pedido</Button>
                             </form>
-                            <button onClick={() => setStep('TYPE_SELECTION')} className="w-full mt-8 text-zinc-300 font-bold text-[10px] text-center uppercase tracking-widest hover:text-red-500">← Voltar</button>
+                            <button onClick={() => setStep('TYPE_SELECTION')} className="w-full mt-10 text-zinc-300 font-black text-[10px] text-center uppercase tracking-widest hover:text-red-600 transition-colors">← Alterar Tipo</button>
                         </div>
                     )}
 
                     {step === 'SUMMARY' && (
-                        <div className="p-8 animate-fade-in pb-44">
-                            <h2 className="text-4xl font-black text-red-700 mb-8 tracking-tighter italic">Resumo</h2>
-                            <div className="bg-zinc-50 p-9 rounded-[3.5rem] mb-10 space-y-7 shadow-inner border border-zinc-100">
-                                <div className="border-b border-zinc-200 pb-6">
-                                    <p className="text-3xl font-black text-red-900 italic leading-none">{customer.name}</p>
-                                    <p className="text-[10px] font-black text-red-600 mt-3 uppercase tracking-tighter italic">
-                                        {customer.orderType} • PAGAMENTO EM {customer.paymentMethod}
+                        <div className="p-10 animate-fade-in pb-52">
+                            <h2 className="text-5xl font-black text-red-800 mb-10 tracking-tighter italic leading-none">Revisão</h2>
+                            <div className="bg-zinc-50 p-10 rounded-[4rem] mb-12 space-y-9 shadow-2xl shadow-zinc-100 border-2 border-white relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-6 opacity-5 select-none text-9xl">🍔</div>
+                                <div className="border-b-2 border-zinc-200 pb-8 relative z-10">
+                                    <p className="text-4xl font-black text-red-950 italic leading-none">{customer.name.toUpperCase()}</p>
+                                    <p className="text-[10px] font-black text-red-600 mt-4 uppercase tracking-[0.2em] italic bg-red-50 inline-block px-4 py-1.5 rounded-full">
+                                        {customer.orderType} • PAGAMENTO: {customer.paymentMethod}
                                     </p>
                                 </div>
-                                <div className="space-y-5">
+                                <div className="space-y-7 relative z-10">
                                     {cart.map(item => (
                                         <div key={item.cartId} className="flex justify-between items-start">
-                                            <div className="flex-1 pr-4">
-                                                <p className="font-black text-red-900 text-lg leading-tight">{item.quantity}x {item.name}</p>
-                                                <div className="text-[10px] text-zinc-400 font-bold mt-2 uppercase">
-                                                    {item.removedIngredients?.map(i => <span key={i} className="block text-red-400">× {i}</span>)}
-                                                    {item.additions?.map(i => <span key={i} className="block text-green-600">✓ {i}</span>)}
-                                                    {item.observation && <span className="block italic mt-1 text-zinc-500 pl-2 border-l-2 border-red-100">"{item.observation}"</span>}
+                                            <div className="flex-1 pr-6">
+                                                <p className="font-black text-red-950 text-xl leading-none italic">{item.quantity}x {item.name}</p>
+                                                <div className="text-[10px] text-zinc-400 font-bold mt-3 uppercase leading-relaxed tracking-tighter">
+                                                    {item.removedIngredients?.map(i => <span key={i} className="block text-red-400">× SEM {i}</span>)}
+                                                    {item.additions?.map(i => <span key={i} className="block text-green-600">✓ COM {i}</span>)}
+                                                    {item.observation?.trim() && <span className="block italic mt-2 text-zinc-500 bg-white/50 p-3 rounded-2xl border border-zinc-100">"{item.observation.trim()}"</span>}
                                                 </div>
                                             </div>
-                                            <p className="font-black text-red-700 text-lg italic">R$ {(item.price * item.quantity).toFixed(2)}</p>
+                                            <p className="font-black text-red-800 text-xl italic">R$ {(item.price * item.quantity).toFixed(2)}</p>
                                         </div>
                                     ))}
                                 </div>
-                                <div className="border-t border-zinc-200 pt-7 flex justify-between items-center">
-                                    <span className="text-xl font-black text-zinc-300 italic uppercase">Total</span>
-                                    <span className="text-4xl font-black text-red-600 italic leading-none">R$ {total.toFixed(2)}</span>
+                                <div className="border-t-2 border-zinc-200 pt-9 flex justify-between items-center relative z-10">
+                                    <span className="text-2xl font-black text-zinc-300 italic uppercase">Total Final</span>
+                                    <span className="text-5xl font-black text-red-700 italic leading-none drop-shadow-sm">R$ {total.toFixed(2)}</span>
                                 </div>
                             </div>
                             
-                            {/* BOTÃO FINAL DE ENVIO */}
-                            <div className="fixed bottom-10 left-6 right-6 z-50 max-w-lg mx-auto">
+                            {/* BOTÃO FINAL (GARANTIA DE SUCESSO) */}
+                            <div className="fixed bottom-12 left-6 right-6 z-50 max-w-lg mx-auto">
                                 <Button 
                                     onClick={handleFinishOrder} 
                                     disabled={isSending}
                                     fullWidth 
-                                    className={`py-7 text-3xl shadow-2xl rounded-[3rem] transition-all border-4 border-white/20 ${isSending ? 'opacity-70 scale-95 cursor-wait' : 'animate-pulse-slow'}`}
+                                    className={`py-8 text-3xl shadow-2xl rounded-[3.5rem] transition-all border-4 border-white/30 border-b-8 border-b-red-900 ${isSending ? 'opacity-70 scale-95 grayscale cursor-wait' : 'animate-pulse-slow active:translate-y-2 active:border-b-4'}`}
                                 >
-                                    {isSending ? 'GRAVANDO...' : 'ENVIAR PEDIDO! ✅'}
+                                    {isSending ? 'ENVIANDO...' : 'ENVIAR AGORA! ✅'}
                                 </Button>
                             </div>
-                            <button onClick={() => setStep('FORM')} className="w-full mt-6 text-zinc-300 font-bold text-[10px] text-center uppercase tracking-widest hover:text-red-500">← Corrigir Dados</button>
+                            <button onClick={() => setStep('FORM')} className="w-full mt-8 text-zinc-300 font-black text-[10px] text-center uppercase tracking-widest hover:text-red-600 transition-colors">← Corrigir Meus Dados</button>
                         </div>
                     )}
                 </div>
@@ -489,14 +491,14 @@ export default function App() {
       />
 
       <style>{`
-        @keyframes fade-in { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        @keyframes pulse-slow { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
-        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
-        .animate-fade-in { animation: fade-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        .animate-slide-up { animation: slide-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        .animate-pulse-slow { animation: pulse-slow 2s infinite ease-in-out; }
-        .animate-float { animation: float 5s infinite ease-in-out; }
+        @keyframes fade-in { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slide-up { from { transform: translateY(120%); } to { transform: translateY(0); } }
+        @keyframes pulse-slow { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-30px); } }
+        .animate-fade-in { animation: fade-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-slide-up { animation: slide-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-pulse-slow { animation: pulse-slow 2.5s infinite ease-in-out; }
+        .animate-float { animation: float 6s infinite ease-in-out; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
     </div>
