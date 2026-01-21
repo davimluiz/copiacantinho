@@ -21,7 +21,7 @@ import {
 } from './constants';
 import { Product, CustomerInfo, CartItem, PaymentMethod, OrderStatus, OrderType } from './types';
 
-// CONFIGURAÇÃO DO FIREBASE VIA VARIÁVEIS DE AMBIENTE (Vercel)
+// CONFIGURAÇÃO DO FIREBASE (Variáveis de ambiente Vercel/Next.js)
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -66,7 +66,7 @@ const Receipt = ({ order }: { order: any | null }) => {
     );
 };
 
-// --- MODAL DE SELEÇÃO DE PRODUTO ---
+// --- MODAL DE PERSONALIZAÇÃO ---
 const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
   const [quantity, setQuantity] = useState(1);
   const [removedIngredients, setRemovedIngredients] = useState<string[]>([]);
@@ -168,7 +168,7 @@ export default function App() {
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
   const [isSending, setIsSending] = useState(false);
 
-  // LISTENER REAL-TIME PARA O PAINEL ADMIN
+  // LISTENER REAL-TIME ADMIN
   useEffect(() => {
     if (view === 'ADMIN' && isLoggedIn) {
       const q = query(collection(db, 'pedidos'), orderBy('criadoEm', 'desc'));
@@ -176,7 +176,7 @@ export default function App() {
         const loadedOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setOrders(loadedOrders);
       }, (error) => {
-        console.error("Erro no listener Firestore:", error);
+        console.error("Erro Firestore:", error);
       });
       return () => unsubscribe();
     }
@@ -184,18 +184,15 @@ export default function App() {
 
   const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
-  // --- FINALIZAÇÃO DO PEDIDO COM FLUXO GARANTIDO ---
+  // --- FINALIZAÇÃO DO PEDIDO (FOCO NA ROBUSTEZ) ---
   const handleFinishOrder = async () => {
-    // 1. Prevenção de múltiplos cliques
     if (isSending) return;
     
-    // Validação básica local
     if (!customer.name.trim() || cart.length === 0) {
-      alert("Por favor, preencha os dados e adicione itens ao carrinho.");
+      alert("Por favor, preencha os dados e escolha seus produtos.");
       return;
     }
 
-    // 2. Inicia estado de carregamento
     setIsSending(true);
 
     try {
@@ -208,7 +205,7 @@ export default function App() {
           return details.length > 0 ? `${text} (${details.join(' | ')})` : text;
       }).join('\n');
 
-      // 3. Chamada ao Firebase (addDoc)
+      // GRAVAÇÃO NO FIRESTORE
       await addDoc(collection(db, 'pedidos'), {
         nomeCliente: customer.name,
         itens: itensString,
@@ -221,24 +218,18 @@ export default function App() {
         endereco: customer.orderType === OrderType.DELIVERY ? `${customer.address}, ${customer.addressNumber}` : 'Balcão'
       });
       
-      // 4. SUCESSO: O Fluxo de pedido é substituído definitivamente.
-      // Resetamos os estados locais para garantir que não haja "lixo" se recarregar algo.
-      setCart([]);
-      setStep('MENU');
-      
-      // MUDANÇA DE VIEW: Substitui toda a interface do ORDER por SUCCESS.
+      // SUCESSO: Mudar tela IMEDIATAMENTE.
       setView('SUCCESS');
       
+      // RECARREGAR AUTOMATICAMENTE após 4 segundos para limpar tudo
+      setTimeout(() => {
+        window.location.reload();
+      }, 4000);
+
     } catch (e) {
-      // 5. ERRO: Somente aqui voltamos isSending para false para permitir nova tentativa.
-      console.error("Erro ao salvar pedido:", e);
-      alert("Houve um erro técnico. Verifique sua internet e tente clicar novamente.");
-      setIsSending(false);
-    } finally {
-      // Opcional: setIsSending(false) no finally é boa prática, mas aqui
-      // o sucesso já redireciona para SUCCESS onde o botão de "enviar" não existe mais.
-      // Para segurança caso a troca de view demore:
-      // setIsSending(false);
+      console.error("Falha ao enviar pedido:", e);
+      alert("Não conseguimos enviar seu pedido. Verifique sua internet e tente novamente.");
+      setIsSending(false); // Reabilita apenas em erro
     }
   };
 
@@ -256,38 +247,38 @@ export default function App() {
     }, 500);
   };
 
-  // --- RENDERIZAÇÃO DAS TELAS ---
+  // --- RENDERS ---
 
   if (view === 'SUCCESS') return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center animate-fade-in bg-zinc-50">
-      <div className="glass-card p-10 md:p-16 rounded-[4rem] max-w-md shadow-2xl border-white border relative">
-        <div className="text-8xl mb-8 animate-bounce">🍔✅</div>
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-white animate-fade-in">
+      <div className="glass-card p-12 md:p-20 rounded-[4rem] max-w-md shadow-2xl border-red-50 border relative overflow-hidden">
+        <div className="text-9xl mb-10 animate-bounce">🍔✅</div>
         <h2 className="text-4xl font-black text-red-600 mb-6 tracking-tighter italic">Pedido Enviado!</h2>
-        <div className="space-y-6 mb-12">
-            <p className="text-red-900/80 font-bold text-sm leading-relaxed uppercase tracking-widest">
-                A <span className="text-red-600 font-black">Sandra</span> já recebeu seu pedido!
+        <div className="space-y-6">
+            <p className="text-red-900/80 font-bold text-sm uppercase tracking-widest leading-relaxed">
+                A <span className="text-red-600">Sandra</span> recebeu seu pedido!
             </p>
-            <div className="bg-green-50 border border-green-100 p-5 rounded-[2rem]">
-                <p className="text-green-700 font-black text-[10px] uppercase tracking-widest leading-relaxed">
-                    Agora é só aguardar. Confirmaremos tudo pelo seu <span className="text-green-800">WhatsApp</span> em instantes.
+            <div className="bg-green-50 border border-green-200 p-6 rounded-3xl">
+                <p className="text-green-700 font-black text-xs uppercase tracking-[0.2em] leading-relaxed">
+                    Aguarde a confirmação pelo <span className="text-green-900">WhatsApp</span>.<br/>
+                    A página será reiniciada em instantes...
                 </p>
             </div>
         </div>
-        <Button fullWidth onClick={() => window.location.reload()} className="py-6 text-xl rounded-[2.5rem]">NOVO PEDIDO</Button>
       </div>
     </div>
   );
 
   if (view === 'LOGIN') return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-zinc-100">
+    <div className="min-h-screen flex items-center justify-center p-6 bg-zinc-50">
         <div className="glass-card p-10 rounded-[3.5rem] w-full max-w-sm shadow-2xl">
-            <h2 className="text-2xl font-black text-red-700 mb-8 text-center">Acesso Sandra</h2>
+            <h2 className="text-2xl font-black text-red-700 mb-8 text-center italic">Painel Sandra</h2>
             <form onSubmit={(e) => {
                 e.preventDefault();
                 const formData = new FormData(e.currentTarget);
                 if (formData.get('user') === 'sandra' && formData.get('pass') === '1234') {
                     setIsLoggedIn(true); setView('ADMIN');
-                } else alert("Incorreto.");
+                } else alert("Senha incorreta.");
             }} className="space-y-5">
                 <Input label="Usuário" name="user" required />
                 <Input label="Senha" name="pass" type="password" required />
@@ -301,7 +292,7 @@ export default function App() {
   if (view === 'ADMIN') return (
     <div className="min-h-screen p-4 md:p-8 bg-zinc-50 pb-24 animate-fade-in">
       <header className="flex justify-between items-center mb-10 max-w-6xl mx-auto bg-white p-6 rounded-[2.5rem] shadow-sm">
-        <h2 className="text-3xl font-black text-red-700 italic">Painel de Pedidos</h2>
+        <h2 className="text-3xl font-black text-red-700 italic">Cozinha da Sandra</h2>
         <Button variant="secondary" onClick={() => { setIsLoggedIn(false); setView('HOME'); }} className="px-5 py-2 text-xs">SAIR</Button>
       </header>
       
@@ -323,7 +314,7 @@ export default function App() {
                <button onClick={() => printOrder(o)} className="w-12 h-12 bg-zinc-900 text-white rounded-xl flex items-center justify-center text-2xl">🖨️</button>
             </div>
             {o.status === 'novo' && (
-              <Button fullWidth onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 border-green-500 py-4 font-black text-xs">CONCLUIR</Button>
+              <Button fullWidth onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 border-green-500 py-4 font-black text-xs">FINALIZAR</Button>
             )}
           </div>
         ))}
@@ -339,11 +330,11 @@ export default function App() {
           <div className="glass-card p-12 md:p-20 rounded-[4.5rem] text-center shadow-2xl max-w-md w-full border-red-50 bg-white relative">
             <div className="text-8xl mb-8 animate-float">🍔</div>
             <h1 className="text-5xl font-black text-red-600 mb-3 tracking-tighter italic leading-none">Sandra</h1>
-            <p className="text-red-900/30 font-black uppercase tracking-[0.4em] text-[10px] mb-14">Lanches no Capricho</p>
+            <p className="text-red-900/30 font-black uppercase tracking-[0.4em] text-[10px] mb-14">Lanches de Verdade</p>
             <Button fullWidth onClick={() => setView('ORDER')} className="text-2xl py-7 shadow-2xl shadow-red-100 flex items-center justify-center gap-4 group rounded-[3rem]">
-              QUERO MEU LANCHE <span className="text-3xl group-hover:translate-x-2 transition-transform">➡</span>
+              QUERO PEDIR <span className="text-3xl group-hover:translate-x-2 transition-transform">➡</span>
             </Button>
-            <button onClick={() => setView('LOGIN')} className="mt-16 text-zinc-200 text-[10px] uppercase tracking-widest">Login Sandra</button>
+            <button onClick={() => setView('LOGIN')} className="mt-16 text-zinc-100 text-[10px] uppercase tracking-widest">Acesso Restrito</button>
           </div>
         </div>
       )}
@@ -352,7 +343,7 @@ export default function App() {
         <div className="max-w-xl mx-auto min-h-screen flex flex-col bg-white">
             {step === 'MENU' && (
                 <>
-                    <header className="p-5 bg-white sticky top-0 z-50 flex justify-between items-center border-b border-zinc-50">
+                    <header className="p-5 bg-white sticky top-0 z-50 flex justify-between items-center border-b border-zinc-50 shadow-sm">
                         <button onClick={() => setView('HOME')} className="text-red-600 font-black text-xs uppercase tracking-widest">← Início</button>
                         <h2 className="font-black text-red-700 uppercase tracking-[0.2em] text-[11px]">Cardápio</h2>
                         <div className="w-12"></div>
@@ -371,14 +362,14 @@ export default function App() {
                                     <h3 className="text-xl font-black text-red-900 mb-1 leading-none">{prod.name}</h3>
                                     <p className="text-red-600 font-black text-lg italic">R$ {prod.price.toFixed(2)}</p>
                                 </div>
-                                <div className="w-14 h-14 bg-red-600 text-white rounded-[1.5rem] flex items-center justify-center text-3xl font-black">+</div>
+                                <div className="w-14 h-14 bg-red-600 text-white rounded-[1.5rem] flex items-center justify-center text-3xl font-black shadow-lg shadow-red-100">+</div>
                             </div>
                         ))}
                     </div>
                     {cart.length > 0 && (
                         <div className="fixed bottom-10 left-6 right-6 z-50 animate-slide-up max-w-lg mx-auto">
                             <Button fullWidth onClick={() => setStep('TYPE_SELECTION')} className="py-6 text-xl flex justify-between items-center px-10 shadow-2xl rounded-[3rem]">
-                                <span className="font-black italic">PROSSEGUIR</span>
+                                <span className="font-black italic uppercase">Fechar Pedido</span>
                                 <span className="bg-white/20 px-5 py-1.5 rounded-2xl text-xl font-black italic">R$ {total.toFixed(2)}</span>
                             </Button>
                         </div>
@@ -390,7 +381,7 @@ export default function App() {
                 <div className="flex-1 overflow-y-auto">
                     {step === 'TYPE_SELECTION' && (
                         <div className="p-6 flex flex-col items-center justify-center min-h-[90vh] animate-fade-in space-y-12">
-                            <h2 className="text-5xl font-black text-red-800 tracking-tighter text-center italic">Como deseja<br/>receber?</h2>
+                            <h2 className="text-5xl font-black text-red-800 tracking-tighter text-center italic">Como vai<br/>receber?</h2>
                             <div className="grid grid-cols-1 w-full gap-6 max-w-xs">
                                 <button onClick={() => { setCustomer({...customer, orderType: OrderType.DELIVERY}); setStep('FORM'); }} className="bg-white border-2 border-zinc-50 hover:border-red-500 p-12 rounded-[4rem] text-center shadow-2xl transition-all group active:scale-95">
                                     <span className="text-8xl block mb-6 group-hover:scale-110 transition-transform">🛵</span>
@@ -401,7 +392,7 @@ export default function App() {
                                     <span className="font-black text-red-900 text-2xl uppercase italic">Retirada</span>
                                 </button>
                             </div>
-                            <button onClick={() => setStep('MENU')} className="text-zinc-300 font-bold uppercase text-[10px]">← Voltar ao Cardápio</button>
+                            <button onClick={() => setStep('MENU')} className="text-zinc-300 font-bold uppercase text-[10px]">← Voltar ao Menu</button>
                         </div>
                     )}
 
@@ -409,16 +400,16 @@ export default function App() {
                         <div className="p-8 animate-fade-in pb-40">
                             <h2 className="text-4xl font-black text-red-700 mb-10 tracking-tighter italic">Seus Dados</h2>
                             <form onSubmit={(e) => { e.preventDefault(); setStep('SUMMARY'); }} className="space-y-6">
-                                <Input label="Seu Nome Completo" value={customer.name} onChange={e => setCustomer({...customer, name: e.target.value})} placeholder="Para sabermos quem é" required />
-                                <Input label="WhatsApp" type="tel" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} placeholder="(00) 00000-0000" required />
+                                <Input label="Seu Nome" value={customer.name} onChange={e => setCustomer({...customer, name: e.target.value})} placeholder="Para sabermos quem é" required />
+                                <Input label="Seu WhatsApp" type="tel" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} placeholder="(00) 00000-0000" required />
                                 {customer.orderType === OrderType.DELIVERY && (
                                     <div className="animate-fade-in space-y-6">
-                                        <Input label="Endereço Completo" value={customer.address} onChange={e => setCustomer({...customer, address: e.target.value})} required />
+                                        <Input label="Endereço" value={customer.address} onChange={e => setCustomer({...customer, address: e.target.value})} required />
                                         <Input label="Número" value={customer.addressNumber} onChange={e => setCustomer({...customer, addressNumber: e.target.value})} required />
                                     </div>
                                 )}
-                                <Select label="Modo de Pagamento" options={PAYMENT_METHODS} value={customer.paymentMethod} onChange={e => setCustomer({...customer, paymentMethod: e.target.value as PaymentMethod})} />
-                                <Button type="submit" fullWidth className="py-6 text-2xl mt-12 rounded-[2.5rem]">REVISAR PEDIDO</Button>
+                                <Select label="Pagamento" options={PAYMENT_METHODS} value={customer.paymentMethod} onChange={e => setCustomer({...customer, paymentMethod: e.target.value as PaymentMethod})} />
+                                <Button type="submit" fullWidth className="py-6 text-2xl mt-12 rounded-[2.5rem]">CONFERIR TUDO</Button>
                             </form>
                             <button onClick={() => setStep('TYPE_SELECTION')} className="w-full mt-8 text-zinc-300 font-bold text-[10px] text-center uppercase tracking-widest">← Alterar Opção</button>
                         </div>
@@ -426,7 +417,7 @@ export default function App() {
 
                     {step === 'SUMMARY' && (
                         <div className="p-8 animate-fade-in pb-44">
-                            <h2 className="text-4xl font-black text-red-700 mb-8 tracking-tighter italic">Resumo Final</h2>
+                            <h2 className="text-4xl font-black text-red-700 mb-8 tracking-tighter italic">Resumo</h2>
                             <div className="bg-zinc-50 p-9 rounded-[3.5rem] mb-10 space-y-7 shadow-inner border border-zinc-100">
                                 <div className="border-b border-zinc-200 pb-6">
                                     <p className="text-3xl font-black text-red-900 italic leading-none">{customer.name}</p>
@@ -442,7 +433,7 @@ export default function App() {
                                                 <div className="text-[10px] text-zinc-400 font-bold mt-2 uppercase">
                                                     {item.removedIngredients?.map(i => <span key={i} className="block text-red-400">× {i}</span>)}
                                                     {item.additions?.map(i => <span key={i} className="block text-green-600">✓ {i}</span>)}
-                                                    {item.observation && <span className="block italic mt-1 text-zinc-500 pl-2">"{item.observation}"</span>}
+                                                    {item.observation && <span className="block italic mt-1 text-zinc-500 pl-2 border-l border-red-200">"{item.observation}"</span>}
                                                 </div>
                                             </div>
                                             <p className="font-black text-red-700 text-lg italic">R$ {(item.price * item.quantity).toFixed(2)}</p>
@@ -455,15 +446,15 @@ export default function App() {
                                 </div>
                             </div>
                             
-                            {/* BOTÃO DEFINITIVO DE ENVIO */}
+                            {/* BOTÃO FINAL DE ENVIO */}
                             <div className="fixed bottom-10 left-6 right-6 z-50 max-w-lg mx-auto">
                                 <Button 
                                     onClick={handleFinishOrder} 
                                     disabled={isSending}
                                     fullWidth 
-                                    className={`py-7 text-3xl shadow-2xl rounded-[3rem] transition-all border-4 border-white/20 ${isSending ? 'opacity-70 scale-95 cursor-not-allowed' : 'animate-pulse-slow'}`}
+                                    className={`py-7 text-3xl shadow-2xl rounded-[3rem] transition-all border-4 border-white/20 ${isSending ? 'opacity-70 scale-95 cursor-wait' : 'animate-pulse-slow'}`}
                                 >
-                                    {isSending ? 'GRAVANDO...' : 'FINALIZAR AGORA! ✅'}
+                                    {isSending ? 'GRAVANDO...' : 'CONFIRMAR PEDIDO! ✅'}
                                 </Button>
                             </div>
                             <button onClick={() => setStep('FORM')} className="w-full mt-6 text-zinc-300 font-bold text-[10px] text-center uppercase tracking-widest">← Corrigir Dados</button>
