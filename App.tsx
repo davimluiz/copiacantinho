@@ -13,9 +13,7 @@ import {
   serverTimestamp 
 } from 'firebase/firestore';
 
-// Importação da instância direta do banco de dados
 import { db } from './firebase';
-
 import { Button } from './components/Button';
 import { Input, Select } from './components/Input';
 import { 
@@ -97,7 +95,7 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
             <h3 className="text-2xl font-black text-red-800 leading-none italic">{product.name}</h3>
             <p className="text-red-600 font-black mt-2">R$ {product.price.toFixed(2)}</p>
           </div>
-          <button onClick={onClose} className="text-zinc-300 hover:text-red-600 text-5xl leading-none transition-colors">&times;</button>
+          <button onClick={onClose} className="text-zinc-300 hover:text-red-600 text-5xl leading-none transition-all">&times;</button>
         </div>
         <div className="flex-1 overflow-y-auto p-7 space-y-8">
           <section>
@@ -109,7 +107,7 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
             </div>
           </section>
 
-          {product.ingredients && (
+          {product.ingredients && product.ingredients.length > 0 && (
             <section>
               <label className="block text-red-900/40 text-[10px] font-black uppercase mb-4 tracking-[0.3em]">Retirar algo?</label>
               <div className="grid grid-cols-2 gap-3">
@@ -121,8 +119,17 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
           )}
 
           <section>
+            <label className="block text-red-900/40 text-[10px] font-black uppercase mb-4 tracking-[0.3em]">Adicionais?</label>
+            <div className="grid grid-cols-2 gap-3">
+              {[...EXTRAS_OPTIONS].map((opt) => (
+                <button key={opt.name} onClick={() => toggleAddition(opt.name)} className={`p-4 rounded-2xl text-[10px] font-black uppercase border-2 transition-all ${additions.includes(opt.name) ? 'bg-green-600 border-green-600 text-white shadow-lg' : 'bg-white border-zinc-100 text-zinc-300'}`}>+ {opt.name}</button>
+              ))}
+            </div>
+          </section>
+
+          <section>
             <label className="block text-red-900/40 text-[10px] font-black uppercase mb-4 tracking-[0.3em]">Observação do Item</label>
-            <textarea className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-[2rem] p-6 text-zinc-800 focus:outline-none focus:border-red-500 min-h-[120px] text-sm font-medium" placeholder="Ex: Carne bem passada, pão sem gergelim..." value={observation} onChange={e => setObservation(e.target.value)} />
+            <textarea className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-[2rem] p-6 text-zinc-800 focus:outline-none focus:border-red-500 min-h-[120px] text-sm font-medium" placeholder="Ex: Carne bem passada, sem gergelim..." value={observation} onChange={e => setObservation(e.target.value)} />
           </section>
         </div>
         <div className="p-7 bg-zinc-50/80 border-t border-zinc-100">
@@ -211,7 +218,6 @@ export default function App() {
       setTimeout(() => setView('HOME'), 4500);
     } catch (err: any) {
       console.error("ERRO COMPLETO DO FIREBASE:", err);
-      // Alerta do erro exato conforme solicitado pelo usuário
       alert('ERRO DO FIREBASE: ' + err.message);
       setIsSending(false);
     }
@@ -233,16 +239,20 @@ export default function App() {
     }, 500);
   };
 
+  const removeFromCart = (cartId: string) => {
+    setCart(prev => prev.filter(item => item.cartId !== cartId));
+  };
+
   // --- RENDERS ---
   if (view === 'SUCCESS') return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-zinc-50 fixed inset-0 z-[500] animate-fade-in">
       <div className="glass-card p-14 md:p-24 rounded-[6rem] max-w-md shadow-2xl border-green-200 border-4 bg-white">
         <div className="text-[140px] mb-12 animate-bounce leading-none">✅</div>
-        <h2 className="text-5xl font-black text-green-600 mb-8 tracking-tighter italic uppercase">Pedido Enviado!</h2>
+        <h2 className="text-5xl font-black text-green-600 mb-8 tracking-tighter italic uppercase">Recebido!</h2>
         <div className="bg-green-50 border-2 border-green-100 p-10 rounded-[3rem]">
             <p className="text-green-900 font-black text-[12px] uppercase tracking-widest leading-loose">
-                A Sandra já está vendo seu pedido!<br/>
-                Prepare o apetite!
+                A Sandra já recebeu seu pedido!<br/>
+                Prepare o estômago.
             </p>
         </div>
         <Button onClick={() => setView('HOME')} variant="secondary" className="mt-10 rounded-full px-12 py-4">Voltar ao Início</Button>
@@ -275,7 +285,7 @@ export default function App() {
       <header className="flex justify-between items-center mb-16 max-w-7xl mx-auto bg-white p-10 rounded-[4rem] shadow-xl border border-red-50">
         <div>
             <h2 className="text-5xl font-black text-red-800 italic leading-none">Cozinha</h2>
-            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-2">Monitoramento de Pedidos</p>
+            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-2">Monitoramento Ativo</p>
         </div>
         <Button variant="secondary" onClick={() => { setIsLoggedIn(false); setView('HOME'); }} className="px-10 py-4 rounded-3xl text-xs font-black uppercase shadow-md">SAIR</Button>
       </header>
@@ -284,7 +294,7 @@ export default function App() {
         {orders.length === 0 ? (
           <div className="col-span-full text-center py-32 opacity-10">
             <span className="text-[200px] block">🍔</span>
-            <p className="text-3xl font-black italic mt-10">Nenhum pedido novo ainda...</p>
+            <p className="text-3xl font-black italic mt-10">Sem pedidos novos...</p>
           </div>
         ) : (
           orders.map(o => (
@@ -303,8 +313,10 @@ export default function App() {
                  <p className="text-5xl font-black text-red-700 italic">R$ {Number(o.total || 0).toFixed(2)}</p>
                  <button onClick={() => printOrder(o)} className="w-16 h-16 bg-zinc-900 text-white rounded-[1.5rem] flex items-center justify-center text-4xl hover:scale-110 active:scale-90 transition-transform shadow-2xl">🖨️</button>
               </div>
-              {o.status === 'novo' && (
+              {o.status === 'novo' ? (
                 <Button fullWidth onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 border-green-500 py-6 rounded-[2.2rem] text-sm font-black uppercase shadow-xl hover:bg-green-700">Concluir Pedido</Button>
+              ) : (
+                <Button fullWidth variant="secondary" onClick={() => updateOrderStatus(o.id, 'novo')} className="py-6 rounded-[2.2rem] text-xs font-black uppercase">Reabrir Pedido</Button>
               )}
             </div>
           ))
@@ -321,11 +333,11 @@ export default function App() {
           <div className="glass-card p-16 md:p-28 rounded-[6rem] text-center shadow-2xl max-w-md w-full border-red-50 bg-white relative overflow-hidden border-b-[12px] border-red-100">
             <div className="text-[140px] mb-12 animate-float leading-none drop-shadow-2xl">🍔</div>
             <h1 className="text-7xl font-black text-red-800 mb-6 tracking-tighter italic leading-none">Sandra Lanches</h1>
-            <p className="text-red-900/20 font-black uppercase tracking-[0.6em] text-[12px] mb-20 italic">Sabor real em cada detalhe</p>
+            <p className="text-red-900/20 font-black uppercase tracking-[0.6em] text-[12px] mb-20 italic">A Melhor Mordida da Cidade</p>
             <Button fullWidth onClick={() => setView('ORDER')} className="text-3xl py-9 shadow-2xl shadow-red-100 flex items-center justify-center gap-6 group rounded-[3.5rem] border-b-8 border-red-800 hover:translate-y-[-4px]">
-              FAZER MEU PEDIDO <span className="text-5xl group-hover:translate-x-4 transition-transform">➡</span>
+              FAZER PEDIDO <span className="text-5xl group-hover:translate-x-4 transition-transform">➡</span>
             </Button>
-            <button onClick={() => setView('LOGIN')} className="mt-24 text-zinc-200 text-[11px] font-black uppercase tracking-[0.4em] hover:text-red-400 italic transition-all">Portal Administrativo</button>
+            <button onClick={() => setView('LOGIN')} className="mt-24 text-zinc-200 text-[11px] font-black uppercase tracking-[0.4em] hover:text-red-400 italic transition-all">Área do Administrador</button>
           </div>
         </div>
       )}
@@ -335,11 +347,11 @@ export default function App() {
             {step === 'MENU' && (
                 <>
                     <header className="p-8 bg-white/95 sticky top-0 z-50 flex justify-between items-center border-b border-zinc-100 backdrop-blur-md">
-                        <button onClick={() => setView('HOME')} className="text-red-800 font-black text-[11px] uppercase tracking-widest px-4 py-1.5 bg-red-50 rounded-full hover:bg-red-100 transition-all">← Início</button>
-                        <h2 className="font-black text-red-900 uppercase tracking-[0.2em] text-[11px] italic">Cardápio</h2>
+                        <button onClick={() => setView('HOME')} className="text-red-800 font-black text-[11px] uppercase tracking-widest px-4 py-1.5 bg-red-50 rounded-full hover:bg-red-100 transition-all">← Sair</button>
+                        <h2 className="font-black text-red-900 uppercase tracking-[0.2em] text-[11px] italic">Cardápio da Sandra</h2>
                         <div className="w-12"></div>
                     </header>
-                    <div className="p-6 flex gap-4 overflow-x-auto no-scrollbar py-8 border-b border-zinc-50">
+                    <div className="p-6 flex gap-4 overflow-x-auto no-scrollbar py-8 border-b border-zinc-50 bg-white">
                         {CATEGORIES.map(cat => (
                             <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`flex-shrink-0 px-10 py-5 rounded-[2rem] font-black text-[11px] uppercase transition-all shadow-sm ${activeCategory === cat.id ? 'bg-red-700 text-white shadow-2xl scale-105' : 'bg-zinc-50 text-zinc-400 hover:bg-zinc-100'}`}>
                                 {cat.icon} {cat.name}
@@ -360,7 +372,7 @@ export default function App() {
                     {cart.length > 0 && (
                         <div className="fixed bottom-14 left-8 right-8 z-50 animate-slide-up max-w-lg mx-auto">
                             <Button fullWidth onClick={() => setStep('TYPE_SELECTION')} className="py-8 text-3xl flex justify-between items-center px-14 shadow-2xl rounded-[3.5rem] border-b-8 border-red-900">
-                                <span className="font-black italic uppercase tracking-tighter">Ver Sacola</span>
+                                <span className="font-black italic uppercase tracking-tighter">Minha Sacola ({cart.length})</span>
                                 <span className="bg-white/20 px-8 py-2.5 rounded-3xl text-2xl font-black italic">R$ {total.toFixed(2)}</span>
                             </Button>
                         </div>
@@ -372,37 +384,37 @@ export default function App() {
                 <div className="flex-1 overflow-y-auto bg-white">
                     {step === 'TYPE_SELECTION' && (
                         <div className="p-10 flex flex-col items-center justify-center min-h-[90vh] animate-fade-in space-y-20">
-                            <h2 className="text-7xl font-black text-red-900 tracking-tighter italic leading-none text-center">Como vai<br/>receber?</h2>
+                            <h2 className="text-7xl font-black text-red-900 tracking-tighter italic leading-none text-center">Onde vai<br/>comer?</h2>
                             <div className="grid grid-cols-1 w-full gap-10 max-w-sm">
                                 <button onClick={() => { setCustomer({...customer, orderType: OrderType.DELIVERY}); setStep('FORM'); }} className="bg-zinc-50 border-2 border-zinc-100 hover:border-red-600 p-16 rounded-[5rem] text-center shadow-2xl transition-all group active:scale-95 border-b-[12px] border-zinc-200">
                                     <span className="text-[120px] block mb-10 group-hover:scale-110 transition-all leading-none">🛵</span>
-                                    <span className="font-black text-red-950 text-4xl uppercase italic">Entrega</span>
+                                    <span className="font-black text-red-950 text-4xl uppercase italic">Delivery</span>
                                 </button>
                                 <button onClick={() => { setCustomer({...customer, orderType: OrderType.COUNTER}); setStep('FORM'); }} className="bg-zinc-50 border-2 border-zinc-100 hover:border-red-600 p-16 rounded-[5rem] text-center shadow-2xl transition-all group active:scale-95 border-b-[12px] border-zinc-200">
                                     <span className="text-[120px] block mb-10 group-hover:scale-110 transition-all leading-none">🥡</span>
                                     <span className="font-black text-red-950 text-4xl uppercase italic">Balcão</span>
                                 </button>
                             </div>
-                            <button onClick={() => setStep('MENU')} className="text-zinc-300 font-black uppercase text-[12px] tracking-[0.3em] hover:text-red-700 transition-all">← Voltar ao Menu</button>
+                            <button onClick={() => setStep('MENU')} className="text-zinc-300 font-black uppercase text-[12px] tracking-[0.3em] hover:text-red-700 transition-all">← Voltar para o Menu</button>
                         </div>
                     )}
 
                     {step === 'FORM' && (
                         <div className="p-12 animate-fade-in pb-52">
-                            <h2 className="text-6xl font-black text-red-800 mb-14 tracking-tighter italic leading-none">Identificação</h2>
+                            <h2 className="text-6xl font-black text-red-800 mb-14 tracking-tighter italic leading-none">Seus Dados</h2>
                             <form onSubmit={(e) => { e.preventDefault(); setStep('SUMMARY'); }} className="space-y-10">
-                                <Input label="Seu Nome" value={customer.name} onChange={e => setCustomer({...customer, name: e.target.value})} placeholder="Como devemos te chamar?" required />
+                                <Input label="Seu Nome" value={customer.name} onChange={e => setCustomer({...customer, name: e.target.value})} placeholder="Para o pedido" required />
                                 <Input label="WhatsApp" type="tel" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} placeholder="(00) 00000-0000" required />
                                 {customer.orderType === OrderType.DELIVERY && (
                                     <div className="animate-fade-in space-y-10">
-                                        <Input label="Rua e Bairro" value={customer.address} onChange={e => setCustomer({...customer, address: e.target.value})} placeholder="Onde entregar?" required />
-                                        <Input label="Número da Casa" value={customer.addressNumber} onChange={e => setCustomer({...customer, addressNumber: e.target.value})} placeholder="Ex: 45" required />
+                                        <Input label="Rua e Bairro" value={customer.address} onChange={e => setCustomer({...customer, address: e.target.value})} placeholder="Endereço completo" required />
+                                        <Input label="Número" value={customer.addressNumber} onChange={e => setCustomer({...customer, addressNumber: e.target.value})} placeholder="S/N se não houver" required />
                                     </div>
                                 )}
                                 <Select label="Forma de Pagamento" options={PAYMENT_METHODS} value={customer.paymentMethod} onChange={e => setCustomer({...customer, paymentMethod: e.target.value as PaymentMethod})} />
-                                <Button type="submit" fullWidth className="py-9 text-3xl mt-20 rounded-[3.5rem] uppercase italic border-b-8 border-red-900 shadow-2xl">Confirmar Pedido</Button>
+                                <Button type="submit" fullWidth className="py-9 text-3xl mt-20 rounded-[3.5rem] uppercase italic border-b-8 border-red-900 shadow-2xl">Revisar Meu Pedido</Button>
                             </form>
-                            <button onClick={() => setStep('TYPE_SELECTION')} className="w-full mt-12 text-zinc-300 font-black text-[11px] text-center uppercase tracking-widest hover:text-red-700">← Alterar Opção</button>
+                            <button onClick={() => setStep('TYPE_SELECTION')} className="w-full mt-12 text-zinc-300 font-black text-[11px] text-center uppercase tracking-widest hover:text-red-700">← Alterar Tipo de Entrega</button>
                         </div>
                     )}
 
@@ -419,9 +431,12 @@ export default function App() {
                                 </div>
                                 <div className="space-y-8 relative z-10">
                                     {cart.map(item => (
-                                        <div key={item.cartId} className="flex justify-between items-start">
+                                        <div key={item.cartId} className="flex justify-between items-start group">
                                             <div className="flex-1 pr-8">
-                                                <p className="font-black text-red-950 text-2xl leading-none italic">{item.quantity}x {item.name}</p>
+                                                <div className="flex items-center gap-4">
+                                                    <p className="font-black text-red-950 text-2xl leading-none italic">{item.quantity}x {item.name}</p>
+                                                    <button onClick={() => removeFromCart(item.cartId)} className="text-red-300 hover:text-red-600 text-xs font-black uppercase opacity-0 group-hover:opacity-100 transition-all">Remover</button>
+                                                </div>
                                                 <div className="text-[11px] text-zinc-400 font-bold mt-4 uppercase leading-relaxed">
                                                     {item.removedIngredients?.map(i => <span key={i} className="block text-red-400">× SEM {i}</span>)}
                                                     {item.additions?.map(i => <span key={i} className="block text-green-600">✓ COM {i}</span>)}
@@ -443,12 +458,12 @@ export default function App() {
                                     onClick={handleFinishOrder} 
                                     disabled={isSending}
                                     fullWidth 
-                                    className={`py-9 text-4xl shadow-2xl rounded-[4rem] border-4 border-white/40 border-b-[12px] border-b-red-950 ${isSending ? 'opacity-60 scale-95 grayscale' : 'animate-pulse-slow active:scale-90 transition-all'}`}
+                                    className={`py-9 text-4xl shadow-2xl rounded-[4rem] border-4 border-white border-b-[12px] border-b-red-950 ${isSending ? 'opacity-60 scale-95 grayscale' : 'animate-pulse-slow active:scale-90 transition-all'}`}
                                 >
                                     {isSending ? 'ENVIANDO...' : 'ENVIAR AGORA! ✅'}
                                 </Button>
                             </div>
-                            <button onClick={() => setStep('FORM')} className="w-full mt-10 text-zinc-300 font-black text-[12px] text-center uppercase tracking-widest hover:text-red-700">← Corrigir Dados</button>
+                            <button onClick={() => setStep('FORM')} className="w-full mt-10 text-zinc-300 font-black text-[12px] text-center uppercase tracking-widest hover:text-red-700">← Corrigir Informações</button>
                         </div>
                     )}
                 </div>

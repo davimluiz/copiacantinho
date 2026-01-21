@@ -2,14 +2,16 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
+// Configurações exatas enviadas pelo Firebase do usuário
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: "AIzaSyCuvLhhu028SZLDsAhbkuJzmtIy-sdF714",
+  authDomain: "cantinho-sandra-pedidos.firebaseapp.com",
+  projectId: "cantinho-sandra-pedidos",
+  storageBucket: "cantinho-sandra-pedidos.firebasestorage.app",
+  messagingSenderId: "577696868824",
+  appId: "1:577696868824:web:4f03c516b48ae12b4f2aad"
 };
 
+// Inicialização única e exportação da instância do Firestore
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
