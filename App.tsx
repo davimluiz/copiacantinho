@@ -13,7 +13,7 @@ import {
   serverTimestamp 
 } from 'firebase/firestore';
 
-// Importação da instância centralizada do banco de dados
+// Importação da instância direta do banco de dados
 import { db } from './firebase';
 
 import { Button } from './components/Button';
@@ -150,9 +150,8 @@ export default function App() {
 
   // --- LISTENER EM TEMPO REAL PARA A TELA ADMIN ---
   useEffect(() => {
-    // Sincronização automática em todos os dispositivos via onSnapshot
-    if (view === 'ADMIN' && isLoggedIn && db) {
-      console.log("[Firebase] Ativando sincronização em tempo real...");
+    if (view === 'ADMIN' && isLoggedIn) {
+      console.log("[Firebase] Ativando sincronização em tempo real para a coleção 'pedidos'...");
       const q = query(collection(db, 'pedidos'), orderBy('criadoEm', 'desc'));
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const loadedOrders = snapshot.docs.map(doc => ({ 
@@ -169,15 +168,10 @@ export default function App() {
 
   const total = cart.reduce((acc, item) => acc + (Number(item.price) * Number(item.quantity)), 0);
 
-  // --- FUNÇÃO FINALIZAR PEDIDO COM TRATAMENTO DE ERRO RADICAL ---
+  // --- FUNÇÃO FINALIZAR PEDIDO ---
   const handleFinishOrder = async () => {
     if (isSending) return;
     
-    if (!db) {
-      alert("Erro de Conexão: O banco de dados não foi inicializado corretamente. Verifique as configurações na Vercel.");
-      return;
-    }
-
     const clientName = customer.name.trim();
     if (!clientName || cart.length === 0) {
       alert("Por favor, informe seu nome e escolha seus itens.");
@@ -214,18 +208,16 @@ export default function App() {
       await addDoc(collection(db, 'pedidos'), payload);
       setCart([]);
       setView('SUCCESS');
-      // Volta para a home após alguns segundos
       setTimeout(() => setView('HOME'), 4500);
     } catch (err: any) {
       console.error("ERRO COMPLETO DO FIREBASE:", err);
-      // Alerta detalhado solicitado para diagnóstico
+      // Alerta do erro exato conforme solicitado pelo usuário
       alert('ERRO DO FIREBASE: ' + err.message);
-      setIsSending(false); // Libera o botão novamente em caso de falha
+      setIsSending(false);
     }
   };
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
-    if (!db) return;
     try {
       await updateDoc(doc(db, 'pedidos', orderId), { status: newStatus });
     } catch (e) { 
@@ -282,8 +274,8 @@ export default function App() {
     <div className="min-h-screen p-6 md:p-12 bg-zinc-50 pb-40 animate-fade-in">
       <header className="flex justify-between items-center mb-16 max-w-7xl mx-auto bg-white p-10 rounded-[4rem] shadow-xl border border-red-50">
         <div>
-            <h2 className="text-5xl font-black text-red-800 italic leading-none">Cozinha em Tempo Real</h2>
-            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-2">Sincronizado automaticamente</p>
+            <h2 className="text-5xl font-black text-red-800 italic leading-none">Cozinha</h2>
+            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-2">Monitoramento de Pedidos</p>
         </div>
         <Button variant="secondary" onClick={() => { setIsLoggedIn(false); setView('HOME'); }} className="px-10 py-4 rounded-3xl text-xs font-black uppercase shadow-md">SAIR</Button>
       </header>
