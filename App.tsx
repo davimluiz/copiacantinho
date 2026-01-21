@@ -21,7 +21,7 @@ import {
 } from './constants';
 import { Product, CustomerInfo, CartItem, PaymentMethod, OrderStatus, OrderType } from './types';
 
-// CONFIGURAÇÃO DO FIREBASE
+// CONFIGURAÇÃO DO FIREBASE - Mapeamento direto das variáveis da Vercel
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -31,20 +31,20 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-// LOGS DE DEPURAÇÃO - Para verificar se a Vercel está injetando os valores corretamente
-console.log('--- DEBUG FIREBASE CONFIG ---');
-console.log('API Key:', firebaseConfig.apiKey ? 'Configurada (OK)' : 'NÃO ENCONTRADA');
-console.log('Project ID:', firebaseConfig.projectId || 'NÃO ENCONTRADO');
-console.log('Auth Domain:', firebaseConfig.authDomain || 'NÃO ENCONTRADO');
-console.log('----------------------------');
+// LOGS DE DIAGNÓSTICO (Visíveis no Console do Navegador)
+console.log('--- DIAGNÓSTICO FIREBASE VERCEL ---');
+console.log('API_KEY:', firebaseConfig.apiKey ? 'Detectada' : 'AUSENTE');
+console.log('PROJECT_ID:', firebaseConfig.projectId ? firebaseConfig.projectId : 'AUSENTE');
+console.log('AUTH_DOMAIN:', firebaseConfig.authDomain ? firebaseConfig.authDomain : 'AUSENTE');
+console.log('---------------------------------');
 
-// Inicialização sem interrupção
+// Inicialização direta do Firebase
 let db: any;
 try {
   const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
   db = getFirestore(app);
 } catch (e) {
-  console.error("Erro crítico na inicialização do Firebase:", e);
+  console.error("Erro na inicialização automática:", e);
 }
 
 type AppView = 'HOME' | 'ORDER' | 'LOGIN' | 'ADMIN' | 'SUCCESS';
@@ -182,7 +182,7 @@ export default function App() {
         }));
         setOrders(loadedOrders);
       }, (error) => {
-        console.error("Erro na escuta do Firestore:", error);
+        console.error("Erro no Listener Firestore:", error);
       });
       return () => unsubscribe();
     }
@@ -190,24 +190,24 @@ export default function App() {
 
   const total = cart.reduce((acc, item) => acc + (Number(item.price) * Number(item.quantity)), 0);
 
-  // --- FINALIZAÇÃO DO PEDIDO (TRATAMENTO DE ERRO EXPLICÍTO) ---
+  // --- FUNÇÃO FINALIZAR PEDIDO COM ALERTA DE ERRO EXPLICÍTO ---
   const handleFinishOrder = async () => {
     if (isSending) return;
     
-    // Tentativa de recuperação do DB se estiver nulo
+    // Tenta reinicializar o DB caso não tenha sido carregado
     if (!db) {
       try {
         const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
         db = getFirestore(app);
       } catch (e: any) {
-        alert(`Erro de Inicialização: ${e.message}. Verifique as variáveis de ambiente na Vercel.`);
+        alert("ERRO INICIALIZACAO FIREBASE: " + e.message);
         return;
       }
     }
 
     const clientName = String(customer.name || "").trim();
     if (!clientName || cart.length === 0) {
-      alert("Por favor, preencha seu nome e escolha pelo menos um item.");
+      alert("Informe seu nome e adicione itens ao carrinho.");
       return;
     }
 
@@ -238,16 +238,16 @@ export default function App() {
     };
 
     try {
-      console.log('Enviando pedido ao Firestore...', payload);
+      // Gravação na coleção "pedidos"
       await addDoc(collection(db, 'pedidos'), payload);
       setCart([]);
       setView('SUCCESS');
       setTimeout(() => window.location.reload(), 4500);
-    } catch (error: any) {
-      console.error("ERRO COMPLETO DO FIRESTORE:", error);
-      // Alerta com o erro exato retornado pelo Google
-      alert(`FALHA NO FIREBASE: ${error.code || 'Erro desconhecido'}\n\nMensagem: ${error.message}\n\nVerifique se as permissões (Rules) do Firestore estão abertas.`);
-      setIsSending(false); // Volta o botão para o estado original
+    } catch (err: any) {
+      console.error("ERRO FIREBASE COMPLETO:", err);
+      // Alerta radical solicitado para diagnóstico
+      alert('ERRO DO FIREBASE: ' + err.message);
+      setIsSending(false); // Libera o botão novamente
     }
   };
 
