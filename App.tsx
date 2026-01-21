@@ -21,27 +21,23 @@ import {
 } from './constants';
 import { Product, CustomerInfo, CartItem, PaymentMethod, OrderStatus, OrderType } from './types';
 
-// CONFIGURAÇÃO DO FIREBASE - Centralizada e obrigatória para o funcionamento sincronizado
+// CONFIGURAÇÃO DO FIREBASE - Mapeamento direto das variáveis da Vercel
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY || "",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || process.env.FIREBASE_AUTH_DOMAIN || "",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || "",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || process.env.FIREBASE_STORAGE_BUCKET || "",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || process.env.FIREBASE_MESSAGING_SENDER_ID || "",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || process.env.FIREBASE_APP_ID || ""
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-// Inicialização única e segura do Banco de Dados
+// Inicialização sem travas de verificação prévia
 let db: any;
-const isConfigured = !!firebaseConfig.apiKey;
-
 try {
-  if (isConfigured) {
-    const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-    db = getFirestore(app);
-  }
+  const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+  db = getFirestore(app);
 } catch (e) {
-  console.error("Erro ao conectar com Firebase:", e);
+  console.error("Erro na inicialização do Firebase:", e);
 }
 
 type AppView = 'HOME' | 'ORDER' | 'LOGIN' | 'ADMIN' | 'SUCCESS';
@@ -169,11 +165,9 @@ export default function App() {
   const [isSending, setIsSending] = useState(false);
 
   // --- LISTENER EM TEMPO REAL PARA A TELA ADMIN ---
-  // Este useEffect garante que qualquer pedido novo apareça instantaneamente
   useEffect(() => {
-    if (view === 'ADMIN' && isLoggedIn && isConfigured && db) {
+    if (view === 'ADMIN' && isLoggedIn && db) {
       const q = query(collection(db, 'pedidos'), orderBy('criadoEm', 'desc'));
-      
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const loadedOrders = snapshot.docs.map(doc => ({ 
           id: doc.id, 
@@ -182,22 +176,26 @@ export default function App() {
         setOrders(loadedOrders);
       }, (error) => {
         console.error("Erro na escuta do Firestore:", error);
-        alert("Erro de conexão com o banco de dados. Verifique sua internet.");
       });
-
       return () => unsubscribe();
     }
   }, [view, isLoggedIn]);
 
   const total = cart.reduce((acc, item) => acc + (Number(item.price) * Number(item.quantity)), 0);
 
-  // --- FINALIZAÇÃO DO PEDIDO (ENVIO PARA O FIRESTORE) ---
+  // --- FINALIZAÇÃO DO PEDIDO (ENVIO DIRETO) ---
   const handleFinishOrder = async () => {
     if (isSending) return;
     
-    if (!isConfigured || !db) {
-        alert("Erro Crítico: O sistema não está configurado com as chaves do Firebase. O pedido não pode ser enviado para a cozinha.");
+    // Tentativa de reconexão manual com DB se estiver nulo
+    if (!db) {
+      try {
+        const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+        db = getFirestore(app);
+      } catch (e) {
+        alert("Erro ao conectar com o banco de dados. Verifique as configurações na Vercel.");
         return;
+      }
     }
 
     const clientName = String(customer.name || "").trim();
@@ -208,7 +206,6 @@ export default function App() {
 
     setIsSending(true);
 
-    // Preparação dos dados (Payload limpo para evitar erros de tipo no Firestore)
     const finalTotal = isNaN(total) ? 0 : Number(Number(total).toFixed(2));
     const itensString = cart.map(item => {
         let desc = `${item.quantity}x ${item.name}`;
@@ -224,7 +221,7 @@ export default function App() {
       itens: String(itensString || "Lanche"),
       total: finalTotal,
       status: "novo",
-      criadoEm: serverTimestamp(), // Hora oficial do servidor
+      criadoEm: serverTimestamp(),
       telefone: String(customer.phone || "N/A"),
       tipo: String(customer.orderType || "BALCÃO"),
       pagamento: String(customer.paymentMethod || "PIX"),
@@ -235,13 +232,12 @@ export default function App() {
 
     try {
       await addDoc(collection(db, 'pedidos'), payload);
-      setView('SUCCESS');
-      // Limpeza de estado após sucesso
       setCart([]);
+      setView('SUCCESS');
       setTimeout(() => window.location.reload(), 4500);
     } catch (error: any) {
-      console.error("Erro ao enviar pedido:", error);
-      alert(`Falha no envio: ${error.message || "Tente novamente"}.`);
+      console.error("Erro Firestore addDoc:", error);
+      alert(`Erro ao salvar pedido: ${error.message}. Verifique sua conexão ou chaves do Firebase.`);
       setIsSending(false);
     }
   };
@@ -250,7 +246,7 @@ export default function App() {
     if (!db) return;
     try {
       await updateDoc(doc(db, 'pedidos', orderId), { status: newStatus });
-    } catch (e) { console.error("Erro ao atualizar status:", e); }
+    } catch (e) { console.error("Erro status:", e); }
   };
 
   const printOrder = (order: any) => {
@@ -261,8 +257,7 @@ export default function App() {
     }, 500);
   };
 
-  // --- RENDERS DE TELAS ESPECÍFICAS ---
-
+  // --- RENDERS ---
   if (view === 'SUCCESS') return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-zinc-50 fixed inset-0 z-[500] animate-fade-in">
       <div className="glass-card p-14 md:p-24 rounded-[6rem] max-w-md shadow-2xl border-green-200 border-4 bg-white">
@@ -303,7 +298,6 @@ export default function App() {
       <header className="flex justify-between items-center mb-16 max-w-7xl mx-auto bg-white p-10 rounded-[4rem] shadow-xl border border-red-50">
         <div>
             <h2 className="text-5xl font-black text-red-800 italic leading-none">Cozinha</h2>
-            {!isConfigured && <p className="text-red-500 font-black text-[10px] uppercase mt-2">ERRO: FIRESTORE NÃO CONFIGURADO</p>}
         </div>
         <Button variant="secondary" onClick={() => { setIsLoggedIn(false); setView('HOME'); }} className="px-10 py-4 rounded-3xl text-xs font-black uppercase shadow-md">SAIR</Button>
       </header>
