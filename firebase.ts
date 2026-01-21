@@ -2,7 +2,10 @@
 import { initializeApp, getApp, getApps } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
-// No ambiente do navegador (Client), acessamos as variáveis injetadas pela Vercel
+/**
+ * Firebase Configuration
+ * Note: These variables must be set in the Vercel Project Settings as Environment Variables.
+ */
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -12,22 +15,21 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-// Log de depuração para o console do navegador
-if (typeof window !== 'undefined') {
-  console.log('[Firebase Init] Verificando Configurações...');
-  Object.entries(firebaseConfig).forEach(([key, value]) => {
-    console.log(`${key}: ${value ? 'OK' : 'AUSENTE'}`);
-  });
-}
+// Singleton pattern for Firebase App and Firestore initialization
+function initialize() {
+  if (typeof window === 'undefined') return null;
 
-function getSafeFirestore() {
   try {
     const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-    return getFirestore(app);
+    // No Analytics, No Auth - Just Firestore
+    const db = getFirestore(app);
+    
+    console.log('[Firebase] Sistema inicializado com sucesso.');
+    return db;
   } catch (error) {
-    console.error("Falha ao inicializar Firebase SDK:", error);
+    console.error("[Firebase] Erro Crítico na Inicialização:", error);
     return null;
   }
 }
 
-export const db = getSafeFirestore();
+export const db = initialize();
