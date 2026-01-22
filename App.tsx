@@ -46,14 +46,14 @@ const Receipt = ({ order }: { order: any | null }) => {
                 <p><strong>FONE:</strong> {order.telefone || 'N/A'}</p>
                 {order.endereco && (
                     <div className="mt-1 border border-black p-1">
-                        <p className="leading-tight"><strong>ENDERECO COMPLETO:</strong></p>
-                        <p className="leading-tight uppercase">{order.endereco}</p>
+                        <p className="leading-tight font-bold underline">ENDEREÇO DE ENTREGA:</p>
+                        <p className="leading-tight uppercase break-words">{order.endereco}</p>
                     </div>
                 )}
             </div>
             <div className="border-b border-dashed border-black my-2"></div>
             <div className="mb-2">
-                <p className="font-bold mb-1 uppercase text-[10px] underline">ITENS DO PEDIDO:</p>
+                <p className="font-bold mb-1 uppercase text-[10px] underline">DETALHES DO PEDIDO:</p>
                 <p className="whitespace-pre-wrap leading-tight text-[10px]">{order.itens || 'Nenhum item'}</p>
             </div>
             {(order.frete || 0) > 0 && (
@@ -439,6 +439,17 @@ export default function App() {
     try { await updateDoc(doc(db, 'pedidos', orderId), { status: newStatus }); } catch (e) { console.error(e); }
   };
 
+  const deleteOrderPermanently = async (orderId: string) => {
+    if (window.confirm("Deseja EXCLUIR DEFINITIVAMENTE este pedido do banco de dados?")) {
+        try {
+            await deleteDoc(doc(db, 'pedidos', orderId));
+        } catch (e) {
+            console.error("Erro ao deletar:", e);
+            alert("Não foi possível excluir o pedido.");
+        }
+    }
+  };
+
   const printOrder = (order: any) => {
     setReceiptOrder(order);
     setTimeout(() => { window.print(); setReceiptOrder(null); }, 500);
@@ -510,6 +521,11 @@ export default function App() {
                    <p className="text-xl font-black text-red-700 italic min-w-[100px]">R$ {Number(o.total || 0).toFixed(2)}</p>
                    <div className="flex gap-2">
                      <button onClick={() => printOrder(o)} className="w-10 h-10 bg-zinc-900 text-white rounded-[0.8rem] flex items-center justify-center text-lg shadow-md hover:scale-105 active:scale-95 transition-all">🖨️</button>
+                     
+                     {o.status !== 'cancelado' && (
+                        <button onClick={() => updateOrderStatus(o.id, 'cancelado')} className="w-10 h-10 bg-red-100 text-red-700 rounded-[0.8rem] flex items-center justify-center text-lg shadow-md hover:scale-105 active:scale-95 transition-all" title="Mover para Lixeira">🗑️</button>
+                     )}
+
                      {o.status === 'novo' && (
                        <>
                          <button onClick={() => updateOrderStatus(o.id, 'preparando')} className="bg-orange-500 text-white px-4 h-10 rounded-xl text-[9px] font-black uppercase shadow-md transition-all">Em Preparação</button>
@@ -518,6 +534,10 @@ export default function App() {
                      )}
                      {o.status === 'preparando' && (
                         <button onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 text-white px-4 h-10 rounded-xl text-[9px] font-black uppercase shadow-md transition-all">Concluído</button>
+                     )}
+                     
+                     {o.status === 'cancelado' && (
+                        <button onClick={() => deleteOrderPermanently(o.id)} className="bg-red-700 text-white px-4 h-10 rounded-xl text-[9px] font-black uppercase shadow-md transition-all">Apagar da Lixeira</button>
                      )}
                    </div>
                 </div>
