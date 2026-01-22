@@ -44,15 +44,20 @@ const Receipt = ({ order }: { order: any | null }) => {
                 <p><strong>DATA:</strong> {date}</p>
                 <p><strong>TIPO:</strong> {order.tipo || 'RETIRADA NA LANCHONETE'}</p>
                 <p><strong>FONE:</strong> {order.telefone || 'N/A'}</p>
-                {order.endereco && <p className="leading-tight"><strong>END:</strong> {order.endereco.toUpperCase()}</p>}
+                {order.endereco && (
+                    <div className="mt-1 border border-black p-1">
+                        <p className="leading-tight"><strong>ENDERECO COMPLETO:</strong></p>
+                        <p className="leading-tight uppercase">{order.endereco}</p>
+                    </div>
+                )}
             </div>
             <div className="border-b border-dashed border-black my-2"></div>
             <div className="mb-2">
-                <p className="font-bold mb-1 uppercase text-[10px]">Itens do Pedido:</p>
+                <p className="font-bold mb-1 uppercase text-[10px] underline">ITENS DO PEDIDO:</p>
                 <p className="whitespace-pre-wrap leading-tight text-[10px]">{order.itens || 'Nenhum item'}</p>
             </div>
             {(order.frete || 0) > 0 && (
-                <div className="mb-2">
+                <div className="mb-2 border-t border-dashed border-black pt-1">
                    <p><strong>FRETE ({order.bairro || ''}):</strong> R$ {Number(order.frete).toFixed(2)}</p>
                 </div>
             )}
@@ -106,11 +111,9 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
         extraPrice += 10.00;
         finalAdditions.push("TURBO: Batata 150g + Juninho (R$ 10,00)");
       }
-      // Contar itens do dropdown
       const dropdownItemsCount = additions.filter(a => !a.includes("TURBO") && !a.includes("Picanha")).length;
       extraPrice += dropdownItemsCount * 3.00;
     } else if (isAcai) {
-      // Calcular apenas os adicionais pagos
       additions.forEach(addName => {
         const extra = ACAI_PAID_EXTRAS.find(e => e.name === addName);
         if (extra) extraPrice += extra.price;
@@ -161,7 +164,6 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
           <button onClick={onClose} className="text-zinc-300 hover:text-red-600 text-3xl leading-none transition-colors">&times;</button>
         </div>
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          
           <section>
             <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Quantidade</label>
             <div className="flex items-center gap-6">
@@ -175,16 +177,12 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
             <div className="space-y-6">
                <section className="bg-red-50/50 p-4 rounded-2xl border border-red-100">
                   <label className="block text-red-900/40 text-[10px] font-black uppercase mb-2 tracking-[0.2em]">Ingredientes Inclusos</label>
-                  <p className="text-[11px] font-bold text-red-800 uppercase italic leading-relaxed">
-                    {product.ingredients?.join(', ')}
-                  </p>
+                  <p className="text-[11px] font-bold text-red-800 uppercase italic leading-relaxed">{product.ingredients?.join(', ')}</p>
                </section>
-
                <section>
                   <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Retirar algo?</label>
                   <textarea className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-[1.5rem] p-4 text-zinc-800 focus:outline-none focus:border-red-500 min-h-[80px] text-sm font-medium" placeholder="Digite o que deseja tirar..." value={removedText} onChange={e => setRemovedText(e.target.value)} />
                </section>
-
                <section className="space-y-4">
                   <label className="block text-red-900/40 text-[10px] font-black uppercase mb-1 tracking-[0.2em]">Adicionais</label>
                   <button onClick={() => setHasPicanha(!hasPicanha)} className={`w-full p-4 rounded-2xl text-[11px] font-black uppercase border-2 flex justify-between items-center transition-all ${hasPicanha ? 'bg-red-700 border-red-700 text-white shadow-lg' : 'bg-white border-zinc-100 text-zinc-400'}`}>
@@ -273,40 +271,30 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
               <button onClick={() => { setIsAcaiComplete(!isAcaiComplete); if(!isAcaiComplete) setAdditions([]); }} className={`w-full py-5 rounded-[2rem] text-xs font-black uppercase border-b-4 transition-all shadow-xl ${isAcaiComplete ? 'bg-green-600 border-green-800 text-white scale-105' : 'bg-red-700 border-red-900 text-white'}`}>
                 {isAcaiComplete ? 'AÇAÍ COMPLETO ATIVADO! ✅' : 'QUER O AÇAÍ COMPLETO? (TUDO INCLUSO)'}
               </button>
-
               <div className={isAcaiComplete ? 'opacity-40 pointer-events-none' : ''}>
                 <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Complementos</label>
                 <div className="grid grid-cols-2 gap-2">
                     {ACAI_COMPLEMENTS.map(item => (
-                        <button key={item} onClick={() => toggleAddition(item)} className={`p-3 rounded-xl text-[9px] font-black uppercase border-2 transition-all ${additions.includes(item) ? 'bg-red-700 border-red-700 text-white' : 'bg-white border-zinc-100 text-zinc-400'}`}>
-                            {additions.includes(item) ? '✓ ' : '+ '} {item}
-                        </button>
+                        <button key={item} onClick={() => toggleAddition(item)} className={`p-3 rounded-xl text-[9px] font-black uppercase border-2 transition-all ${additions.includes(item) ? 'bg-red-700 border-red-700 text-white' : 'bg-white border-zinc-100 text-zinc-400'}`}>{additions.includes(item) ? '✓ ' : '+ '} {item}</button>
                     ))}
                 </div>
               </div>
-
               <div className={isAcaiComplete ? 'opacity-40 pointer-events-none' : ''}>
                 <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Coberturas</label>
                 <div className="grid grid-cols-2 gap-2">
                     {ACAI_TOPPINGS.map(item => (
-                        <button key={item} onClick={() => toggleAddition(item)} className={`p-3 rounded-xl text-[9px] font-black uppercase border-2 transition-all ${additions.includes(item) ? 'bg-red-700 border-red-700 text-white' : 'bg-white border-zinc-100 text-zinc-400'}`}>
-                            {additions.includes(item) ? '✓ ' : '+ '} {item}
-                        </button>
+                        <button key={item} onClick={() => toggleAddition(item)} className={`p-3 rounded-xl text-[9px] font-black uppercase border-2 transition-all ${additions.includes(item) ? 'bg-red-700 border-red-700 text-white' : 'bg-white border-zinc-100 text-zinc-400'}`}>{additions.includes(item) ? '✓ ' : '+ '} {item}</button>
                     ))}
                 </div>
               </div>
-
               <div className={isAcaiComplete ? 'opacity-40 pointer-events-none' : ''}>
                 <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Frutas</label>
                 <div className="grid grid-cols-2 gap-2">
                     {ACAI_FRUITS.map(item => (
-                        <button key={item} onClick={() => toggleAddition(item)} className={`p-3 rounded-xl text-[9px] font-black uppercase border-2 transition-all ${additions.includes(item) ? 'bg-red-700 border-red-700 text-white' : 'bg-white border-zinc-100 text-zinc-400'}`}>
-                            {additions.includes(item) ? '✓ ' : '+ '} {item}
-                        </button>
+                        <button key={item} onClick={() => toggleAddition(item)} className={`p-3 rounded-xl text-[9px] font-black uppercase border-2 transition-all ${additions.includes(item) ? 'bg-red-700 border-red-700 text-white' : 'bg-white border-zinc-100 text-zinc-400'}`}>{additions.includes(item) ? '✓ ' : '+ '} {item}</button>
                     ))}
                 </div>
               </div>
-
               <section>
                 <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Adicionais Pagos</label>
                 <div className="grid grid-cols-2 gap-2">
@@ -377,12 +365,11 @@ export default function App() {
     setIsSending(true);
 
     try {
-      // Gerar string consolidada de itens AGRUPADA por categoria
       const groupedItemsText = CATEGORIES.map(cat => {
         const itemsInCat = cart.filter(i => i.categoryId === cat.id);
         if (itemsInCat.length === 0) return null;
         
-        let section = `[${cat.name.toUpperCase()}]\n`;
+        let section = `--- ${cat.name.toUpperCase()} ---\n`;
         section += itemsInCat.map(i => {
           let line = `${i.quantity}x ${i.name}`;
           if (i.flavor) line += ` (${i.flavor})`;
@@ -398,28 +385,28 @@ export default function App() {
               const fruts = rawAdds.filter(a => ACAI_FRUITS.includes(a));
               const paids = rawAdds.filter(a => ACAI_PAID_EXTRAS.some(p => p.name === a));
               
-              if (comps.length) line += `\n  COMPLEM: ${comps.join(', ')}`;
-              if (cobs.length) line += `\n  COBERTU: ${cobs.join(', ')}`;
-              if (fruts.length) line += `\n  FRUTAS: ${fruts.join(', ')}`;
-              if (paids.length) line += `\n  ADIC.PAG: ${paids.join(', ')}`;
+              if (comps.length) line += `\n  COMPLEMENTOS:\n    • ${comps.join('\n    • ')}`;
+              if (cobs.length) line += `\n  COBERTURAS:\n    • ${cobs.join('\n    • ')}`;
+              if (fruts.length) line += `\n  FRUTAS:\n    • ${fruts.join('\n    • ')}`;
+              if (paids.length) line += `\n  ADICIONAIS PAGOS:\n    • ${paids.join('\n    • ')}`;
             }
           } else {
-            if (i.removedIngredients?.length) line += `\n  - SEM: ${i.removedIngredients.join(', ')}`;
-            if (i.additions?.length) line += `\n  - COM: ${i.additions.join(', ')}`;
+            if (i.removedIngredients?.length) line += `\n  - RETIRAR: ${i.removedIngredients.join(', ')}`;
+            if (i.additions?.length) line += `\n  - ADICIONAIS: ${i.additions.join(', ')}`;
           }
           if (i.observation) line += `\n  *Obs: ${i.observation}*`;
           return line;
-        }).join('\n');
+        }).join('\n\n');
         
         return section;
       }).filter(Boolean).join('\n\n');
 
       const fullAddress = customer.orderType === OrderType.DELIVERY 
         ? `${customer.address}, ${customer.addressNumber} - ${customer.neighborhood}${customer.reference ? ` (${customer.reference})` : ''}` 
-        : "Retirada na lanchonete";
+        : "RETIRADA NA LANCHONETE";
 
       await addDoc(collection(db, 'pedidos'), {
-        nomeCliente: clientName, 
+        nomeCliente: clientName.toUpperCase(), 
         itens: groupedItemsText,
         total: Number(total.toFixed(2)),
         frete: Number(currentFee.toFixed(2)),
@@ -429,7 +416,7 @@ export default function App() {
         telefone: customer.phone || "N/A",
         tipo: customer.orderType, 
         pagamento: customer.paymentMethod,
-        endereco: fullAddress
+        endereco: fullAddress.toUpperCase()
       });
       
       setCart([]); 
@@ -501,14 +488,11 @@ export default function App() {
           </div>
           <div className="flex flex-wrap justify-center gap-2">
             {(['novo', 'preparando', 'concluido', 'cancelado'] as AdminTab[]).map(tab => (
-              <button key={tab} onClick={() => setAdminTab(tab)} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all ${adminTab === tab ? 'bg-red-700 text-white shadow-lg' : 'bg-white text-zinc-400 border border-zinc-100'}`}>
-                {tab === 'novo' ? 'Novos' : tab === 'preparando' ? 'Preparando' : tab === 'concluido' ? 'Concluídos' : 'Lixeira'}
-              </button>
+              <button key={tab} onClick={() => setAdminTab(tab)} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all ${adminTab === tab ? 'bg-red-700 text-white shadow-lg' : 'bg-white text-zinc-400 border border-zinc-100'}`}>{tab === 'novo' ? 'Novos' : tab === 'preparando' ? 'Preparando' : tab === 'concluido' ? 'Concluídos' : 'Lixeira'}</button>
             ))}
           </div>
           <Button variant="secondary" onClick={() => { setIsLoggedIn(false); setView('HOME'); }} className="px-5 py-2 rounded-xl text-[9px] font-black uppercase">SAIR</Button>
         </header>
-
         <div className="space-y-3 animate-fade-in">
           {filteredOrders.length === 0 ? (
             <div className="text-center py-24 opacity-10"><p className="text-xl font-black italic uppercase">Vazio</p></div>
@@ -521,9 +505,7 @@ export default function App() {
                   <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mt-2 italic">{o.tipo} • {o.pagamento}</p>
                   {o.frete > 0 && <p className="text-[10px] font-black text-red-600 uppercase mt-1">Frete: R$ {o.frete.toFixed(2)}</p>}
                 </div>
-                <div className="flex-1 bg-zinc-50 p-4 rounded-xl text-[10px] font-bold text-zinc-700 border border-zinc-100 whitespace-pre-wrap">
-                    {o.itens}
-                </div>
+                <div className="flex-1 bg-zinc-50 p-4 rounded-xl text-[10px] font-bold text-zinc-700 border border-zinc-100 whitespace-pre-wrap">{o.itens}</div>
                 <div className="flex items-center gap-3 flex-wrap">
                    <p className="text-xl font-black text-red-700 italic min-w-[100px]">R$ {Number(o.total || 0).toFixed(2)}</p>
                    <div className="flex gap-2">
@@ -556,14 +538,11 @@ export default function App() {
             <div className="text-[64px] mb-6 animate-float leading-none drop-shadow-xl">🍔</div>
             <h1 className="text-4xl font-black text-red-800 mb-3 tracking-tighter italic leading-none">Cantinho da Sandra</h1>
             <p className="text-red-900/20 font-black uppercase tracking-[0.4em] text-[9px] mb-12 italic">A Melhor Mordida da Cidade</p>
-            <Button fullWidth onClick={() => setView('ORDER')} className="text-xl py-5 shadow-xl flex items-center justify-center gap-4 group rounded-[2rem] border-b-4 border-red-800">
-              FAZER PEDIDO <span className="text-3xl group-hover:translate-x-3 transition-transform">➡</span>
-            </Button>
+            <Button fullWidth onClick={() => setView('ORDER')} className="text-xl py-5 shadow-xl flex items-center justify-center gap-4 group rounded-[2rem] border-b-4 border-red-800">FAZER PEDIDO <span className="text-3xl group-hover:translate-x-3 transition-transform">➡</span></Button>
             <button onClick={() => setView('LOGIN')} className="mt-16 text-zinc-200 text-[9px] font-black uppercase tracking-[0.3em] hover:text-red-400 italic transition-all hidden md:block w-full">Administração</button>
           </div>
         </div>
       )}
-
       {view === 'ORDER' && (
         <div className="max-w-xl mx-auto min-h-screen flex flex-col bg-white border-x border-zinc-100 shadow-2xl no-print">
             {step === 'MENU' && (
@@ -578,9 +557,7 @@ export default function App() {
                     </header>
                     <div className="p-4 flex gap-3 overflow-x-auto no-scrollbar py-5 border-b border-zinc-50 bg-white">
                         {CATEGORIES.map(cat => (
-                            <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`flex-shrink-0 px-5 py-3 rounded-full font-black text-[9px] uppercase transition-all ${activeCategory === cat.id ? 'bg-red-700 text-white shadow-lg scale-105' : 'bg-zinc-50 text-zinc-400 hover:bg-zinc-100'}`}>
-                                {cat.icon} {cat.name}
-                            </button>
+                            <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`flex-shrink-0 px-5 py-3 rounded-full font-black text-[9px] uppercase transition-all ${activeCategory === cat.id ? 'bg-red-700 text-white shadow-lg scale-105' : 'bg-zinc-50 text-zinc-400 hover:bg-zinc-100'}`}>{cat.icon} {cat.name}</button>
                         ))}
                     </div>
                     <div className="flex-1 p-5 space-y-4 pb-44 overflow-y-auto bg-zinc-50/10">
@@ -605,7 +582,6 @@ export default function App() {
                     )}
                 </>
             )}
-
             {step === 'TYPE_SELECTION' && (
                 <div className="p-8 flex flex-col min-h-screen bg-white">
                     <button onClick={() => setStep('MENU')} className="self-start mb-10 text-red-800 font-black text-[10px] uppercase bg-red-50 px-6 py-2 rounded-full border border-red-100 shadow-sm active:scale-95 transition-all">← Voltar</button>
@@ -624,7 +600,6 @@ export default function App() {
                     </div>
                 </div>
             )}
-
             {step === 'FORM' && (
                 <div className="p-8 pb-44 flex flex-col min-h-screen bg-white">
                     <button onClick={() => setStep('TYPE_SELECTION')} className="self-start mb-6 text-red-800 font-black text-[10px] uppercase bg-red-50 px-6 py-2 rounded-full border border-red-100 shadow-sm active:scale-95 transition-all">← Voltar</button>
@@ -636,9 +611,7 @@ export default function App() {
                             <>
                                 <Select label="Bairro" value={customer.neighborhood} onChange={e => handleNeighborhoodChange(e.target.value)} options={[{ value: '', label: 'Selecione seu bairro' }, ...DELIVERY_FEES.map(f => ({ value: f.neighborhood, label: `${f.neighborhood} - R$ ${f.fee.toFixed(2)}` }))]} required />
                                 {showOutroAlert && (
-                                  <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-[10px] font-bold text-red-800 italic uppercase animate-fade-in shadow-inner">
-                                    ⚠️ ATENÇÃO: Os preços da entrega poderão ser alterados dependendo do bairro e uma atendente irá informar via WhatsApp.
-                                  </div>
+                                  <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-[10px] font-bold text-red-800 italic uppercase animate-fade-in shadow-inner">⚠️ ATENÇÃO: Os preços da entrega poderão ser alterados dependendo do bairro e uma atendente irá informar via WhatsApp.</div>
                                 )}
                                 <Input label="Rua" value={customer.address} onChange={e => setCustomer({...customer, address: e.target.value})} placeholder="Ex: Rua das Flores..." required />
                                 <Input label="Número" value={customer.addressNumber} onChange={e => setCustomer({...customer, addressNumber: e.target.value})} placeholder="Ex: 123..." required />
@@ -650,7 +623,6 @@ export default function App() {
                     </form>
                 </div>
             )}
-
             {step === 'SUMMARY' && (
                 <div className="p-8 pb-44 flex flex-col min-h-screen bg-white">
                     <button onClick={() => setStep('FORM')} className="self-start mb-6 text-red-800 font-black text-[10px] uppercase bg-red-50 px-6 py-2 rounded-full border border-red-100 shadow-sm active:scale-95 transition-all">← Voltar</button>
@@ -661,9 +633,7 @@ export default function App() {
                             <p className="text-sm font-black text-green-600 uppercase italic mt-1">{customer.phone}</p>
                             <p className="text-[10px] text-zinc-400 font-bold uppercase mt-2">{customer.orderType}</p>
                             {customer.orderType === OrderType.DELIVERY && (
-                                <p className="text-[10px] text-zinc-500 font-medium italic mt-1 uppercase leading-tight">
-                                  {customer.address}, {customer.addressNumber} - {customer.neighborhood} {customer.reference && `(${customer.reference})`}
-                                </p>
+                                <p className="text-[10px] text-zinc-500 font-medium italic mt-1 uppercase leading-tight">{customer.address}, {customer.addressNumber} - {customer.neighborhood} {customer.reference && `(${customer.reference})`}</p>
                             )}
                         </div>
                         <div className="space-y-4">
@@ -699,16 +669,12 @@ export default function App() {
                             </div>
                         </div>
                     </div>
-                    <Button onClick={handleFinishOrder} disabled={isSending} fullWidth className={`py-5 text-2xl shadow-2xl rounded-[2.5rem] border-b-[8px] border-b-red-950 ${isSending ? 'opacity-60 scale-95' : 'animate-pulse-slow active:scale-90 transition-all'}`}>
-                        {isSending ? 'ENVIANDO...' : 'FINALIZAR! ✅'}
-                    </Button>
+                    <Button onClick={handleFinishOrder} disabled={isSending} fullWidth className={`py-5 text-2xl shadow-2xl rounded-[2.5rem] border-b-[8px] border-b-red-950 ${isSending ? 'opacity-60 scale-95' : 'animate-pulse-slow active:scale-90 transition-all'}`}>{isSending ? 'ENVIANDO...' : 'FINALIZAR! ✅'}</Button>
                 </div>
             )}
         </div>
       )}
-
       <ProductModal isOpen={!!selectedProduct} product={selectedProduct} onClose={() => setSelectedProduct(null)} onConfirm={(item: CartItem) => { setCart([...cart, item]); setSelectedProduct(null); }} />
-
       <style>{`
         @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
@@ -719,7 +685,6 @@ export default function App() {
         .animate-float { animation: float 5s ease-in-out infinite; }
         .animate-pulse-slow { animation: pulse-slow 3s infinite ease-in-out; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        
         @media print {
             body { background: white !important; padding: 0 !important; margin: 0 !important; }
             .no-print { display: none !important; }
