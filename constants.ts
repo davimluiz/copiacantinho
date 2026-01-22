@@ -17,6 +17,7 @@ export const CATEGORIES: Category[] = [
 ];
 
 const SALADA_COMPLETA = ['Alface', 'Tomate', 'Milho', 'Batata Palha'];
+const DESC_TABUA_CARNE = "Acompanha 400g de batata ou aipim, vinagrete, farofa e molho caseiro.";
 
 export const PRODUCTS: Product[] = [
   { id: 'l1', categoryId: 'lanches', name: 'Hambúrguer', price: 10.00, ingredients: ['Pão', 'Bife', ...SALADA_COMPLETA] },
@@ -40,6 +41,8 @@ export const PRODUCTS: Product[] = [
   { id: 'a3', categoryId: 'acai', name: 'Açaí 500 ML', price: 19.00 },
   { id: 'a4', categoryId: 'acai', name: 'Açaí 700 ML', price: 23.00 },
   { id: 'a5', categoryId: 'acai', name: 'Açaí 1000 ML', price: 30.00 },
+  { id: 'f8', categoryId: 'franguinho', name: 'Franguinho 500g', price: 35.00, maxSides: 0 },
+  { id: 'f9', categoryId: 'franguinho', name: 'Franguinho 1Kg', price: 50.00, maxSides: 0 },
   { id: 'f1', categoryId: 'franguinho', name: 'Franguinho 250g (1 Acomp.)', price: 35.00, maxSides: 1 },
   { id: 'f2', categoryId: 'franguinho', name: 'Franguinho 500g (1 Acomp.)', price: 55.00, maxSides: 1 },
   { id: 'f3', categoryId: 'franguinho', name: 'Franguinho 500g (2 Acomp.)', price: 65.00, maxSides: 2 },
@@ -47,15 +50,27 @@ export const PRODUCTS: Product[] = [
   { id: 'f5', categoryId: 'franguinho', name: 'Franguinho 1Kg (1 Acomp.)', price: 70.00, maxSides: 1 },
   { id: 'f6', categoryId: 'franguinho', name: 'Franguinho 1Kg (2 Acomp.)', price: 80.00, maxSides: 2 },
   { id: 'f7', categoryId: 'franguinho', name: 'Franguinho 1Kg (3 Acomp.)', price: 90.00, maxSides: 3 },
-  { id: 'p1', categoryId: 'porcoes', name: 'Tábua de Carne', price: 58.00 },
-  { id: 'p2', categoryId: 'porcoes', name: 'Porção Mista 400g', price: 58.00 },
-  { id: 'p3', categoryId: 'porcoes', name: 'Porção Mista 800g', price: 88.00 },
-  { id: 'p4', categoryId: 'porcoes', name: 'Batata Frita 200g', price: 12.00 },
-  { id: 'p5', categoryId: 'porcoes', name: 'Batata Frita 400g', price: 20.00 },
-  { id: 'b1', categoryId: 'bebidas', name: 'Suco 500ml', price: 9.00 },
-  { id: 'b2', categoryId: 'bebidas', name: 'Vitamina 500ml', price: 12.00 },
-  { id: 'b5', categoryId: 'bebidas', name: 'Refrigerante Lata', price: 6.00 },
-  { id: 'b10', categoryId: 'bebidas', name: 'Coca-Cola 2L', price: 15.00 },
+  { id: 'p1', categoryId: 'porcoes', name: 'Tábua de Carne 400g', price: 58.00, description: DESC_TABUA_CARNE },
+  { id: 'p2', categoryId: 'porcoes', name: 'Tábua de Carne 800g', price: 88.00, description: DESC_TABUA_CARNE },
+  { id: 'p3', categoryId: 'porcoes', name: 'Batata 200g', price: 12.00 },
+  { id: 'p4', categoryId: 'porcoes', name: 'Batata 400g', price: 20.00 },
+  { id: 'p5', categoryId: 'porcoes', name: 'Batata cheddar e bacon 300g', price: 28.00 },
+  { id: 'p6', categoryId: 'porcoes', name: 'Aipim raiz 400g', price: 20.00 },
+  { id: 'p7', categoryId: 'porcoes', name: 'Aipim temperado', price: 25.00, unit: '20un' },
+  { id: 'p8', categoryId: 'porcoes', name: 'Aipim c/ Queijo', price: 25.00, unit: '20un' },
+  { id: 'p9', categoryId: 'porcoes', name: 'Bol. de Queijo', price: 25.00, unit: '20un' },
+  { id: 'p10', categoryId: 'porcoes', name: 'Bol. Queijo c/ Presunto', price: 25.00, unit: '20un' },
+  { id: 'p11', categoryId: 'porcoes', name: 'Coxinha c/ Requeijão', price: 25.00, unit: '20un' },
+  { id: 'b1', categoryId: 'bebidas', name: 'Suco 500ml', price: 9.00, needsFlavor: true },
+  { id: 'b2', categoryId: 'bebidas', name: 'Vitamina 500ml', price: 12.00, needsFlavor: true },
+  { id: 'b3', categoryId: 'bebidas', name: 'Suco 1L', price: 17.00, needsFlavor: true },
+  { id: 'b4', categoryId: 'bebidas', name: 'Vitamina 1L', price: 20.00, needsFlavor: true },
+  { id: 'b5', categoryId: 'bebidas', name: 'Refr. Lata', price: 6.00, needsFlavor: true },
+  { id: 'b6', categoryId: 'bebidas', name: 'Refr. Uai 600 ml', price: 5.00, needsFlavor: true },
+  { id: 'b7', categoryId: 'bebidas', name: 'Refr. Uai 2L', price: 7.00, needsFlavor: true },
+  { id: 'b8', categoryId: 'bebidas', name: 'Refr. Coca Cola 600 ml', price: 8.00, needsZeroOption: true },
+  { id: 'b9', categoryId: 'bebidas', name: 'Refr. Coca Cola 1,5L', price: 12.00, needsZeroOption: true },
+  { id: 'b10', categoryId: 'bebidas', name: 'Refr. Coca Cola 2L', price: 15.00, needsZeroOption: true },
 ];
 
 export const PAYMENT_METHODS = [
@@ -77,8 +92,25 @@ export const EXTRAS_OPTIONS = [
 ];
 
 export const FRANGUINHO_SIDES = ["Batata", "Aipim raiz", "Bolinha de queijo", "Coxinha"];
-export const ACAI_PACKAGING = ["Mesa", "Sem tampa", "Com tampa"];
-export const ACAI_COMPLEMENTS = ["Granola", "Leite em pó", "Paçoca", "Ovomaltine"];
-export const ACAI_TOPPINGS = ["Morango", "Chocolate", "Leite Cond."];
-export const ACAI_FRUITS = ["Banana", "Morango", "Kiwi"];
-export const ACAI_PAID_EXTRAS = [{ name: 'Nutella', price: 5.00 }];
+
+export const ACAI_COMPLEMENTS = [
+  "Amendoim", "Bolinhas de chocolate", "Choco Boll", "Chocolate cremoso", 
+  "Disket", "Flocos de arroz", "Uva Passas", "Gotas de chocolate", 
+  "Granola", "Granulado", "Leite em pó", "Ovomaltine", "Paçoca", "Sucrilhos"
+];
+
+export const ACAI_TOPPINGS = [
+  "Amora", "Chocolate", "Chocolate quente", "Leite condensado", 
+  "Limão", "Mel", "Morango", "Uva"
+];
+
+export const ACAI_FRUITS = [
+  "Uva", "Kiwi", "Maçã", "Manga", "Morango", "Banana"
+];
+
+export const ACAI_PAID_EXTRAS = [
+  { name: 'Nutella', price: 5.00 },
+  { name: 'M. Morango', price: 4.00 },
+  { name: 'M. Maracujá', price: 4.00 },
+  { name: 'M. Cupuaçu', price: 4.00 }
+];

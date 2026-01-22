@@ -18,7 +18,8 @@ import { Button } from './components/Button';
 import { Input, Select } from './components/Input';
 import { 
     CATEGORIES, PRODUCTS, PAYMENT_METHODS, 
-    EXTRAS_OPTIONS, ACAI_PAID_EXTRAS
+    EXTRAS_OPTIONS, ACAI_COMPLEMENTS, ACAI_TOPPINGS, 
+    ACAI_FRUITS, ACAI_PAID_EXTRAS
 } from './constants';
 import { Product, CustomerInfo, CartItem, PaymentMethod, OrderType } from './types';
 
@@ -58,13 +59,33 @@ const Receipt = ({ order }: { order: any | null }) => {
 // --- MODAL DE PERSONALIZAÇÃO DE PRODUTO ---
 const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
   const [quantity, setQuantity] = useState(1);
-  const [removedIngredients, setRemovedIngredients] = useState<string[]>([]);
+  const [removedText, setRemovedText] = useState('');
   const [additions, setAdditions] = useState<string[]>([]);
+  const [hasPicanha, setHasPicanha] = useState(false);
+  const [hasTurbine, setHasTurbine] = useState(false);
   const [observation, setObservation] = useState('');
+  const [flavor, setFlavor] = useState('');
+  const [isZero, setIsZero] = useState(false);
+  const [isAcaiComplete, setIsAcaiComplete] = useState(false);
+
+  const isLanche = product?.categoryId === 'lanches';
+  const isFranguinho = product?.categoryId === 'franguinho';
+  const isPorcoes = product?.categoryId === 'porcoes';
+  const isBebidas = product?.categoryId === 'bebidas';
+  const isAcai = product?.categoryId === 'acai';
+  const maxSides = product?.maxSides ?? 0;
+
+  const franguinhoAdditions = [
+    "Batata", "Aipim raiz", "Bolinho de aipim temperado", 
+    "Bolinho de aipim com queijo", "Bolinha de queijo", 
+    "Bolinha de queijo com presunto", "Coxinha"
+  ];
 
   useEffect(() => {
     if (isOpen && product) {
-      setQuantity(1); setRemovedIngredients([]); setAdditions([]); setObservation('');
+      setQuantity(1); setRemovedText(''); setAdditions([]); setObservation('');
+      setHasPicanha(false); setHasTurbine(false); setFlavor(''); setIsZero(false);
+      setIsAcaiComplete(false);
     }
   }, [isOpen, product]);
 
@@ -72,20 +93,75 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
 
   const handleConfirm = () => {
     let extraPrice = 0;
-    additions.forEach(add => {
-        const extra = [...EXTRAS_OPTIONS, ...ACAI_PAID_EXTRAS].find(e => e.name === add);
+    let finalAdditions = [...additions];
+
+    if (isLanche) {
+      if (hasPicanha) {
+        extraPrice += 4.50;
+        finalAdditions.push("Bife Picanha (R$ 4,50)");
+      }
+      if (hasTurbine) {
+        extraPrice += 10.00;
+        finalAdditions.push("TURBO: Batata 150g + Juninho (R$ 10,00)");
+      }
+      const dropdownItemsCount = additions.filter(a => !a.includes("TURBO") && !a.includes("Picanha")).length;
+      extraPrice += dropdownItemsCount * 3.00;
+    } else if (isAcai) {
+      // Somar preços dos adicionais pagos do Açaí
+      additions.forEach(addName => {
+        const extra = ACAI_PAID_EXTRAS.find(e => e.name === addName);
         if (extra) extraPrice += extra.price;
-    });
+      });
+      if (isAcaiComplete) {
+          finalAdditions.unshift("AÇAÍ COMPLETO");
+      }
+    } else if (isFranguinho || isPorcoes || isBebidas) {
+      // Sem preços extras de adicionais nestas categorias
+    } else {
+      additions.forEach(add => {
+          const extra = EXTRAS_OPTIONS.find(e => e.name === add);
+          if (extra) extraPrice += extra.price;
+      });
+    }
+
+    let finalFlavor = flavor;
+    if (isBebidas && product.needsZeroOption) {
+        finalFlavor = isZero ? "Zero" : "Normal";
+    }
     
     onConfirm({
-      ...product, cartId: Date.now().toString(), quantity,
-      removedIngredients, additions, observation,
+      ...product, 
+      cartId: Date.now().toString(), 
+      quantity,
+      removedIngredients: removedText.trim() ? [removedText.trim()] : [], 
+      additions: finalAdditions, 
+      observation,
+      flavor: finalFlavor,
       price: Number(product.price) + Number(extraPrice)
     });
   };
 
-  const toggleIngredient = (ing: string) => setRemovedIngredients(prev => prev.includes(ing) ? prev.filter(i => i !== ing) : [...prev, ing]);
-  const toggleAddition = (add: string) => setAdditions(prev => prev.includes(add) ? prev.filter(a => a !== add) : [...prev, add]);
+  const addDropdownAddition = (val: string) => {
+    if (val && !additions.includes(val)) {
+      setAdditions(prev => [...prev, val]);
+    }
+  };
+
+  const removeDropdownAddition = (index: number) => {
+    setAdditions(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const toggleAddition = (name: string) => {
+    setAdditions(prev => {
+      if (prev.includes(name)) {
+        return prev.filter(a => a !== name);
+      }
+      if (isFranguinho && prev.length >= maxSides) {
+        return prev;
+      }
+      return [...prev, name];
+    });
+  };
 
   return (
     <div className={`fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
@@ -93,11 +169,32 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
         <div className="p-6 border-b border-red-50 flex justify-between items-center bg-red-50/30">
           <div>
             <h3 className="text-xl font-black text-red-800 leading-none italic">{product.name}</h3>
+            {product.unit && <p className="text-[10px] font-black text-red-600/60 uppercase tracking-widest mt-1 italic">{product.unit}</p>}
             <p className="text-red-600 font-black mt-1">R$ {product.price.toFixed(2)}</p>
           </div>
           <button onClick={onClose} className="text-zinc-300 hover:text-red-600 text-3xl leading-none transition-colors">&times;</button>
         </div>
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Descrição do Item */}
+          {product.description && (
+            <section className="bg-red-50/50 p-4 rounded-2xl border border-red-100">
+              <label className="block text-red-900/40 text-[10px] font-black uppercase mb-2 tracking-[0.2em]">Observação do Item</label>
+              <p className="text-[11px] font-bold text-red-800 leading-relaxed italic uppercase">
+                {product.description}
+              </p>
+            </section>
+          )}
+
+          {/* Ingredientes do Item */}
+          {product.ingredients && product.ingredients.length > 0 && (
+            <section className="bg-red-50/50 p-4 rounded-2xl border border-red-100">
+              <label className="block text-red-900/40 text-[10px] font-black uppercase mb-2 tracking-[0.2em]">Ingredientes inclusos</label>
+              <p className="text-[11px] font-bold text-red-800 leading-relaxed italic uppercase">
+                {product.ingredients.join(', ')}
+              </p>
+            </section>
+          )}
+
           <section>
             <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Quantidade</label>
             <div className="flex items-center gap-6">
@@ -107,33 +204,222 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
             </div>
           </section>
 
-          {product.ingredients && product.ingredients.length > 0 && (
+          {/* Bebidas: Sabor ou Opção Zero */}
+          {isBebidas && (
+            <section className="space-y-4">
+              {product.needsFlavor && (
+                <div>
+                  <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Sabor</label>
+                  <input 
+                    type="text" 
+                    className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 text-sm font-bold text-red-900 focus:outline-none focus:border-red-500 shadow-inner" 
+                    placeholder="Qual o sabor desejado?" 
+                    value={flavor} 
+                    onChange={e => setFlavor(e.target.value)} 
+                  />
+                </div>
+              )}
+              {product.needsZeroOption && (
+                <div>
+                  <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Escolha uma opção</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button 
+                      onClick={() => setIsZero(false)} 
+                      className={`p-4 rounded-2xl text-[10px] font-black uppercase border-2 transition-all ${!isZero ? 'bg-red-700 border-red-700 text-white shadow-md' : 'bg-white border-zinc-100 text-zinc-300'}`}
+                    >
+                      Normal
+                    </button>
+                    <button 
+                      onClick={() => setIsZero(true)} 
+                      className={`p-4 rounded-2xl text-[10px] font-black uppercase border-2 transition-all ${isZero ? 'bg-zinc-900 border-zinc-900 text-white shadow-md' : 'bg-white border-zinc-100 text-zinc-300'}`}
+                    >
+                      Zero
+                    </button>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* Açaí: Customização específica */}
+          {isAcai && (
+            <section className="space-y-8">
+              <button 
+                onClick={() => setIsAcaiComplete(!isAcaiComplete)}
+                className={`w-full py-5 rounded-[2rem] text-xs font-black uppercase border-b-4 transition-all shadow-xl ${isAcaiComplete ? 'bg-green-600 border-green-800 text-white scale-105' : 'bg-red-700 border-red-900 text-white hover:bg-red-800'}`}
+              >
+                {isAcaiComplete ? 'AÇAÍ COMPLETO ATIVADO! ✅' : 'QUER O AÇAÍ COMPLETO? (TUDO INCLUSO)'}
+              </button>
+
+              <div className={isAcaiComplete ? 'opacity-40 pointer-events-none' : ''}>
+                <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Complementos</label>
+                <div className="grid grid-cols-2 gap-2">
+                    {ACAI_COMPLEMENTS.map(item => (
+                        <button key={item} onClick={() => toggleAddition(item)} className={`p-3 rounded-xl text-[9px] font-black uppercase border-2 transition-all ${additions.includes(item) ? 'bg-red-700 border-red-700 text-white' : 'bg-white border-zinc-100 text-zinc-400'}`}>
+                            {additions.includes(item) ? '✓ ' : '+ '} {item}
+                        </button>
+                    ))}
+                </div>
+              </div>
+
+              <div className={isAcaiComplete ? 'opacity-40 pointer-events-none' : ''}>
+                <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Coberturas</label>
+                <div className="grid grid-cols-2 gap-2">
+                    {ACAI_TOPPINGS.map(item => (
+                        <button key={item} onClick={() => toggleAddition(item)} className={`p-3 rounded-xl text-[9px] font-black uppercase border-2 transition-all ${additions.includes(item) ? 'bg-red-700 border-red-700 text-white' : 'bg-white border-zinc-100 text-zinc-400'}`}>
+                            {additions.includes(item) ? '✓ ' : '+ '} {item}
+                        </button>
+                    ))}
+                </div>
+              </div>
+
+              <div className={isAcaiComplete ? 'opacity-40 pointer-events-none' : ''}>
+                <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Frutas</label>
+                <div className="grid grid-cols-2 gap-2">
+                    {ACAI_FRUITS.map(item => (
+                        <button key={item} onClick={() => toggleAddition(item)} className={`p-3 rounded-xl text-[9px] font-black uppercase border-2 transition-all ${additions.includes(item) ? 'bg-red-700 border-red-700 text-white' : 'bg-white border-zinc-100 text-zinc-400'}`}>
+                            {additions.includes(item) ? '✓ ' : '+ '} {item}
+                        </button>
+                    ))}
+                </div>
+              </div>
+
+              <section>
+                <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Adicionais Pagos</label>
+                <div className="grid grid-cols-2 gap-2">
+                    {ACAI_PAID_EXTRAS.map(extra => (
+                        <button key={extra.name} onClick={() => toggleAddition(extra.name)} className={`p-4 rounded-xl text-[10px] font-black uppercase border-2 transition-all ${additions.includes(extra.name) ? 'bg-green-600 border-green-700 text-white shadow-lg' : 'bg-white border-zinc-100 text-zinc-400'}`}>
+                            <div className="flex flex-col items-center">
+                                <span>{extra.name}</span>
+                                <span className={additions.includes(extra.name) ? 'text-white/80' : 'text-green-600'}>+ R$ {extra.price.toFixed(2)}</span>
+                            </div>
+                        </button>
+                    ))}
+                </div>
+              </section>
+            </section>
+          )}
+
+          {/* Retirar Algo - Oculto em Franguinho, Porções, Bebidas e Açaí */}
+          {!isFranguinho && !isPorcoes && !isBebidas && !isAcai && (
             <section>
               <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Retirar algo?</label>
+              <textarea 
+                className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-[1.5rem] p-4 text-zinc-800 focus:outline-none focus:border-red-500 min-h-[80px] text-sm font-medium" 
+                placeholder="Digite o que deseja tirar (ex: sem milho, sem cebola...)" 
+                value={removedText} 
+                onChange={e => setRemovedText(e.target.value)} 
+              />
+            </section>
+          )}
+
+          {/* Adicionais específicos para Lanches */}
+          {isLanche && (
+            <section className="space-y-4">
+              <label className="block text-red-900/40 text-[10px] font-black uppercase mb-1 tracking-[0.2em]">Adicionais</label>
+              <div className="space-y-3">
+                <button 
+                  onClick={() => setHasPicanha(!hasPicanha)} 
+                  className={`w-full p-4 rounded-2xl text-[11px] font-black uppercase border-2 flex justify-between items-center transition-all ${hasPicanha ? 'bg-red-700 border-red-700 text-white shadow-lg' : 'bg-white border-zinc-100 text-zinc-400'}`}
+                >
+                  <span>Bife de Picanha</span>
+                  <span className={hasPicanha ? 'text-white' : 'text-red-600'}>+ R$ 4,50</span>
+                </button>
+
+                <div className="relative">
+                   <select 
+                    onChange={(e) => { addDropdownAddition(e.target.value); e.target.value = ''; }}
+                    className="w-full p-4 rounded-2xl text-[11px] font-black uppercase border-2 bg-zinc-50 border-zinc-100 text-red-900 outline-none focus:border-red-500 appearance-none"
+                   >
+                    <option value="">Acrescentar Itens (R$ 3,00 cada)</option>
+                    <option value="Ovo">Ovo</option>
+                    <option value="Bacon">Bacon</option>
+                    <option value="Carne Comum">Carne Comum</option>
+                    <option value="Queijo">Queijo</option>
+                    <option value="Presunto">Presunto</option>
+                    <option value="Calabresa">Calabresa</option>
+                   </select>
+                   <span className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-red-600">▼</span>
+                </div>
+
+                {additions.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {additions.map((item, idx) => (
+                      <span key={idx} className="bg-green-50 text-green-700 border border-green-200 px-3 py-1.5 rounded-full text-[9px] font-black uppercase flex items-center gap-2">
+                        {item} (+ R$ 3,00)
+                        <button onClick={() => removeDropdownAddition(idx)} className="text-green-900 font-bold hover:text-red-600">×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <button 
+                  onClick={() => setHasTurbine(!hasTurbine)}
+                  className={`w-full py-5 px-6 rounded-[2rem] text-[10px] font-black uppercase transition-all shadow-xl border-4 border-white border-b-8 border-b-red-950 ${hasTurbine ? 'bg-green-600 text-white scale-105' : 'bg-red-600 text-white hover:bg-red-700'}`}
+                >
+                  {hasTurbine ? 'TURBINADO ATIVADO! ✅' : 'TURBINE SEU LANCHE POR + 10R$ (150G DE BATATA E UM JUNINHO)'}
+                </button>
+              </div>
+            </section>
+          )}
+
+          {/* Adicionais específicos para Franguinho */}
+          {isFranguinho && maxSides > 0 && (
+            <section>
+              <div className="flex justify-between items-center mb-3">
+                <label className="block text-red-900/40 text-[10px] font-black uppercase tracking-[0.2em]">Selecione os Acompanhamentos</label>
+                <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase italic ${additions.length === maxSides ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                  {additions.length} / {maxSides}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                {franguinhoAdditions.map((opt) => (
+                  <button 
+                    key={opt} 
+                    onClick={() => toggleAddition(opt)} 
+                    disabled={!additions.includes(opt) && additions.length >= maxSides}
+                    className={`p-4 rounded-xl text-[10px] font-black uppercase border-2 text-left transition-all ${additions.includes(opt) ? 'bg-red-700 border-red-700 text-white shadow-md' : 'bg-white border-zinc-100 text-zinc-400'} ${(!additions.includes(opt) && additions.length >= maxSides) ? 'opacity-40 grayscale' : ''}`}
+                  >
+                    {additions.includes(opt) ? '✓ ' : '+ '} {opt}
+                  </button>
+                ))}
+              </div>
+              {additions.length < maxSides && (
+                 <p className="text-[8px] font-bold text-red-400 mt-3 uppercase italic tracking-widest text-center animate-pulse">
+                   Por favor, selecione mais {maxSides - additions.length} acompanhamento(s)
+                 </p>
+              )}
+            </section>
+          )}
+
+          {/* Adicionais para outras categorias - Oculto em Porções, Bebidas e Açaí */}
+          {!isLanche && !isFranguinho && !isPorcoes && !isBebidas && !isAcai && (
+            <section>
+              <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Adicionais?</label>
               <div className="grid grid-cols-2 gap-2">
-                {product.ingredients.map((ing: string) => (
-                  <button key={ing} onClick={() => toggleIngredient(ing)} className={`p-3 rounded-xl text-[9px] font-black uppercase border-2 transition-all ${removedIngredients.includes(ing) ? 'bg-red-600 border-red-600 text-white shadow-md' : 'bg-white border-zinc-100 text-zinc-300'}`}>SEM {ing}</button>
+                {[...EXTRAS_OPTIONS].map((opt) => (
+                  <button key={opt.name} onClick={() => toggleAddition(opt.name)} className={`p-3 rounded-xl text-[9px] font-black uppercase border-2 transition-all ${additions.includes(opt.name) ? 'bg-green-600 border-green-600 text-white shadow-md' : 'bg-white border-zinc-100 text-zinc-300'}`}>
+                    + {opt.name} (R$ {opt.price.toFixed(2)})
+                  </button>
                 ))}
               </div>
             </section>
           )}
 
           <section>
-            <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Adicionais?</label>
-            <div className="grid grid-cols-2 gap-2">
-              {[...EXTRAS_OPTIONS].map((opt) => (
-                <button key={opt.name} onClick={() => toggleAddition(opt.name)} className={`p-3 rounded-xl text-[9px] font-black uppercase border-2 transition-all ${additions.includes(opt.name) ? 'bg-green-600 border-green-600 text-white shadow-md' : 'bg-white border-zinc-100 text-zinc-300'}`}>+ {opt.name}</button>
-              ))}
-            </div>
-          </section>
-
-          <section>
             <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Observação do Item</label>
-            <textarea className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-[1.5rem] p-4 text-zinc-800 focus:outline-none focus:border-red-500 min-h-[100px] text-sm font-medium" placeholder="Ex: Carne bem passada, sem gergelim..." value={observation} onChange={e => setObservation(e.target.value)} />
+            <textarea className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-[1.5rem] p-4 text-zinc-800 focus:outline-none focus:border-red-500 min-h-[80px] text-sm font-medium" placeholder="Algum detalhe a mais?" value={observation} onChange={e => setObservation(e.target.value)} />
           </section>
         </div>
         <div className="p-6 bg-zinc-50/80 border-t border-zinc-100">
-          <Button fullWidth onClick={handleConfirm} className="py-4 text-base rounded-[1.5rem]">ADICIONAR AO CARRINHO</Button>
+          <Button 
+            fullWidth 
+            onClick={handleConfirm} 
+            disabled={isFranguinho && maxSides > 0 && additions.length < maxSides}
+            className="py-4 text-base rounded-[1.5rem]"
+          >
+            ADICIONAR AO CARRINHO
+          </Button>
         </div>
       </div>
     </div>
@@ -154,6 +440,7 @@ export default function App() {
   const [activeCategory, setActiveCategory] = useState(CATEGORIES[0].id);
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
   const [isSending, setIsSending] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // --- LISTENER EM TEMPO REAL PARA A TELA ADMIN ---
   useEffect(() => {
@@ -174,6 +461,14 @@ export default function App() {
 
   const total = cart.reduce((acc, item) => acc + (Number(item.price) * Number(item.quantity)), 0);
 
+  // --- LOGICA DE BUSCA ---
+  const filteredProducts = searchTerm.trim() === ''
+    ? PRODUCTS.filter(p => p.categoryId === activeCategory)
+    : PRODUCTS.filter(p => 
+        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.ingredients?.some(ing => ing.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+
   // --- FUNÇÃO FINALIZAR PEDIDO ---
   const handleFinishOrder = async () => {
     if (isSending) return;
@@ -188,11 +483,13 @@ export default function App() {
 
     const itensString = cart.map(item => {
         let desc = `${item.quantity}x ${item.name}`;
+        if (item.flavor) desc += ` (${item.flavor})`;
+        
         const extras = [];
         if (item.removedIngredients?.length) extras.push(`SEM: ${item.removedIngredients.join(', ')}`);
         if (item.additions?.length) extras.push(`COM: ${item.additions.join(', ')}`);
         if (item.observation?.trim()) extras.push(`OBS: ${item.observation.trim()}`);
-        return extras.length > 0 ? `${desc} (${extras.join(' | ')})` : desc;
+        return extras.length > 0 ? `${desc} [${extras.join(' | ')}]` : desc;
     }).join('\n');
 
     const payload = {
@@ -344,28 +641,67 @@ export default function App() {
         <div className="max-w-xl mx-auto min-h-screen flex flex-col bg-white border-x border-zinc-100 shadow-2xl">
             {step === 'MENU' && (
                 <>
-                    <header className="p-5 bg-white/95 sticky top-0 z-50 flex justify-between items-center border-b border-zinc-100 backdrop-blur-md">
-                        <button onClick={() => setView('HOME')} className="text-red-800 font-black text-[9px] uppercase tracking-widest px-3 py-1 bg-red-50 rounded-full hover:bg-red-100 transition-all">← Sair</button>
-                        <h2 className="font-black text-red-900 uppercase tracking-[0.15em] text-[10px] italic">Cardápio</h2>
-                        <div className="w-10"></div>
-                    </header>
-                    <div className="p-4 flex gap-3 overflow-x-auto no-scrollbar py-5 border-b border-zinc-50 bg-white">
-                        {CATEGORIES.map(cat => (
-                            <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`flex-shrink-0 px-5 py-3 rounded-full font-black text-[9px] uppercase transition-all shadow-sm ${activeCategory === cat.id ? 'bg-red-700 text-white shadow-xl scale-105' : 'bg-zinc-50 text-zinc-400 hover:bg-zinc-100'}`}>
-                                <span className="mr-1">{cat.icon}</span> {cat.name}
+                    <header className="p-5 bg-white/95 sticky top-0 z-50 border-b border-zinc-100 backdrop-blur-md">
+                        <div className="flex justify-between items-center mb-4">
+                            <button onClick={() => { setView('HOME'); setSearchTerm(''); }} className="text-red-800 font-black text-[9px] uppercase tracking-widest px-3 py-1 bg-red-50 rounded-full hover:bg-red-100 transition-all">← Sair</button>
+                            <h2 className="font-black text-red-900 uppercase tracking-[0.15em] text-[10px] italic">Cardápio</h2>
+                            <div className="w-10"></div>
+                        </div>
+                        {/* BARRA DE PESQUISA */}
+                        <div className="relative group">
+                          <input 
+                            type="text" 
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Pesquisar itens ou ingredientes..."
+                            className="w-full bg-zinc-50 border border-zinc-100 rounded-2xl py-3 px-10 text-[11px] font-bold text-red-900 focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600/10 transition-all placeholder:text-zinc-300 shadow-inner"
+                          />
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm opacity-30 group-focus-within:opacity-100 transition-opacity">🔍</span>
+                          {searchTerm && (
+                            <button 
+                              onClick={() => setSearchTerm('')}
+                              className="absolute right-4 top-1/2 -translate-y-1/2 text-red-300 font-black hover:text-red-600"
+                            >
+                              &times;
                             </button>
-                        ))}
-                    </div>
+                          )}
+                        </div>
+                    </header>
+                    
+                    {!searchTerm && (
+                      <div className="p-4 flex gap-3 overflow-x-auto no-scrollbar py-5 border-b border-zinc-50 bg-white">
+                          {CATEGORIES.map(cat => (
+                              <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`flex-shrink-0 px-5 py-3 rounded-full font-black text-[9px] uppercase transition-all shadow-sm ${activeCategory === cat.id ? 'bg-red-700 text-white shadow-xl scale-105' : 'bg-zinc-50 text-zinc-400 hover:bg-zinc-100'}`}>
+                                  <span className="mr-1">{cat.icon}</span> {cat.name}
+                              </button>
+                          ))}
+                      </div>
+                    )}
+
                     <div className="flex-1 p-5 space-y-4 pb-44 overflow-y-auto bg-zinc-50/10">
-                        {PRODUCTS.filter(p => p.categoryId === activeCategory).map(prod => (
-                            <div key={prod.id} onClick={() => setSelectedProduct(prod)} className="bg-white border border-zinc-50 p-5 rounded-[2rem] flex justify-between items-center shadow-md shadow-zinc-200/30 active:scale-95 transition-all hover:border-red-200 cursor-pointer group">
-                                <div className="flex-1 pr-4">
-                                    <h3 className="text-lg font-black text-red-950 mb-0.5 leading-none italic group-hover:text-red-700 transition-all">{prod.name}</h3>
-                                    <p className="text-red-600 font-black text-base italic">R$ {prod.price.toFixed(2)}</p>
-                                </div>
-                                <div className="w-10 h-10 bg-red-700 text-white rounded-[1rem] flex items-center justify-center text-2xl font-black shadow-lg group-hover:rotate-6 transition-all">+</div>
-                            </div>
-                        ))}
+                        {searchTerm && (
+                          <p className="text-[9px] font-black uppercase text-red-900/30 tracking-widest mb-2 italic">
+                            Resultados para: "{searchTerm}"
+                          </p>
+                        )}
+                        
+                        {filteredProducts.length > 0 ? (
+                          filteredProducts.map(prod => (
+                              <div key={prod.id} onClick={() => setSelectedProduct(prod)} className="bg-white border border-zinc-50 p-5 rounded-[2rem] flex justify-between items-center shadow-md shadow-zinc-200/30 active:scale-95 transition-all hover:border-red-200 cursor-pointer group">
+                                  <div className="flex-1 pr-4">
+                                      <h3 className="text-lg font-black text-red-950 mb-0.5 leading-none italic group-hover:text-red-700 transition-all">{prod.name}</h3>
+                                      {prod.unit && <p className="text-[9px] font-black text-red-600/40 uppercase tracking-widest italic mt-1">{prod.unit}</p>}
+                                      <p className="text-red-600 font-black text-base italic">R$ {prod.price.toFixed(2)}</p>
+                                  </div>
+                                  <div className="w-10 h-10 bg-red-700 text-white rounded-[1rem] flex items-center justify-center text-2xl font-black shadow-lg group-hover:rotate-6 transition-all">+</div>
+                              </div>
+                          ))
+                        ) : (
+                          <div className="text-center py-20 opacity-20">
+                            <span className="text-6xl block mb-4">🤷‍♂️</span>
+                            <p className="text-xs font-black italic">Nenhum item encontrado.</p>
+                          </div>
+                        )}
                     </div>
                     {cart.length > 0 && (
                         <div className="fixed bottom-8 left-6 right-6 z-50 animate-slide-up max-w-lg mx-auto">
@@ -436,6 +772,7 @@ export default function App() {
                                                     <button onClick={() => removeFromCart(item.cartId)} className="text-red-300 hover:text-red-600 text-[8px] font-black uppercase opacity-0 group-hover:opacity-100 transition-all">X</button>
                                                 </div>
                                                 <div className="text-[8px] text-zinc-400 font-bold mt-2 uppercase leading-relaxed">
+                                                    {item.flavor && <span className="block text-red-600 font-black italic">✓ {item.flavor}</span>}
                                                     {item.removedIngredients?.map(i => <span key={i} className="block text-red-400">× SEM {i}</span>)}
                                                     {item.additions?.map(i => <span key={i} className="block text-green-600">✓ COM {i}</span>)}
                                                     {item.observation?.trim() && <span className="block italic mt-1 text-zinc-500">"{item.observation.trim()}"</span>}

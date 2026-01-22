@@ -28,6 +28,9 @@ export interface Product {
   description?: string;
   ingredients?: string[];
   maxSides?: number;
+  unit?: string;
+  needsFlavor?: boolean;
+  needsZeroOption?: boolean;
 }
 
 export interface Category {
@@ -43,6 +46,8 @@ export interface CartItem extends Product {
   additions?: string[];
   observation?: string;
   packaging?: string;
+  flavor?: string;
+  isZero?: boolean;
 }
 
 export interface CustomerInfo {
