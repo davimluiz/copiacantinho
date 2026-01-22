@@ -479,7 +479,6 @@ export default function App() {
       
       setCart([]); 
       setView('SUCCESS'); 
-      setTimeout(() => setView('HOME'), 4500);
     } catch (err) { 
       alert('Erro ao enviar: ' + err); 
       setIsSending(false); 
@@ -526,10 +525,33 @@ export default function App() {
 
   if (view === 'SUCCESS') return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-zinc-50 fixed inset-0 z-[500] no-print animate-fade-in">
-      <div className="glass-card p-10 rounded-[3rem] max-w-sm shadow-2xl border-green-200 border-2 bg-white">
-        <div className="text-6xl mb-6">✅</div>
-        <h2 className="text-2xl font-black text-green-600 mb-4 italic uppercase">Recebido!</h2>
-        <Button onClick={() => setView('HOME')} variant="secondary" className="mt-8 rounded-full">Início</Button>
+      <div className="glass-card p-10 rounded-[3rem] max-w-sm shadow-2xl border-green-100 border-2 bg-white flex flex-col items-center">
+        <div className="text-7xl mb-6 drop-shadow-lg">🎉</div>
+        <h2 className="text-2xl font-black text-red-800 mb-4 italic uppercase leading-tight">Pedido realizado com sucesso!</h2>
+        <p className="text-sm font-bold text-zinc-600 mb-2 leading-relaxed">
+          Em instantes, um de nossos atendentes irá confirmar seu pedido pelo WhatsApp.
+        </p>
+        <p className="text-xs font-bold text-zinc-400 mb-8 uppercase tracking-wide">
+          Se preferir agilizar, é só clicar no botão Confirmar pelo WhatsApp 👇
+        </p>
+        
+        <div className="flex flex-col gap-3 w-full">
+            <a 
+                href="https://wa.me/5527992269550?text=Ol%C3%A1%20Sandra%0AAcabei%20de%20realizar%20um%20pedido%20pelo%20site%20e%20gostaria%20de%20confirmar."
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-black py-4 px-6 rounded-2xl transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 uppercase italic text-sm border-b-4 border-[#075E54]"
+            >
+                <span className="text-xl">💬</span> Confirmar pelo WhatsApp
+            </a>
+            
+            <button 
+                onClick={() => setView('HOME')}
+                className="w-full bg-zinc-100 hover:bg-zinc-200 text-zinc-500 font-black py-4 px-6 rounded-2xl transition-all active:scale-95 uppercase italic text-xs tracking-widest"
+            >
+                Aguardar confirmação
+            </button>
+        </div>
       </div>
     </div>
   );
