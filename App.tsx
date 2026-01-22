@@ -20,7 +20,7 @@ import { Input, Select } from './components/Input';
 import { 
     CATEGORIES, PRODUCTS, PAYMENT_METHODS, 
     EXTRAS_OPTIONS, ACAI_COMPLEMENTS, ACAI_TOPPINGS, 
-    ACAI_FRUITS, ACAI_PAID_EXTRAS
+    ACAI_FRUITS, ACAI_PAID_EXTRAS, DELIVERY_FEES, FRANGUINHO_SIDES
 } from './constants';
 import { Product, CustomerInfo, CartItem, PaymentMethod, OrderType } from './types';
 
@@ -42,7 +42,7 @@ const Receipt = ({ order }: { order: any | null }) => {
             <div className="mb-2">
                 <p><strong>CLIENTE:</strong> {String(order.nomeCliente || '').toUpperCase()}</p>
                 <p><strong>DATA:</strong> {date}</p>
-                <p><strong>TIPO:</strong> {order.tipo || 'BALCÃO'}</p>
+                <p><strong>TIPO:</strong> {order.tipo || 'RETIRADA NA LANCHONETE'}</p>
                 <p><strong>FONE:</strong> {order.telefone || 'N/A'}</p>
             </div>
             <div className="border-b border-dashed border-black my-2"></div>
@@ -50,6 +50,11 @@ const Receipt = ({ order }: { order: any | null }) => {
                 <p className="font-bold mb-1 uppercase text-[10px]">Itens do Pedido:</p>
                 <p className="whitespace-pre-wrap leading-tight text-[10px]">{order.itens}</p>
             </div>
+            {order.frete > 0 && (
+                <div className="mb-2">
+                   <p><strong>FRETE ({order.bairro}):</strong> R$ {Number(order.frete).toFixed(2)}</p>
+                </div>
+            )}
             <div className="border-t border-dashed border-black mt-2 pt-2 text-right">
                 <p className="text-sm font-bold">TOTAL: R$ {Number(order.total || 0).toFixed(2)}</p>
                 <p className="text-[9px] uppercase font-bold">{order.pagamento}</p>
@@ -100,6 +105,7 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
         extraPrice += 10.00;
         finalAdditions.push("TURBO: Batata 150g + Juninho (R$ 10,00)");
       }
+      // Outros adicionais selecionados via dropdown (R$ 3,00 cada)
       const dropdownItemsCount = additions.filter(a => !a.includes("TURBO") && !a.includes("Picanha")).length;
       extraPrice += dropdownItemsCount * 3.00;
     } else if (isAcai) {
@@ -135,18 +141,25 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
     });
   };
 
+  const handleAddDropdownItem = (val: string) => {
+    if (val && !additions.includes(val)) {
+        setAdditions(prev => [...prev, val]);
+    }
+  };
+
   return (
     <div className={`fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-opacity no-print ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
       <div className="bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[92vh] animate-fade-in">
         <div className="p-6 border-b border-red-50 flex justify-between items-center bg-red-50/30">
           <div>
-            <h3 className="text-xl font-black text-red-800 leading-none italic">{product.name}</h3>
+            <h3 className="text-xl font-black text-red-800 leading-none italic uppercase">{product.name}</h3>
             {product.unit && <p className="text-[10px] font-black text-red-600/60 uppercase tracking-widest mt-1 italic">{product.unit}</p>}
             <p className="text-red-600 font-black mt-1">R$ {product.price.toFixed(2)}</p>
           </div>
           <button onClick={onClose} className="text-zinc-300 hover:text-red-600 text-3xl leading-none transition-colors">&times;</button>
         </div>
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          
           <section>
             <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Quantidade</label>
             <div className="flex items-center gap-6">
@@ -156,11 +169,107 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
             </div>
           </section>
 
+          {/* --- LOGICA ESPECIFICA POR CATEGORIA --- */}
+
+          {isLanche && (
+            <div className="space-y-6">
+               <section className="bg-red-50/50 p-4 rounded-2xl border border-red-100">
+                  <label className="block text-red-900/40 text-[10px] font-black uppercase mb-2 tracking-[0.2em]">Ingredientes Inclusos</label>
+                  <p className="text-[11px] font-bold text-red-800 uppercase italic leading-relaxed">
+                    {product.ingredients?.join(', ')}
+                  </p>
+               </section>
+
+               <section>
+                  <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Retirar algo?</label>
+                  <textarea className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-[1.5rem] p-4 text-zinc-800 focus:outline-none focus:border-red-500 min-h-[80px] text-sm font-medium" placeholder="Digite o que deseja tirar..." value={removedText} onChange={e => setRemovedText(e.target.value)} />
+               </section>
+
+               <section className="space-y-4">
+                  <label className="block text-red-900/40 text-[10px] font-black uppercase mb-1 tracking-[0.2em]">Adicionais</label>
+                  <button onClick={() => setHasPicanha(!hasPicanha)} className={`w-full p-4 rounded-2xl text-[11px] font-black uppercase border-2 flex justify-between items-center transition-all ${hasPicanha ? 'bg-red-700 border-red-700 text-white shadow-lg' : 'bg-white border-zinc-100 text-zinc-400'}`}>
+                    <span>Bife de Picanha</span>
+                    <span className={hasPicanha ? 'text-white' : 'text-red-600'}>+ R$ 4,50</span>
+                  </button>
+                  <div className="relative">
+                    <select onChange={(e) => { handleAddDropdownItem(e.target.value); e.target.value = ''; }} className="w-full p-4 rounded-2xl text-[11px] font-black uppercase border-2 bg-zinc-50 border-zinc-100 text-red-900 outline-none appearance-none">
+                        <option value="">Acrescentar Itens (R$ 3,00 cada)</option>
+                        <option value="Ovo">Ovo</option>
+                        <option value="Bacon">Bacon</option>
+                        <option value="Carne Comum">Carne Comum</option>
+                        <option value="Queijo">Queijo</option>
+                        <option value="Presunto">Presunto</option>
+                        <option value="Calabresa">Calabresa</option>
+                    </select>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-red-600">▼</div>
+                  </div>
+                  {additions.filter(a => !a.includes("TURBO") && !a.includes("Picanha")).length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {additions.filter(a => !a.includes("TURBO") && !a.includes("Picanha")).map((add, idx) => (
+                            <span key={add + idx} className="bg-green-50 text-green-700 border border-green-200 px-3 py-1 rounded-full text-[10px] font-black uppercase flex items-center gap-2">
+                                {add} (R$ 3,00)
+                                <button onClick={() => setAdditions(prev => prev.filter(a => a !== add))} className="text-red-600 text-xs font-black">&times;</button>
+                            </span>
+                        ))}
+                      </div>
+                  )}
+                  <button onClick={() => setHasTurbine(!hasTurbine)} className={`w-full py-5 px-6 rounded-[2rem] text-[10px] font-black uppercase transition-all shadow-xl border-4 border-white border-b-8 border-b-red-950 ${hasTurbine ? 'bg-green-600 text-white scale-105' : 'bg-red-600 text-white hover:bg-red-700'}`}>
+                    {hasTurbine ? 'LANCHE TURBINADO! ✅' : 'TURBINE SEU LANCHE POR + 10R$ (150G DE BATATA E UM JUNINHO)'}
+                  </button>
+               </section>
+            </div>
+          )}
+
+          {isFranguinho && (
+            <section>
+              <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Acompanhamentos (Escolha {maxSides})</label>
+              <div className="grid grid-cols-1 gap-2">
+                {FRANGUINHO_SIDES.map(item => (
+                    <button key={item} onClick={() => toggleAddition(item)} disabled={!additions.includes(item) && additions.length >= maxSides} className={`p-4 rounded-2xl text-[10px] font-black uppercase border-2 text-left transition-all ${additions.includes(item) ? 'bg-red-700 border-red-700 text-white' : 'bg-white border-zinc-100 text-zinc-400 disabled:opacity-30'}`}>
+                      <div className="flex justify-between items-center">
+                        <span>{item}</span>
+                        {additions.includes(item) && <span className="text-white">✓</span>}
+                      </div>
+                    </button>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {isPorcoes && (
+            <div className="space-y-6">
+                {product.description && (
+                    <section className="bg-red-50/50 p-4 rounded-2xl border border-red-100">
+                        <label className="block text-red-900/40 text-[10px] font-black uppercase mb-2 tracking-[0.2em]">Observação</label>
+                        <p className="text-[11px] font-bold text-red-800 uppercase italic leading-relaxed">{product.description}</p>
+                    </section>
+                )}
+            </div>
+          )}
+
+          {isBebidas && (
+            <section className="space-y-4">
+              {product.needsFlavor && (
+                <div>
+                  <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Sabor</label>
+                  <input type="text" className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 text-sm font-bold text-red-900 outline-none" placeholder="Qual o sabor?" value={flavor} onChange={e => setFlavor(e.target.value)} />
+                </div>
+              )}
+              {product.needsZeroOption && (
+                <div className="flex items-center gap-4">
+                    <button onClick={() => setIsZero(false)} className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase border-2 transition-all ${!isZero ? 'bg-red-700 border-red-700 text-white' : 'bg-white border-zinc-100 text-zinc-400'}`}>Normal</button>
+                    <button onClick={() => setIsZero(true)} className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase border-2 transition-all ${isZero ? 'bg-zinc-800 border-zinc-800 text-white' : 'bg-white border-zinc-100 text-zinc-400'}`}>Zero</button>
+                </div>
+              )}
+            </section>
+          )}
+
           {isAcai && (
             <section className="space-y-8">
-              <button onClick={() => setIsAcaiComplete(!isAcaiComplete)} className={`w-full py-5 rounded-[2rem] text-xs font-black uppercase border-b-4 transition-all shadow-xl ${isAcaiComplete ? 'bg-green-600 border-green-800 text-white scale-105' : 'bg-red-700 border-red-900 text-white'}`}>
+              <button onClick={() => { setIsAcaiComplete(!isAcaiComplete); if(!isAcaiComplete) setAdditions([]); }} className={`w-full py-5 rounded-[2rem] text-xs font-black uppercase border-b-4 transition-all shadow-xl ${isAcaiComplete ? 'bg-green-600 border-green-800 text-white scale-105' : 'bg-red-700 border-red-900 text-white'}`}>
                 {isAcaiComplete ? 'AÇAÍ COMPLETO ATIVADO! ✅' : 'QUER O AÇAÍ COMPLETO? (TUDO INCLUSO)'}
               </button>
+
               <div className={isAcaiComplete ? 'opacity-40 pointer-events-none' : ''}>
                 <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Complementos</label>
                 <div className="grid grid-cols-2 gap-2">
@@ -171,6 +280,7 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
                     ))}
                 </div>
               </div>
+
               <div className={isAcaiComplete ? 'opacity-40 pointer-events-none' : ''}>
                 <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Coberturas</label>
                 <div className="grid grid-cols-2 gap-2">
@@ -181,6 +291,7 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
                     ))}
                 </div>
               </div>
+
               <div className={isAcaiComplete ? 'opacity-40 pointer-events-none' : ''}>
                 <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Frutas</label>
                 <div className="grid grid-cols-2 gap-2">
@@ -191,6 +302,7 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
                     ))}
                 </div>
               </div>
+
               <section>
                 <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Adicionais Pagos</label>
                 <div className="grid grid-cols-2 gap-2">
@@ -204,13 +316,6 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
                     ))}
                 </div>
               </section>
-            </section>
-          )}
-
-          {!isAcai && !isBebidas && (
-            <section>
-              <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Retirar algo?</label>
-              <textarea className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-[1.5rem] p-4 text-zinc-800 focus:outline-none focus:border-red-500 min-h-[80px] text-sm font-medium" placeholder="Digite o que deseja tirar..." value={removedText} onChange={e => setRemovedText(e.target.value)} />
             </section>
           )}
 
@@ -233,7 +338,7 @@ export default function App() {
   const [adminTab, setAdminTab] = useState<AdminTab>('novo');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customer, setCustomer] = useState<CustomerInfo>({
-    name: '', phone: '', address: '', addressNumber: '', reference: '', tableNumber: '',
+    name: '', phone: '', address: '', neighborhood: '', addressNumber: '', reference: '', deliveryFee: 0, tableNumber: '',
     orderType: OrderType.DELIVERY, paymentMethod: PaymentMethod.PIX
   });
   const [orders, setOrders] = useState<any[]>([]);
@@ -243,6 +348,7 @@ export default function App() {
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
   const [isSending, setIsSending] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showOutroAlert, setShowOutroAlert] = useState(false);
 
   useEffect(() => {
     if (view === 'ADMIN' && isLoggedIn) {
@@ -254,19 +360,9 @@ export default function App() {
     }
   }, [view, isLoggedIn]);
 
-  const total = cart.reduce((acc, item) => acc + (Number(item.price) * Number(item.quantity)), 0);
-
-  const reports = useMemo(() => {
-    const now = Date.now();
-    const completed = orders.filter(o => o.status === 'concluido');
-    let weeklyTotal = 0; let monthlyTotal = 0;
-    completed.forEach(o => {
-      const orderDate = o.criadoEm?.toDate ? o.criadoEm.toDate().getTime() : 0;
-      if (now - orderDate < 7 * 24 * 60 * 60 * 1000) weeklyTotal += Number(o.total || 0);
-      if (now - orderDate < 30 * 24 * 60 * 60 * 1000) monthlyTotal += Number(o.total || 0);
-    });
-    return { weeklyTotal, monthlyTotal };
-  }, [orders]);
+  const itemsTotal = useMemo(() => cart.reduce((acc, item) => acc + (Number(item.price) * Number(item.quantity)), 0), [cart]);
+  const currentFee = (customer.orderType === OrderType.DELIVERY) ? (customer.deliveryFee || 0) : 0;
+  const total = itemsTotal + currentFee;
 
   const filteredOrders = useMemo(() => orders.filter(o => o.status === adminTab), [orders, adminTab]);
 
@@ -278,24 +374,33 @@ export default function App() {
     try {
       await addDoc(collection(db, 'pedidos'), {
         nomeCliente: clientName, 
-        itens: cart.map(i => `${i.quantity}x ${i.name} ${i.flavor ? '('+i.flavor+')' : ''}`).join('\n'), 
+        itens: cart.map(i => {
+            let itemDesc = `${i.quantity}x ${i.name}`;
+            if (i.removedIngredients?.length) itemDesc += ` [SEM: ${i.removedIngredients.join(', ')}]`;
+            if (i.additions?.length) itemDesc += ` [COM: ${i.additions.join(', ')}]`;
+            if (i.flavor) itemDesc += ` (${i.flavor})`;
+            return itemDesc;
+        }).join('\n'), 
         total: Number(total.toFixed(2)),
+        frete: Number(currentFee.toFixed(2)),
+        bairro: customer.neighborhood || "N/A",
         status: "novo", criadoEm: serverTimestamp(), telefone: customer.phone || "N/A",
         tipo: customer.orderType, pagamento: customer.paymentMethod,
-        endereco: customer.orderType === OrderType.DELIVERY ? `${customer.address}, ${customer.addressNumber}` : "Balcão"
+        endereco: customer.orderType === OrderType.DELIVERY ? `${customer.address}, ${customer.addressNumber} - ${customer.neighborhood}` : "Retirada na lanchonete"
       });
       setCart([]); setView('SUCCESS'); setTimeout(() => setView('HOME'), 4500);
     } catch (err) { alert('Erro ao enviar: ' + err); setIsSending(false); }
   };
 
-  const updateOrderStatus = async (orderId: string, newStatus: AdminTab) => {
-    try { await updateDoc(doc(db, 'pedidos', orderId), { status: newStatus }); } catch (e) { console.error(e); }
+  const handleNeighborhoodChange = (val: string) => {
+      const feeObj = DELIVERY_FEES.find(f => f.neighborhood === val);
+      const fee = feeObj ? feeObj.fee : 0;
+      setCustomer(prev => ({ ...prev, neighborhood: val, deliveryFee: fee }));
+      setShowOutroAlert(val === 'Outro');
   };
 
-  const deleteOrder = async (orderId: string) => {
-    if(window.confirm("Deseja cancelar/excluir este pedido? Ele irá para a lixeira.")) {
-      await updateOrderStatus(orderId, 'cancelado');
-    }
+  const updateOrderStatus = async (orderId: string, newStatus: AdminTab) => {
+    try { await updateDoc(doc(db, 'pedidos', orderId), { status: newStatus }); } catch (e) { console.error(e); }
   };
 
   const printOrder = (order: any) => {
@@ -314,23 +419,25 @@ export default function App() {
   );
 
   if (view === 'LOGIN') return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-zinc-50 no-print">
-        <div className="glass-card p-10 rounded-[2.5rem] w-full max-w-sm shadow-2xl bg-white border border-red-50">
-            <h2 className="text-2xl font-black text-red-800 mb-6 text-center italic uppercase">Cozinha</h2>
-            <form onSubmit={(e) => {
-                e.preventDefault();
-                const formData = new FormData(e.currentTarget);
-                const user = (formData.get('user') as string)?.toLowerCase();
-                const pass = formData.get('pass') as string;
-                if ((user === 'sandra' && pass === 'Cantinho@2026') || (user === 'admin' && pass === 'admin@1234')) {
-                    setIsLoggedIn(true); setView('ADMIN');
-                } else alert("Acesso não autorizado.");
-            }} className="space-y-4">
-                <Input label="Usuário" name="user" required />
-                <Input label="Senha" name="pass" type="password" required />
-                <Button type="submit" fullWidth className="py-4 rounded-xl">ACESSAR</Button>
-                <button type="button" onClick={() => setView('HOME')} className="w-full text-zinc-300 font-black text-[9px] mt-4 uppercase tracking-widest">← Voltar</button>
-            </form>
+    <div className="min-h-screen flex flex-col p-6 bg-zinc-50 no-print animate-fade-in">
+        <button onClick={() => setView('HOME')} className="mb-6 self-start bg-white text-red-800 font-black text-[10px] px-6 py-2 rounded-full border border-red-100 shadow-sm uppercase tracking-widest active:scale-95 transition-all">← Voltar</button>
+        <div className="flex-1 flex items-center justify-center">
+            <div className="glass-card p-10 rounded-[2.5rem] w-full max-w-sm shadow-2xl bg-white border border-red-50">
+                <h2 className="text-2xl font-black text-red-800 mb-6 text-center italic uppercase">Cozinha</h2>
+                <form onSubmit={(e) => {
+                    e.preventDefault();
+                    const formData = new FormData(e.currentTarget);
+                    const user = (formData.get('user') as string)?.toLowerCase();
+                    const pass = formData.get('pass') as string;
+                    if ((user === 'sandra' && pass === 'Cantinho@2026') || (user === 'admin' && pass === 'admin@1234')) {
+                        setIsLoggedIn(true); setView('ADMIN');
+                    } else alert("Acesso não autorizado.");
+                }} className="space-y-4">
+                    <Input label="Usuário" name="user" required />
+                    <Input label="Senha" name="pass" type="password" required />
+                    <Button type="submit" fullWidth className="py-4 rounded-xl">ACESSAR</Button>
+                </form>
+            </div>
         </div>
     </div>
   );
@@ -339,7 +446,10 @@ export default function App() {
     <div className="min-h-screen bg-zinc-50 pb-40">
       <div className="p-6 max-w-7xl mx-auto no-print">
         <header className="flex flex-col md:flex-row justify-between items-center mb-8 bg-white p-6 rounded-[2rem] shadow-xl border border-red-50 gap-4">
-          <div><h2 className="text-2xl font-black text-red-800 italic uppercase">Cozinha</h2></div>
+          <div className="flex items-center gap-4">
+            <button onClick={() => { setIsLoggedIn(false); setView('HOME'); }} className="bg-red-50 text-red-800 p-2 rounded-full hover:bg-red-100 transition-all">←</button>
+            <h2 className="text-2xl font-black text-red-800 italic uppercase">Cozinha</h2>
+          </div>
           <div className="flex flex-wrap justify-center gap-2">
             {(['novo', 'preparando', 'concluido', 'cancelado'] as AdminTab[]).map(tab => (
               <button key={tab} onClick={() => setAdminTab(tab)} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all ${adminTab === tab ? 'bg-red-700 text-white shadow-lg' : 'bg-white text-zinc-400 border border-zinc-100'}`}>
@@ -350,19 +460,6 @@ export default function App() {
           <Button variant="secondary" onClick={() => { setIsLoggedIn(false); setView('HOME'); }} className="px-5 py-2 rounded-xl text-[9px] font-black uppercase">SAIR</Button>
         </header>
 
-        {adminTab === 'concluido' && (
-          <div className="grid grid-cols-2 gap-4 mb-8">
-            <div className="bg-white p-6 rounded-3xl border border-green-100 shadow-sm text-center">
-              <p className="text-[10px] font-black uppercase text-zinc-400 tracking-widest mb-1">Total Semanal</p>
-              <p className="text-2xl font-black text-green-600 italic">R$ {reports.weeklyTotal.toFixed(2)}</p>
-            </div>
-            <div className="bg-white p-6 rounded-3xl border border-blue-100 shadow-sm text-center">
-              <p className="text-[10px] font-black uppercase text-zinc-400 tracking-widest mb-1">Total Mensal</p>
-              <p className="text-2xl font-black text-blue-600 italic">R$ {reports.monthlyTotal.toFixed(2)}</p>
-            </div>
-          </div>
-        )}
-        
         <div className="space-y-3 animate-fade-in">
           {filteredOrders.length === 0 ? (
             <div className="text-center py-24 opacity-10"><p className="text-xl font-black italic uppercase">Vazio</p></div>
@@ -373,6 +470,7 @@ export default function App() {
                   <p className="text-sm font-black text-red-950 leading-none italic uppercase">{o.nomeCliente}</p>
                   <p className="text-sm font-black text-green-600 mt-1 uppercase italic leading-tight">{o.telefone}</p>
                   <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mt-2 italic">{o.tipo} • {o.pagamento}</p>
+                  {o.frete > 0 && <p className="text-[10px] font-black text-red-600 uppercase mt-1">Frete: R$ {o.frete.toFixed(2)}</p>}
                 </div>
                 <div className="flex-1 bg-zinc-50 p-4 rounded-xl text-[10px] font-bold text-zinc-700 border border-zinc-100 whitespace-pre-wrap">{o.itens}</div>
                 <div className="flex items-center gap-3 flex-wrap">
@@ -381,15 +479,12 @@ export default function App() {
                      <button onClick={() => printOrder(o)} className="w-10 h-10 bg-zinc-900 text-white rounded-[0.8rem] flex items-center justify-center text-lg shadow-md hover:scale-105 active:scale-95 transition-all">🖨️</button>
                      {o.status === 'novo' && (
                        <>
-                         <button onClick={() => updateOrderStatus(o.id, 'preparando')} className="bg-orange-500 text-white px-4 h-10 rounded-xl text-[9px] font-black uppercase shadow-md hover:brightness-110 active:scale-95 transition-all">Em Preparação</button>
-                         <button onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 text-white px-4 h-10 rounded-xl text-[9px] font-black uppercase shadow-md hover:brightness-110 active:scale-95 transition-all">Concluído</button>
+                         <button onClick={() => updateOrderStatus(o.id, 'preparando')} className="bg-orange-500 text-white px-4 h-10 rounded-xl text-[9px] font-black uppercase shadow-md transition-all">Em Preparação</button>
+                         <button onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 text-white px-4 h-10 rounded-xl text-[9px] font-black uppercase shadow-md transition-all">Concluído</button>
                        </>
                      )}
                      {o.status === 'preparando' && (
-                        <button onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 text-white px-4 h-10 rounded-xl text-[9px] font-black uppercase shadow-md hover:brightness-110 active:scale-95 transition-all">Concluído</button>
-                     )}
-                     {o.status !== 'cancelado' && (
-                        <button onClick={() => deleteOrder(o.id)} className="w-10 h-10 bg-red-100 text-red-600 rounded-[0.8rem] flex items-center justify-center text-lg hover:bg-red-600 hover:text-white transition-all">🗑️</button>
+                        <button onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 text-white px-4 h-10 rounded-xl text-[9px] font-black uppercase shadow-md transition-all">Concluído</button>
                      )}
                    </div>
                 </div>
@@ -413,7 +508,6 @@ export default function App() {
             <Button fullWidth onClick={() => setView('ORDER')} className="text-xl py-5 shadow-xl flex items-center justify-center gap-4 group rounded-[2rem] border-b-4 border-red-800">
               FAZER PEDIDO <span className="text-3xl group-hover:translate-x-3 transition-transform">➡</span>
             </Button>
-            {/* Oculto no celular */}
             <button onClick={() => setView('LOGIN')} className="mt-16 text-zinc-200 text-[9px] font-black uppercase tracking-[0.3em] hover:text-red-400 italic transition-all hidden md:block w-full">Administração</button>
           </div>
         </div>
@@ -425,24 +519,25 @@ export default function App() {
                 <>
                     <header className="p-5 bg-white/95 sticky top-0 z-50 border-b border-zinc-100 backdrop-blur-md">
                         <div className="flex justify-between items-center mb-4">
-                            <button onClick={() => setView('HOME')} className="text-red-800 font-black text-[9px] uppercase tracking-widest px-3 py-1 bg-red-50 rounded-full">← Sair</button>
-                            <h2 className="font-black text-red-900 uppercase tracking-[0.15em] text-[10px] italic uppercase">Cardápio</h2>
+                            <button onClick={() => setView('HOME')} className="text-red-800 font-black text-[9px] uppercase tracking-widest px-3 py-1 bg-red-50 rounded-full active:scale-95 transition-all">← Voltar</button>
+                            <h2 className="font-black text-red-900 uppercase tracking-[0.15em] text-[10px] italic uppercase leading-none">Cardápio</h2>
                             <div className="w-10"></div>
                         </div>
-                        <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Pesquisar..." className="w-full bg-zinc-50 border border-zinc-100 rounded-2xl py-3 px-10 text-[11px] font-bold text-red-900 outline-none" />
+                        <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Pesquisar..." className="w-full bg-zinc-50 border border-zinc-100 rounded-2xl py-3 px-10 text-[11px] font-bold text-red-900 outline-none shadow-inner" />
                     </header>
                     <div className="p-4 flex gap-3 overflow-x-auto no-scrollbar py-5 border-b border-zinc-50 bg-white">
                         {CATEGORIES.map(cat => (
-                            <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`flex-shrink-0 px-5 py-3 rounded-full font-black text-[9px] uppercase transition-all ${activeCategory === cat.id ? 'bg-red-700 text-white shadow-lg' : 'bg-zinc-50 text-zinc-400'}`}>
+                            <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`flex-shrink-0 px-5 py-3 rounded-full font-black text-[9px] uppercase transition-all ${activeCategory === cat.id ? 'bg-red-700 text-white shadow-lg scale-105' : 'bg-zinc-50 text-zinc-400 hover:bg-zinc-100'}`}>
                                 {cat.icon} {cat.name}
                             </button>
                         ))}
                     </div>
                     <div className="flex-1 p-5 space-y-4 pb-44 overflow-y-auto bg-zinc-50/10">
                         {PRODUCTS.filter(p => (searchTerm === '' ? p.categoryId === activeCategory : p.name.toLowerCase().includes(searchTerm.toLowerCase()))).map(prod => (
-                            <div key={prod.id} onClick={() => setSelectedProduct(prod)} className="bg-white border border-zinc-50 p-5 rounded-[2rem] flex justify-between items-center shadow-md active:scale-95 transition-all cursor-pointer">
+                            <div key={prod.id} onClick={() => setSelectedProduct(prod)} className="bg-white border border-zinc-50 p-5 rounded-[2rem] flex justify-between items-center shadow-md active:scale-95 transition-all cursor-pointer hover:border-red-200">
                                 <div className="flex-1 pr-4">
-                                    <h3 className="text-lg font-black text-red-950 mb-0.5 italic uppercase">{prod.name}</h3>
+                                    <h3 className="text-lg font-black text-red-950 mb-0.5 italic uppercase leading-tight">{prod.name}</h3>
+                                    {prod.unit && <p className="text-[10px] text-zinc-400 font-bold uppercase italic">{prod.unit}</p>}
                                     <p className="text-red-600 font-black text-base italic">R$ {prod.price.toFixed(2)}</p>
                                 </div>
                                 <div className="w-10 h-10 bg-red-700 text-white rounded-[1rem] flex items-center justify-center text-2xl font-black shadow-lg">+</div>
@@ -453,7 +548,7 @@ export default function App() {
                         <div className="fixed bottom-8 left-6 right-6 z-50 animate-slide-up max-w-lg mx-auto">
                             <Button fullWidth onClick={() => setStep('TYPE_SELECTION')} className="py-5 text-lg flex justify-between items-center px-8 shadow-2xl rounded-[2rem] border-b-4 border-red-900">
                                 <span className="font-black italic uppercase">Sacola ({cart.length})</span>
-                                <span className="bg-white/20 px-5 py-1.5 rounded-xl text-base font-black">R$ {total.toFixed(2)}</span>
+                                <span className="bg-white/20 px-5 py-1.5 rounded-xl text-base font-black">R$ {itemsTotal.toFixed(2)}</span>
                             </Button>
                         </div>
                     )}
@@ -461,32 +556,51 @@ export default function App() {
             )}
 
             {step === 'TYPE_SELECTION' && (
-                <div className="p-8 flex flex-col items-center justify-center min-h-[80vh] animate-fade-in space-y-10">
-                    <h2 className="text-4xl font-black text-red-900 tracking-tighter italic text-center uppercase">Tipo de Pedido</h2>
-                    <div className="grid grid-cols-1 w-full gap-5 max-w-sm">
-                        <button onClick={() => { setCustomer({...customer, orderType: OrderType.DELIVERY}); setStep('FORM'); }} className="bg-zinc-50 border p-8 rounded-[2.5rem] shadow-lg group active:scale-95 transition-all">
-                            <span className="text-6xl block mb-4">🛵</span>
-                            <span className="font-black text-red-950 text-xl uppercase italic">Delivery</span>
-                        </button>
-                        <button onClick={() => { setCustomer({...customer, orderType: OrderType.COUNTER}); setStep('FORM'); }} className="bg-zinc-50 border p-8 rounded-[2.5rem] shadow-lg group active:scale-95 transition-all">
-                            <span className="text-6xl block mb-4">🥡</span>
-                            <span className="font-black text-red-950 text-xl uppercase italic">Balcão</span>
-                        </button>
+                <div className="p-8 flex flex-col min-h-screen bg-white">
+                    <button onClick={() => setStep('MENU')} className="self-start mb-10 text-red-800 font-black text-[10px] uppercase bg-red-50 px-6 py-2 rounded-full border border-red-100 shadow-sm active:scale-95 transition-all">← Voltar</button>
+                    <div className="flex-1 flex flex-col items-center justify-center space-y-10">
+                        <h2 className="text-4xl font-black text-red-900 tracking-tighter italic text-center uppercase leading-none">Tipo de Pedido</h2>
+                        <div className="grid grid-cols-1 w-full gap-5 max-w-sm">
+                            <button onClick={() => { setCustomer({...customer, orderType: OrderType.DELIVERY}); setStep('FORM'); }} className="bg-zinc-50 border p-8 rounded-[2.5rem] shadow-lg group active:scale-95 transition-all hover:border-red-600">
+                                <span className="text-6xl block mb-4">🛵</span>
+                                <span className="font-black text-red-950 text-xl uppercase italic">Delivery</span>
+                            </button>
+                            <button onClick={() => { setCustomer({...customer, orderType: OrderType.COUNTER}); setStep('FORM'); }} className="bg-zinc-50 border p-8 rounded-[2.5rem] shadow-lg group active:scale-95 transition-all hover:border-red-600">
+                                <span className="text-6xl block mb-4">🥡</span>
+                                <span className="font-black text-red-950 text-xl uppercase italic">Retirada na lanchonete</span>
+                            </button>
+                        </div>
                     </div>
-                    <button onClick={() => setStep('MENU')} className="text-zinc-300 font-black uppercase text-[9px] tracking-[0.2em] hover:text-red-700 transition-all">← Voltar</button>
                 </div>
             )}
 
             {step === 'FORM' && (
-                <div className="p-8 animate-fade-in pb-44">
+                <div className="p-8 pb-44 flex flex-col min-h-screen bg-white">
+                    <button onClick={() => setStep('TYPE_SELECTION')} className="self-start mb-6 text-red-800 font-black text-[10px] uppercase bg-red-50 px-6 py-2 rounded-full border border-red-100 shadow-sm active:scale-95 transition-all">← Voltar</button>
                     <h2 className="text-3xl font-black text-red-800 mb-8 tracking-tighter italic uppercase">Seus Dados</h2>
                     <form onSubmit={(e) => { e.preventDefault(); setStep('SUMMARY'); }} className="space-y-4">
                         <Input label="Nome" value={customer.name} onChange={e => setCustomer({...customer, name: e.target.value})} placeholder="Seu nome..." required />
                         <Input label="WhatsApp" type="tel" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} placeholder="(00) 00000-0000" required />
                         {customer.orderType === OrderType.DELIVERY && (
                             <>
-                                <Input label="Endereço" value={customer.address} onChange={e => setCustomer({...customer, address: e.target.value})} placeholder="Rua e Bairro..." required />
-                                <Input label="Número" value={customer.addressNumber} onChange={e => setCustomer({...customer, addressNumber: e.target.value})} placeholder="Número da casa..." required />
+                                <Select 
+                                  label="Bairro" 
+                                  value={customer.neighborhood} 
+                                  onChange={e => handleNeighborhoodChange(e.target.value)} 
+                                  options={[
+                                      { value: '', label: 'Selecione seu bairro' }, 
+                                      ...DELIVERY_FEES.map(f => ({ value: f.neighborhood, label: `${f.neighborhood} - R$ ${f.fee.toFixed(2)}` }))
+                                  ]} 
+                                  required 
+                                />
+                                {showOutroAlert && (
+                                  <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-[10px] font-bold text-red-800 italic uppercase animate-fade-in shadow-inner">
+                                    ⚠️ ATENÇÃO: Os preços da entrega poderão ser alterados dependendo do bairro e uma atendente irá informar via WhatsApp.
+                                  </div>
+                                )}
+                                <Input label="Rua" value={customer.address} onChange={e => setCustomer({...customer, address: e.target.value})} placeholder="Ex: Rua das Flores..." required />
+                                <Input label="Número" value={customer.addressNumber} onChange={e => setCustomer({...customer, addressNumber: e.target.value})} placeholder="Ex: 123..." required />
+                                <Input label="Referência" value={customer.reference} onChange={e => setCustomer({...customer, reference: e.target.value})} placeholder="Ex: Próximo ao mercado..." />
                             </>
                         )}
                         <Select label="Pagamento" options={PAYMENT_METHODS} value={customer.paymentMethod} onChange={e => setCustomer({...customer, paymentMethod: e.target.value as PaymentMethod})} />
@@ -496,37 +610,56 @@ export default function App() {
             )}
 
             {step === 'SUMMARY' && (
-                <div className="p-8 animate-fade-in pb-44">
+                <div className="p-8 pb-44 flex flex-col min-h-screen bg-white">
+                    <button onClick={() => setStep('FORM')} className="self-start mb-6 text-red-800 font-black text-[10px] uppercase bg-red-50 px-6 py-2 rounded-full border border-red-100 shadow-sm active:scale-95 transition-all">← Voltar</button>
                     <h2 className="text-3xl font-black text-red-800 mb-6 tracking-tighter italic uppercase">Confirmação</h2>
                     <div className="bg-zinc-50 p-6 rounded-[2rem] mb-8 space-y-6 shadow-xl border border-white relative overflow-hidden">
                         <div className="border-b border-zinc-200 pb-5">
                             <p className="text-2xl font-black text-red-950 italic uppercase">{customer.name}</p>
                             <p className="text-sm font-black text-green-600 uppercase italic mt-1">{customer.phone}</p>
+                            <p className="text-[10px] text-zinc-400 font-bold uppercase mt-2">{customer.orderType}</p>
+                            {customer.orderType === OrderType.DELIVERY && (
+                                <p className="text-[10px] text-zinc-500 font-medium italic mt-1 uppercase">
+                                  {customer.address}, {customer.addressNumber} - {customer.neighborhood}
+                                </p>
+                            )}
                         </div>
                         <div className="space-y-4">
                             {cart.map(item => (
                                 <div key={item.cartId} className="flex justify-between items-start">
                                     <div className="flex-1 pr-6">
                                         <p className="font-black text-red-950 text-lg leading-none italic uppercase">{item.quantity}x {item.name}</p>
-                                        <div className="text-[8px] text-zinc-400 font-bold mt-2 uppercase">
+                                        <div className="text-[8px] text-zinc-400 font-bold mt-2 uppercase leading-relaxed">
                                             {item.flavor && <span className="block text-red-600 italic font-black">✓ {item.flavor}</span>}
                                             {item.removedIngredients?.map(i => <span key={i} className="block text-red-400">× SEM {i}</span>)}
                                             {item.additions?.map(i => <span key={i} className="block text-green-600">✓ COM {i}</span>)}
+                                            {item.observation && <span className="block text-zinc-500 italic">OBS: {item.observation}</span>}
                                         </div>
                                     </div>
                                     <p className="font-black text-red-800 text-lg italic">R$ {(item.price * item.quantity).toFixed(2)}</p>
                                 </div>
                             ))}
                         </div>
-                        <div className="border-t border-zinc-200 pt-5 flex justify-between items-center">
-                            <span className="text-lg font-black text-zinc-300 italic uppercase">Total</span>
-                            <span className="text-3xl font-black text-red-700 italic">R$ {total.toFixed(2)}</span>
+                        <div className="border-t border-zinc-200 pt-5 space-y-2">
+                            <div className="flex justify-between items-center">
+                                <span className="text-xs font-black text-zinc-400 italic uppercase">Subtotal</span>
+                                <span className="text-xs font-black text-zinc-500">R$ {itemsTotal.toFixed(2)}</span>
+                            </div>
+                            {customer.orderType === OrderType.DELIVERY && (
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-black text-red-400 italic uppercase">Entrega ({customer.neighborhood})</span>
+                                    <span className="text-xs font-black text-red-600">R$ {currentFee.toFixed(2)}</span>
+                                </div>
+                            )}
+                            <div className="flex justify-between items-center pt-2">
+                                <span className="text-lg font-black text-zinc-300 italic uppercase">Total</span>
+                                <span className="text-3xl font-black text-red-700 italic">R$ {total.toFixed(2)}</span>
+                            </div>
                         </div>
                     </div>
                     <Button onClick={handleFinishOrder} disabled={isSending} fullWidth className={`py-5 text-2xl shadow-2xl rounded-[2.5rem] border-b-[8px] border-b-red-950 ${isSending ? 'opacity-60 scale-95' : 'animate-pulse-slow active:scale-90 transition-all'}`}>
                         {isSending ? 'ENVIANDO...' : 'FINALIZAR! ✅'}
                     </Button>
-                    <button onClick={() => setStep('FORM')} className="w-full mt-6 text-zinc-300 font-black text-[9px] text-center uppercase tracking-widest hover:text-red-700">← Corrigir Dados</button>
                 </div>
             )}
         </div>
@@ -542,7 +675,7 @@ export default function App() {
         .animate-fade-in { animation: fade-in 0.4s ease-out forwards; }
         .animate-slide-up { animation: slide-up 0.5s ease-out forwards; }
         .animate-float { animation: float 5s ease-in-out infinite; }
-        .animate-pulse-slow { animation: pulse-slow 3s ease-in-out infinite; }
+        .animate-pulse-slow { animation: pulse-slow 3s infinite ease-in-out; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         
         @media print {

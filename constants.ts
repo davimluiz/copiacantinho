@@ -16,10 +16,22 @@ export const CATEGORIES: Category[] = [
   { id: 'bebidas', name: 'Bebidas', icon: '🥤' },
 ];
 
+export const DELIVERY_FEES = [
+  { neighborhood: 'Zumbi', fee: 2.00 },
+  { neighborhood: 'Santa Rita', fee: 3.00 },
+  { neighborhood: 'Alecrim', fee: 4.00 },
+  { neighborhood: 'Garrido', fee: 5.00 },
+  { neighborhood: 'Primeiro de maio', fee: 3.00 },
+  { neighborhood: 'Ataíde', fee: 5.00 },
+  { neighborhood: 'Ilha da Conceição', fee: 5.00 },
+  { neighborhood: 'Outro', fee: 5.00 },
+];
+
 const SALADA_COMPLETA = ['Alface', 'Tomate', 'Milho', 'Batata Palha'];
 const DESC_TABUA_CARNE = "Acompanha 400g de batata ou aipim, vinagrete, farofa e molho caseiro.";
 
 export const PRODUCTS: Product[] = [
+  // LANCHES
   { id: 'l1', categoryId: 'lanches', name: 'Hambúrguer', price: 10.00, ingredients: ['Pão', 'Bife', ...SALADA_COMPLETA] },
   { id: 'l2', categoryId: 'lanches', name: 'X-Vegetariano', price: 10.00, ingredients: ['Pão', '2 Queijos', 'Catupiry', ...SALADA_COMPLETA] },
   { id: 'l3', categoryId: 'lanches', name: 'Misto Quente', price: 12.00, ingredients: ['3 Fatias Pão', '2 Queijos', '2 Presuntos'] },
@@ -36,13 +48,15 @@ export const PRODUCTS: Product[] = [
   { id: 'l14', categoryId: 'lanches', name: 'X-Egg Bacon Duplo', price: 32.00, ingredients: ['Pão', '2 Bifes', '2 Ovos', '2 Bacon', 'Queijo', ...SALADA_COMPLETA] },
   { id: 'l15', categoryId: 'lanches', name: 'X-Da Casa', price: 32.00, ingredients: ['Pão', 'Bife', 'Frango', 'Ovo', 'Bacon', 'Queijo', 'Presunto', 'Calabresa', 'Banana', ...SALADA_COMPLETA] },
   { id: 'l16', categoryId: 'lanches', name: 'X-Turbo', price: 45.00, ingredients: ['Pão', '3 Bifes', 'Frango', '3 Ovos', 'Bacon', '3 Queijos', '3 Presuntos', 'Calabresa', ...SALADA_COMPLETA] },
+
+  // AÇAI
   { id: 'a1', categoryId: 'acai', name: 'Açaí 300 ML', price: 15.00 },
   { id: 'a2', categoryId: 'acai', name: 'Açaí 400 ML', price: 17.00 },
   { id: 'a3', categoryId: 'acai', name: 'Açaí 500 ML', price: 19.00 },
   { id: 'a4', categoryId: 'acai', name: 'Açaí 700 ML', price: 23.00 },
   { id: 'a5', categoryId: 'acai', name: 'Açaí 1000 ML', price: 30.00 },
-  { id: 'f8', categoryId: 'franguinho', name: 'Franguinho 500g', price: 35.00, maxSides: 0 },
-  { id: 'f9', categoryId: 'franguinho', name: 'Franguinho 1Kg', price: 50.00, maxSides: 0 },
+
+  // FRANGUINHO
   { id: 'f1', categoryId: 'franguinho', name: 'Franguinho 250g (1 Acomp.)', price: 35.00, maxSides: 1 },
   { id: 'f2', categoryId: 'franguinho', name: 'Franguinho 500g (1 Acomp.)', price: 55.00, maxSides: 1 },
   { id: 'f3', categoryId: 'franguinho', name: 'Franguinho 500g (2 Acomp.)', price: 65.00, maxSides: 2 },
@@ -50,6 +64,8 @@ export const PRODUCTS: Product[] = [
   { id: 'f5', categoryId: 'franguinho', name: 'Franguinho 1Kg (1 Acomp.)', price: 70.00, maxSides: 1 },
   { id: 'f6', categoryId: 'franguinho', name: 'Franguinho 1Kg (2 Acomp.)', price: 80.00, maxSides: 2 },
   { id: 'f7', categoryId: 'franguinho', name: 'Franguinho 1Kg (3 Acomp.)', price: 90.00, maxSides: 3 },
+
+  // PORÇÕES
   { id: 'p1', categoryId: 'porcoes', name: 'Tábua de Carne 400g', price: 58.00, description: DESC_TABUA_CARNE },
   { id: 'p2', categoryId: 'porcoes', name: 'Tábua de Carne 800g', price: 88.00, description: DESC_TABUA_CARNE },
   { id: 'p3', categoryId: 'porcoes', name: 'Batata 200g', price: 12.00 },
@@ -61,6 +77,8 @@ export const PRODUCTS: Product[] = [
   { id: 'p9', categoryId: 'porcoes', name: 'Bol. de Queijo', price: 25.00, unit: '20un' },
   { id: 'p10', categoryId: 'porcoes', name: 'Bol. Queijo c/ Presunto', price: 25.00, unit: '20un' },
   { id: 'p11', categoryId: 'porcoes', name: 'Coxinha c/ Requeijão', price: 25.00, unit: '20un' },
+
+  // BEBIDAS
   { id: 'b1', categoryId: 'bebidas', name: 'Suco 500ml', price: 9.00, needsFlavor: true },
   { id: 'b2', categoryId: 'bebidas', name: 'Vitamina 500ml', price: 12.00, needsFlavor: true },
   { id: 'b3', categoryId: 'bebidas', name: 'Suco 1L', price: 17.00, needsFlavor: true },
@@ -82,7 +100,7 @@ export const PAYMENT_METHODS = [
 
 export const ORDER_TYPES = [
     { value: OrderType.DELIVERY, label: 'ENTREGA' },
-    { value: OrderType.COUNTER, label: 'RETIRADA NO BALCÃO' },
+    { value: OrderType.COUNTER, label: 'RETIRADA NA LANCHONETE' },
 ];
 
 export const EXTRAS_OPTIONS = [
@@ -91,7 +109,11 @@ export const EXTRAS_OPTIONS = [
     { name: 'Bife Picanha', price: 4.50 },
 ];
 
-export const FRANGUINHO_SIDES = ["Batata", "Aipim raiz", "Bolinha de queijo", "Coxinha"];
+export const FRANGUINHO_SIDES = [
+  "Batata", "Aipim raiz", "Bolinho de aipim temperado", 
+  "Bolinho de aipim com queijo", "Bolinha de queijo", 
+  "Bolinha de queijo com presunto", "Coxinha"
+];
 
 export const ACAI_COMPLEMENTS = [
   "Amendoim", "Bolinhas de chocolate", "Choco Boll", "Chocolate cremoso", 

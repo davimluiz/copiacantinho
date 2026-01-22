@@ -10,7 +10,7 @@ export enum PaymentMethod {
 export enum OrderType {
   TABLE = 'MESA',
   DELIVERY = 'ENTREGA',
-  COUNTER = 'BALCÃO'
+  COUNTER = 'RETIRADA NA LANCHONETE'
 }
 
 export enum OrderStatus {
@@ -54,6 +54,7 @@ export interface CustomerInfo {
   name: string;
   phone: string;
   address: string;
+  neighborhood?: string;
   addressNumber: string;
   reference: string;
   deliveryFee?: number;
