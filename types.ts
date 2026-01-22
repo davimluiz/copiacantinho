@@ -45,9 +45,7 @@ export interface CartItem extends Product {
   removedIngredients?: string[];
   additions?: string[];
   observation?: string;
-  packaging?: string;
   flavor?: string;
-  isZero?: boolean;
 }
 
 export interface CustomerInfo {
@@ -61,15 +59,20 @@ export interface CustomerInfo {
   tableNumber: string;
   orderType: OrderType;
   paymentMethod: PaymentMethod;
-  observation?: string;
-  usePaidStamp?: boolean;
 }
 
 export interface Order {
   id: string;
-  customer: CustomerInfo;
-  items: CartItem[];
+  nomeCliente: string;
+  itens: string;
+  itemsList?: CartItem[];
   total: number;
-  createdAt: string;
-  status: OrderStatus;
+  frete: number;
+  bairro: string;
+  status: string;
+  telefone: string;
+  tipo: string;
+  pagamento: string;
+  endereco: string;
+  criadoEm: any;
 }

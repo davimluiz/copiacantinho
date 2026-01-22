@@ -1,13 +1,6 @@
 
 import { Category, Product, PaymentMethod, OrderType } from './types';
 
-export const COLORS = {
-  bgDark: 'rgb(41, 41, 39)',
-  bgSecondary: 'rgb(60, 58, 50)',
-  accent: 'rgb(214, 187, 86)',
-  textLight: 'rgb(239, 240, 243)',
-};
-
 export const CATEGORIES: Category[] = [
   { id: 'lanches', name: 'Lanches', icon: '🍔' },
   { id: 'acai', name: 'Açaí', icon: '🍧' },
@@ -24,7 +17,7 @@ export const DELIVERY_FEES = [
   { neighborhood: 'Primeiro de maio', fee: 3.00 },
   { neighborhood: 'Ataíde', fee: 5.00 },
   { neighborhood: 'Ilha da Conceição', fee: 5.00 },
-  { neighborhood: 'Outro', fee: 5.00 },
+  { neighborhood: 'Outro', fee: 0.00 },
 ];
 
 const SALADA_COMPLETA = ['Alface', 'Tomate', 'Milho', 'Batata Palha'];
@@ -57,13 +50,15 @@ export const PRODUCTS: Product[] = [
   { id: 'a5', categoryId: 'acai', name: 'Açaí 1000 ML', price: 30.00 },
 
   // FRANGUINHO
-  { id: 'f1', categoryId: 'franguinho', name: 'Franguinho 250g (1 Acomp.)', price: 35.00, maxSides: 1 },
-  { id: 'f2', categoryId: 'franguinho', name: 'Franguinho 500g (1 Acomp.)', price: 55.00, maxSides: 1 },
-  { id: 'f3', categoryId: 'franguinho', name: 'Franguinho 500g (2 Acomp.)', price: 65.00, maxSides: 2 },
-  { id: 'f4', categoryId: 'franguinho', name: 'Franguinho 500g (3 Acomp.)', price: 75.00, maxSides: 3 },
-  { id: 'f5', categoryId: 'franguinho', name: 'Franguinho 1Kg (1 Acomp.)', price: 70.00, maxSides: 1 },
-  { id: 'f6', categoryId: 'franguinho', name: 'Franguinho 1Kg (2 Acomp.)', price: 80.00, maxSides: 2 },
-  { id: 'f7', categoryId: 'franguinho', name: 'Franguinho 1Kg (3 Acomp.)', price: 90.00, maxSides: 3 },
+  { id: 'f0', categoryId: 'franguinho', name: 'Franguinho 500g', price: 35.00, unit: 'Sem Acompanhamento', maxSides: 0 },
+  { id: 'f00', categoryId: 'franguinho', name: 'Franguinho 1kg', price: 50.00, unit: 'Sem Acompanhamento', maxSides: 0 },
+  { id: 'f1', categoryId: 'franguinho', name: 'Franguinho 250g', price: 35.00, unit: '1 Acompanhamento', maxSides: 1 },
+  { id: 'f2', categoryId: 'franguinho', name: 'Franguinho 500g (1 Acomp.)', price: 55.00, unit: '1 Acompanhamento', maxSides: 1 },
+  { id: 'f3', categoryId: 'franguinho', name: 'Franguinho 500g (2 Acomp.)', price: 65.00, unit: '2 Acompanhamentos', maxSides: 2 },
+  { id: 'f4', categoryId: 'franguinho', name: 'Franguinho 500g (3 Acomp.)', price: 75.00, unit: '3 Acompanhamentos', maxSides: 3 },
+  { id: 'f5', categoryId: 'franguinho', name: 'Franguinho 1Kg (1 Acomp.)', price: 70.00, unit: '1 Acompanhamento', maxSides: 1 },
+  { id: 'f6', categoryId: 'franguinho', name: 'Franguinho 1Kg (2 Acomp.)', price: 80.00, unit: '2 Acompanhamentos', maxSides: 2 },
+  { id: 'f7', categoryId: 'franguinho', name: 'Franguinho 1Kg (3 Acomp.)', price: 90.00, unit: '3 Acompanhamentos', maxSides: 3 },
 
   // PORÇÕES
   { id: 'p1', categoryId: 'porcoes', name: 'Tábua de Carne 400g', price: 58.00, description: DESC_TABUA_CARNE },
@@ -98,17 +93,6 @@ export const PAYMENT_METHODS = [
   { value: PaymentMethod.BOLSA_ALUNO, label: 'Bolsa Aluno' },
 ];
 
-export const ORDER_TYPES = [
-    { value: OrderType.DELIVERY, label: 'ENTREGA' },
-    { value: OrderType.COUNTER, label: 'RETIRADA NA LANCHONETE' },
-];
-
-export const EXTRAS_OPTIONS = [
-    { name: 'Adicional Comum', price: 3.00 },
-    { name: 'Adicional Calabresa', price: 3.00 },
-    { name: 'Bife Picanha', price: 4.50 },
-];
-
 export const FRANGUINHO_SIDES = [
   "Batata", "Aipim raiz", "Bolinho de aipim temperado", 
   "Bolinho de aipim com queijo", "Bolinha de queijo", 
@@ -132,7 +116,7 @@ export const ACAI_FRUITS = [
 
 export const ACAI_PAID_EXTRAS = [
   { name: 'Nutella', price: 5.00 },
-  { name: 'M. Morango', price: 4.00 },
-  { name: 'M. Maracujá', price: 4.00 },
-  { name: 'M. Cupuaçu', price: 4.00 }
+  { name: 'Mousse de Morango', price: 4.00 },
+  { name: 'Mousse de Maracujá', price: 4.00 },
+  { name: 'mousse de Cupuaçu', price: 4.00 }
 ];

@@ -19,7 +19,7 @@ import { Button } from './components/Button';
 import { Input, Select } from './components/Input';
 import { 
     CATEGORIES, PRODUCTS, PAYMENT_METHODS, 
-    EXTRAS_OPTIONS, ACAI_COMPLEMENTS, ACAI_TOPPINGS, 
+    ACAI_COMPLEMENTS, ACAI_TOPPINGS, 
     ACAI_FRUITS, ACAI_PAID_EXTRAS, DELIVERY_FEES, FRANGUINHO_SIDES
 } from './constants';
 import { Product, CustomerInfo, CartItem, PaymentMethod, OrderType } from './types';
@@ -37,7 +37,7 @@ const Receipt = ({ order }: { order: any | null }) => {
         <div className="w-full max-w-[80mm] mx-auto text-black font-mono text-[11px] p-4 bg-white border border-zinc-200 shadow-sm printable-content">
             <div className="text-center mb-4 border-b border-dashed border-black pb-2">
                 <h1 className="font-bold text-lg uppercase italic">Cantinho da Sandra</h1>
-                <p className="text-[9px]">ID: {order.id?.slice(-6).toUpperCase()}</p>
+                <p className="text-[9px]">ID: {(order.id || '').slice(-6).toUpperCase()}</p>
             </div>
             <div className="mb-2">
                 <p><strong>CLIENTE:</strong> {String(order.nomeCliente || '').toUpperCase()}</p>
@@ -48,16 +48,16 @@ const Receipt = ({ order }: { order: any | null }) => {
             <div className="border-b border-dashed border-black my-2"></div>
             <div className="mb-2">
                 <p className="font-bold mb-1 uppercase text-[10px]">Itens do Pedido:</p>
-                <p className="whitespace-pre-wrap leading-tight text-[10px]">{order.itens}</p>
+                <p className="whitespace-pre-wrap leading-tight text-[10px]">{order.itens || 'Nenhum item'}</p>
             </div>
-            {order.frete > 0 && (
+            {(order.frete || 0) > 0 && (
                 <div className="mb-2">
-                   <p><strong>FRETE ({order.bairro}):</strong> R$ {Number(order.frete).toFixed(2)}</p>
+                   <p><strong>FRETE ({order.bairro || ''}):</strong> R$ {Number(order.frete).toFixed(2)}</p>
                 </div>
             )}
             <div className="border-t border-dashed border-black mt-2 pt-2 text-right">
                 <p className="text-sm font-bold">TOTAL: R$ {Number(order.total || 0).toFixed(2)}</p>
-                <p className="text-[9px] uppercase font-bold">{order.pagamento}</p>
+                <p className="text-[9px] uppercase font-bold">{order.pagamento || 'N/A'}</p>
             </div>
         </div>
     );
@@ -105,10 +105,11 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
         extraPrice += 10.00;
         finalAdditions.push("TURBO: Batata 150g + Juninho (R$ 10,00)");
       }
-      // Outros adicionais selecionados via dropdown (R$ 3,00 cada)
+      // Contar itens do dropdown
       const dropdownItemsCount = additions.filter(a => !a.includes("TURBO") && !a.includes("Picanha")).length;
       extraPrice += dropdownItemsCount * 3.00;
     } else if (isAcai) {
+      // Calcular apenas os adicionais pagos
       additions.forEach(addName => {
         const extra = ACAI_PAID_EXTRAS.find(e => e.name === addName);
         if (extra) extraPrice += extra.price;
@@ -169,8 +170,6 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
             </div>
           </section>
 
-          {/* --- LOGICA ESPECIFICA POR CATEGORIA --- */}
-
           {isLanche && (
             <div className="space-y-6">
                <section className="bg-red-50/50 p-4 rounded-2xl border border-red-100">
@@ -223,16 +222,20 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
           {isFranguinho && (
             <section>
               <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Acompanhamentos (Escolha {maxSides})</label>
-              <div className="grid grid-cols-1 gap-2">
-                {FRANGUINHO_SIDES.map(item => (
-                    <button key={item} onClick={() => toggleAddition(item)} disabled={!additions.includes(item) && additions.length >= maxSides} className={`p-4 rounded-2xl text-[10px] font-black uppercase border-2 text-left transition-all ${additions.includes(item) ? 'bg-red-700 border-red-700 text-white' : 'bg-white border-zinc-100 text-zinc-400 disabled:opacity-30'}`}>
-                      <div className="flex justify-between items-center">
-                        <span>{item}</span>
-                        {additions.includes(item) && <span className="text-white">✓</span>}
-                      </div>
-                    </button>
-                ))}
-              </div>
+              {maxSides === 0 ? (
+                <p className="text-xs font-bold text-zinc-400 italic">Este item não possui acompanhamentos.</p>
+              ) : (
+                <div className="grid grid-cols-1 gap-2">
+                  {FRANGUINHO_SIDES.map(item => (
+                      <button key={item} onClick={() => toggleAddition(item)} disabled={!additions.includes(item) && additions.length >= maxSides} className={`p-4 rounded-2xl text-[10px] font-black uppercase border-2 text-left transition-all ${additions.includes(item) ? 'bg-red-700 border-red-700 text-white' : 'bg-white border-zinc-100 text-zinc-400 disabled:opacity-30'}`}>
+                        <div className="flex justify-between items-center">
+                          <span>{item}</span>
+                          {additions.includes(item) && <span className="text-white">✓</span>}
+                        </div>
+                      </button>
+                  ))}
+                </div>
+              )}
             </section>
           )}
 
@@ -240,7 +243,7 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
             <div className="space-y-6">
                 {product.description && (
                     <section className="bg-red-50/50 p-4 rounded-2xl border border-red-100">
-                        <label className="block text-red-900/40 text-[10px] font-black uppercase mb-2 tracking-[0.2em]">Observação</label>
+                        <label className="block text-red-900/40 text-[10px] font-black uppercase mb-2 tracking-[0.2em]">Informações</label>
                         <p className="text-[11px] font-bold text-red-800 uppercase italic leading-relaxed">{product.description}</p>
                     </section>
                 )}
@@ -379,6 +382,7 @@ export default function App() {
             if (i.removedIngredients?.length) itemDesc += ` [SEM: ${i.removedIngredients.join(', ')}]`;
             if (i.additions?.length) itemDesc += ` [COM: ${i.additions.join(', ')}]`;
             if (i.flavor) itemDesc += ` (${i.flavor})`;
+            if (i.observation) itemDesc += ` *Obs: ${i.observation}*`;
             return itemDesc;
         }).join('\n'), 
         total: Number(total.toFixed(2)),
@@ -429,7 +433,8 @@ export default function App() {
                     const formData = new FormData(e.currentTarget);
                     const user = (formData.get('user') as string)?.toLowerCase();
                     const pass = formData.get('pass') as string;
-                    if ((user === 'sandra' && pass === 'Cantinho@2026') || (user === 'admin' && pass === 'admin@1234')) {
+                    // Aceita sandra/sandra123 ou admin/admin@1234
+                    if ((user === 'sandra' && pass === 'sandra123') || (user === 'admin' && pass === 'admin@1234')) {
                         setIsLoggedIn(true); setView('ADMIN');
                     } else alert("Acesso não autorizado.");
                 }} className="space-y-4">
@@ -472,7 +477,9 @@ export default function App() {
                   <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mt-2 italic">{o.tipo} • {o.pagamento}</p>
                   {o.frete > 0 && <p className="text-[10px] font-black text-red-600 uppercase mt-1">Frete: R$ {o.frete.toFixed(2)}</p>}
                 </div>
-                <div className="flex-1 bg-zinc-50 p-4 rounded-xl text-[10px] font-bold text-zinc-700 border border-zinc-100 whitespace-pre-wrap">{o.itens}</div>
+                <div className="flex-1 bg-zinc-50 p-4 rounded-xl text-[10px] font-bold text-zinc-700 border border-zinc-100 whitespace-pre-wrap">
+                    {o.itens}
+                </div>
                 <div className="flex items-center gap-3 flex-wrap">
                    <p className="text-xl font-black text-red-700 italic min-w-[100px]">R$ {Number(o.total || 0).toFixed(2)}</p>
                    <div className="flex gap-2">
@@ -583,16 +590,7 @@ export default function App() {
                         <Input label="WhatsApp" type="tel" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} placeholder="(00) 00000-0000" required />
                         {customer.orderType === OrderType.DELIVERY && (
                             <>
-                                <Select 
-                                  label="Bairro" 
-                                  value={customer.neighborhood} 
-                                  onChange={e => handleNeighborhoodChange(e.target.value)} 
-                                  options={[
-                                      { value: '', label: 'Selecione seu bairro' }, 
-                                      ...DELIVERY_FEES.map(f => ({ value: f.neighborhood, label: `${f.neighborhood} - R$ ${f.fee.toFixed(2)}` }))
-                                  ]} 
-                                  required 
-                                />
+                                <Select label="Bairro" value={customer.neighborhood} onChange={e => handleNeighborhoodChange(e.target.value)} options={[{ value: '', label: 'Selecione seu bairro' }, ...DELIVERY_FEES.map(f => ({ value: f.neighborhood, label: `${f.neighborhood} - R$ ${f.fee.toFixed(2)}` }))]} required />
                                 {showOutroAlert && (
                                   <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-[10px] font-bold text-red-800 italic uppercase animate-fade-in shadow-inner">
                                     ⚠️ ATENÇÃO: Os preços da entrega poderão ser alterados dependendo do bairro e uma atendente irá informar via WhatsApp.
