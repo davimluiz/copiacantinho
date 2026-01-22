@@ -25,7 +25,7 @@ import {
 import { Product, CustomerInfo, CartItem, PaymentMethod, OrderType } from './types';
 
 type AppView = 'HOME' | 'ORDER' | 'LOGIN' | 'ADMIN' | 'SUCCESS';
-type OrderStep = 'MENU' | 'TYPE_SELECTION' | 'FORM' | 'SUMMARY';
+type OrderStep = 'MENU' | 'CART_REVIEW' | 'TYPE_SELECTION' | 'FORM' | 'SUMMARY';
 type AdminTab = 'novo' | 'preparando' | 'concluido' | 'cancelado';
 
 // --- COMPONENTE DE RECIBO PARA IMPRESSÃO ---
@@ -450,6 +450,10 @@ export default function App() {
     }
   };
 
+  const removeFromCart = (cartId: string) => {
+      setCart(prev => prev.filter(i => i.cartId !== cartId));
+  };
+
   const printOrder = (order: any) => {
     setReceiptOrder(order);
     setTimeout(() => { window.print(); setReceiptOrder(null); }, 500);
@@ -594,7 +598,7 @@ export default function App() {
                     </div>
                     {cart.length > 0 && (
                         <div className="fixed bottom-8 left-6 right-6 z-50 animate-slide-up max-w-lg mx-auto">
-                            <Button fullWidth onClick={() => setStep('TYPE_SELECTION')} className="py-5 text-lg flex justify-between items-center px-8 shadow-2xl rounded-[2rem] border-b-4 border-red-900">
+                            <Button fullWidth onClick={() => setStep('CART_REVIEW')} className="py-5 text-lg flex justify-between items-center px-8 shadow-2xl rounded-[2rem] border-b-4 border-red-900">
                                 <span className="font-black italic uppercase">Sacola ({cart.length})</span>
                                 <span className="bg-white/20 px-5 py-1.5 rounded-xl text-base font-black">R$ {itemsTotal.toFixed(2)}</span>
                             </Button>
@@ -602,15 +606,59 @@ export default function App() {
                     )}
                 </>
             )}
+
+            {step === 'CART_REVIEW' && (
+                <div className="p-8 pb-44 flex flex-col min-h-screen bg-white">
+                    <button onClick={() => setStep('MENU')} className="self-start mb-6 text-red-800 font-black text-[10px] uppercase bg-red-50 px-6 py-2 rounded-full border border-red-100 shadow-sm active:scale-95 transition-all">← Voltar</button>
+                    <h2 className="text-3xl font-black text-red-800 mb-8 tracking-tighter italic uppercase">Revisar Sacola</h2>
+                    
+                    {cart.length === 0 ? (
+                        <div className="flex-1 flex flex-col items-center justify-center text-zinc-300">
+                             <span className="text-6xl mb-4">🛒</span>
+                             <p className="font-black uppercase italic">Sua sacola está vazia</p>
+                             <Button onClick={() => setStep('MENU')} variant="secondary" className="mt-4">Voltar ao Cardápio</Button>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {cart.map(item => (
+                                <div key={item.cartId} className="bg-zinc-50 p-4 rounded-2xl border border-zinc-100 flex justify-between items-center animate-fade-in shadow-sm">
+                                    <div className="flex-1 pr-4">
+                                        <p className="font-black text-red-950 text-sm italic uppercase leading-tight">{item.quantity}x {item.name}</p>
+                                        <div className="text-[9px] text-zinc-400 font-bold mt-1 uppercase leading-tight">
+                                            {item.flavor && <span className="block text-red-600 italic">✓ {item.flavor}</span>}
+                                            {item.removedIngredients?.map(i => <span key={i} className="block text-red-400">× SEM {i}</span>)}
+                                            {item.additions?.map(i => <span key={i} className="block text-green-600">✓ COM {i}</span>)}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <p className="font-black text-red-800 text-sm italic">R$ {(item.price * item.quantity).toFixed(2)}</p>
+                                        <button onClick={() => removeFromCart(item.cartId)} className="w-8 h-8 bg-red-100 text-red-600 rounded-lg flex items-center justify-center text-lg active:scale-90 transition-all">🗑️</button>
+                                    </div>
+                                </div>
+                            ))}
+                            <div className="pt-6">
+                                <div className="flex justify-between items-center mb-6">
+                                    <span className="text-xl font-black text-zinc-300 italic uppercase">Subtotal</span>
+                                    <span className="text-3xl font-black text-red-700 italic">R$ {itemsTotal.toFixed(2)}</span>
+                                </div>
+                                <Button fullWidth onClick={() => setStep('TYPE_SELECTION')} className="py-5 text-xl rounded-[2rem] shadow-xl border-b-4 border-red-950 flex items-center justify-center gap-2">
+                                    REVISADO! ✅
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {step === 'TYPE_SELECTION' && (
                 <div className="p-8 flex flex-col min-h-screen bg-white">
-                    <button onClick={() => setStep('MENU')} className="self-start mb-10 text-red-800 font-black text-[10px] uppercase bg-red-50 px-6 py-2 rounded-full border border-red-100 shadow-sm active:scale-95 transition-all">← Voltar</button>
+                    <button onClick={() => setStep('CART_REVIEW')} className="self-start mb-10 text-red-800 font-black text-[10px] uppercase bg-red-50 px-6 py-2 rounded-full border border-red-100 shadow-sm active:scale-95 transition-all">← Voltar</button>
                     <div className="flex-1 flex flex-col items-center justify-center space-y-10">
-                        <h2 className="text-4xl font-black text-red-900 tracking-tighter italic text-center uppercase leading-none">Tipo de Pedido</h2>
+                        <h2 className="text-4xl font-black text-red-900 tracking-tighter italic text-center uppercase leading-none">Como deseja receber?</h2>
                         <div className="grid grid-cols-1 w-full gap-5 max-w-sm">
                             <button onClick={() => { setCustomer({...customer, orderType: OrderType.DELIVERY}); setStep('FORM'); }} className="bg-zinc-50 border p-8 rounded-[2.5rem] shadow-lg group active:scale-95 transition-all hover:border-red-600">
                                 <span className="text-6xl block mb-4">🛵</span>
-                                <span className="font-black text-red-950 text-xl uppercase italic">Delivery</span>
+                                <span className="font-black text-red-950 text-xl uppercase italic">Entrega</span>
                             </button>
                             <button onClick={() => { setCustomer({...customer, orderType: OrderType.COUNTER}); setStep('FORM'); }} className="bg-zinc-50 border p-8 rounded-[2.5rem] shadow-lg group active:scale-95 transition-all hover:border-red-600">
                                 <span className="text-6xl block mb-4">🥡</span>
