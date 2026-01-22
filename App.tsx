@@ -44,6 +44,7 @@ const Receipt = ({ order }: { order: any | null }) => {
                 <p><strong>DATA:</strong> {date}</p>
                 <p><strong>TIPO:</strong> {order.tipo || 'RETIRADA NA LANCHONETE'}</p>
                 <p><strong>FONE:</strong> {order.telefone || 'N/A'}</p>
+                {order.endereco && <p className="leading-tight"><strong>END:</strong> {order.endereco.toUpperCase()}</p>}
             </div>
             <div className="border-b border-dashed border-black my-2"></div>
             <div className="mb-2">
@@ -374,26 +375,70 @@ export default function App() {
     const clientName = customer.name.trim();
     if (!clientName || cart.length === 0) { alert("Informe seu nome e escolha itens."); return; }
     setIsSending(true);
+
     try {
+      // Gerar string consolidada de itens AGRUPADA por categoria
+      const groupedItemsText = CATEGORIES.map(cat => {
+        const itemsInCat = cart.filter(i => i.categoryId === cat.id);
+        if (itemsInCat.length === 0) return null;
+        
+        let section = `[${cat.name.toUpperCase()}]\n`;
+        section += itemsInCat.map(i => {
+          let line = `${i.quantity}x ${i.name}`;
+          if (i.flavor) line += ` (${i.flavor})`;
+          
+          if (i.categoryId === 'acai') {
+            const isComplete = i.additions?.includes("AÇAÍ COMPLETO");
+            if (isComplete) line += `\n  - COMPLETO`;
+            
+            const rawAdds = i.additions?.filter(a => a !== "AÇAÍ COMPLETO") || [];
+            if (rawAdds.length > 0) {
+              const comps = rawAdds.filter(a => ACAI_COMPLEMENTS.includes(a));
+              const cobs = rawAdds.filter(a => ACAI_TOPPINGS.includes(a));
+              const fruts = rawAdds.filter(a => ACAI_FRUITS.includes(a));
+              const paids = rawAdds.filter(a => ACAI_PAID_EXTRAS.some(p => p.name === a));
+              
+              if (comps.length) line += `\n  COMPLEM: ${comps.join(', ')}`;
+              if (cobs.length) line += `\n  COBERTU: ${cobs.join(', ')}`;
+              if (fruts.length) line += `\n  FRUTAS: ${fruts.join(', ')}`;
+              if (paids.length) line += `\n  ADIC.PAG: ${paids.join(', ')}`;
+            }
+          } else {
+            if (i.removedIngredients?.length) line += `\n  - SEM: ${i.removedIngredients.join(', ')}`;
+            if (i.additions?.length) line += `\n  - COM: ${i.additions.join(', ')}`;
+          }
+          if (i.observation) line += `\n  *Obs: ${i.observation}*`;
+          return line;
+        }).join('\n');
+        
+        return section;
+      }).filter(Boolean).join('\n\n');
+
+      const fullAddress = customer.orderType === OrderType.DELIVERY 
+        ? `${customer.address}, ${customer.addressNumber} - ${customer.neighborhood}${customer.reference ? ` (${customer.reference})` : ''}` 
+        : "Retirada na lanchonete";
+
       await addDoc(collection(db, 'pedidos'), {
         nomeCliente: clientName, 
-        itens: cart.map(i => {
-            let itemDesc = `${i.quantity}x ${i.name}`;
-            if (i.removedIngredients?.length) itemDesc += ` [SEM: ${i.removedIngredients.join(', ')}]`;
-            if (i.additions?.length) itemDesc += ` [COM: ${i.additions.join(', ')}]`;
-            if (i.flavor) itemDesc += ` (${i.flavor})`;
-            if (i.observation) itemDesc += ` *Obs: ${i.observation}*`;
-            return itemDesc;
-        }).join('\n'), 
+        itens: groupedItemsText,
         total: Number(total.toFixed(2)),
         frete: Number(currentFee.toFixed(2)),
         bairro: customer.neighborhood || "N/A",
-        status: "novo", criadoEm: serverTimestamp(), telefone: customer.phone || "N/A",
-        tipo: customer.orderType, pagamento: customer.paymentMethod,
-        endereco: customer.orderType === OrderType.DELIVERY ? `${customer.address}, ${customer.addressNumber} - ${customer.neighborhood}` : "Retirada na lanchonete"
+        status: "novo", 
+        criadoEm: serverTimestamp(), 
+        telefone: customer.phone || "N/A",
+        tipo: customer.orderType, 
+        pagamento: customer.paymentMethod,
+        endereco: fullAddress
       });
-      setCart([]); setView('SUCCESS'); setTimeout(() => setView('HOME'), 4500);
-    } catch (err) { alert('Erro ao enviar: ' + err); setIsSending(false); }
+      
+      setCart([]); 
+      setView('SUCCESS'); 
+      setTimeout(() => setView('HOME'), 4500);
+    } catch (err) { 
+      alert('Erro ao enviar: ' + err); 
+      setIsSending(false); 
+    }
   };
 
   const handleNeighborhoodChange = (val: string) => {
@@ -433,7 +478,6 @@ export default function App() {
                     const formData = new FormData(e.currentTarget);
                     const user = (formData.get('user') as string)?.toLowerCase();
                     const pass = formData.get('pass') as string;
-                    // Aceita sandra/sandra123 ou admin/admin@1234
                     if ((user === 'sandra' && pass === 'sandra123') || (user === 'admin' && pass === 'admin@1234')) {
                         setIsLoggedIn(true); setView('ADMIN');
                     } else alert("Acesso não autorizado.");
@@ -617,8 +661,8 @@ export default function App() {
                             <p className="text-sm font-black text-green-600 uppercase italic mt-1">{customer.phone}</p>
                             <p className="text-[10px] text-zinc-400 font-bold uppercase mt-2">{customer.orderType}</p>
                             {customer.orderType === OrderType.DELIVERY && (
-                                <p className="text-[10px] text-zinc-500 font-medium italic mt-1 uppercase">
-                                  {customer.address}, {customer.addressNumber} - {customer.neighborhood}
+                                <p className="text-[10px] text-zinc-500 font-medium italic mt-1 uppercase leading-tight">
+                                  {customer.address}, {customer.addressNumber} - {customer.neighborhood} {customer.reference && `(${customer.reference})`}
                                 </p>
                             )}
                         </div>
