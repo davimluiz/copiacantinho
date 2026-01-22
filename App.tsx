@@ -107,7 +107,6 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
       const dropdownItemsCount = additions.filter(a => !a.includes("TURBO") && !a.includes("Picanha")).length;
       extraPrice += dropdownItemsCount * 3.00;
     } else if (isAcai) {
-      // Somar preços dos adicionais pagos do Açaí
       additions.forEach(addName => {
         const extra = ACAI_PAID_EXTRAS.find(e => e.name === addName);
         if (extra) extraPrice += extra.price;
@@ -164,7 +163,7 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
   };
 
   return (
-    <div className={`fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+    <div className={`fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-opacity no-print ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
       <div className="bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[92vh] animate-fade-in">
         <div className="p-6 border-b border-red-50 flex justify-between items-center bg-red-50/30">
           <div>
@@ -175,7 +174,6 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
           <button onClick={onClose} className="text-zinc-300 hover:text-red-600 text-3xl leading-none transition-colors">&times;</button>
         </div>
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Descrição do Item */}
           {product.description && (
             <section className="bg-red-50/50 p-4 rounded-2xl border border-red-100">
               <label className="block text-red-900/40 text-[10px] font-black uppercase mb-2 tracking-[0.2em]">Observação do Item</label>
@@ -185,7 +183,6 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
             </section>
           )}
 
-          {/* Ingredientes do Item */}
           {product.ingredients && product.ingredients.length > 0 && (
             <section className="bg-red-50/50 p-4 rounded-2xl border border-red-100">
               <label className="block text-red-900/40 text-[10px] font-black uppercase mb-2 tracking-[0.2em]">Ingredientes inclusos</label>
@@ -204,7 +201,6 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
             </div>
           </section>
 
-          {/* Bebidas: Sabor ou Opção Zero */}
           {isBebidas && (
             <section className="space-y-4">
               {product.needsFlavor && (
@@ -241,7 +237,6 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
             </section>
           )}
 
-          {/* Açaí: Customização específica */}
           {isAcai && (
             <section className="space-y-8">
               <button 
@@ -300,7 +295,6 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
             </section>
           )}
 
-          {/* Retirar Algo - Oculto em Franguinho, Porções, Bebidas e Açaí */}
           {!isFranguinho && !isPorcoes && !isBebidas && !isAcai && (
             <section>
               <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Retirar algo?</label>
@@ -313,7 +307,6 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
             </section>
           )}
 
-          {/* Adicionais específicos para Lanches */}
           {isLanche && (
             <section className="space-y-4">
               <label className="block text-red-900/40 text-[10px] font-black uppercase mb-1 tracking-[0.2em]">Adicionais</label>
@@ -363,7 +356,6 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
             </section>
           )}
 
-          {/* Adicionais específicos para Franguinho */}
           {isFranguinho && maxSides > 0 && (
             <section>
               <div className="flex justify-between items-center mb-3">
@@ -389,20 +381,6 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
                    Por favor, selecione mais {maxSides - additions.length} acompanhamento(s)
                  </p>
               )}
-            </section>
-          )}
-
-          {/* Adicionais para outras categorias - Oculto em Porções, Bebidas e Açaí */}
-          {!isLanche && !isFranguinho && !isPorcoes && !isBebidas && !isAcai && (
-            <section>
-              <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Adicionais?</label>
-              <div className="grid grid-cols-2 gap-2">
-                {[...EXTRAS_OPTIONS].map((opt) => (
-                  <button key={opt.name} onClick={() => toggleAddition(opt.name)} className={`p-3 rounded-xl text-[9px] font-black uppercase border-2 transition-all ${additions.includes(opt.name) ? 'bg-green-600 border-green-600 text-white shadow-md' : 'bg-white border-zinc-100 text-zinc-300'}`}>
-                    + {opt.name} (R$ {opt.price.toFixed(2)})
-                  </button>
-                ))}
-              </div>
             </section>
           )}
 
@@ -540,7 +518,7 @@ export default function App() {
 
   // --- RENDERS ---
   if (view === 'SUCCESS') return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-zinc-50 fixed inset-0 z-[500] animate-fade-in">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-zinc-50 fixed inset-0 z-[500] animate-fade-in no-print">
       <div className="glass-card p-10 md:p-14 rounded-[3.5rem] max-w-md shadow-2xl border-green-200 border-2 bg-white">
         <div className="text-[64px] mb-6 animate-bounce leading-none">✅</div>
         <h2 className="text-2xl font-black text-green-600 mb-4 tracking-tighter italic uppercase">Recebido!</h2>
@@ -556,13 +534,15 @@ export default function App() {
   );
 
   if (view === 'LOGIN') return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-zinc-50">
+    <div className="min-h-screen flex items-center justify-center p-6 bg-zinc-50 no-print">
         <div className="glass-card p-10 rounded-[2.5rem] w-full max-w-sm shadow-2xl bg-white border border-red-50">
             <h2 className="text-2xl font-black text-red-800 mb-6 text-center italic leading-none uppercase">Cozinha</h2>
             <form onSubmit={(e) => {
                 e.preventDefault();
                 const formData = new FormData(e.currentTarget);
-                if (formData.get('user') === 'sandra' && formData.get('pass') === '1234') {
+                const user = (formData.get('user') as string)?.toLowerCase();
+                const pass = formData.get('pass') as string;
+                if (user === 'sandra' && pass === 'Cantinho@1234') {
                     setIsLoggedIn(true); setView('ADMIN');
                 } else alert("Acesso não autorizado.");
             }} className="space-y-4">
@@ -576,46 +556,53 @@ export default function App() {
   );
 
   if (view === 'ADMIN') return (
-    <div className="min-h-screen p-6 bg-zinc-50 pb-40 animate-fade-in">
-      <header className="flex justify-between items-center mb-8 max-w-7xl mx-auto bg-white p-6 rounded-[2rem] shadow-xl border border-red-50">
-        <div>
-            <h2 className="text-2xl font-black text-red-800 italic leading-none">Cozinha</h2>
-            <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Monitoramento de Pedidos</p>
-        </div>
-        <Button variant="secondary" onClick={() => { setIsLoggedIn(false); setView('HOME'); }} className="px-5 py-2 rounded-xl text-[9px] font-black uppercase">SAIR</Button>
-      </header>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
-        {orders.length === 0 ? (
-          <div className="col-span-full text-center py-24 opacity-10">
-            <span className="text-[80px] block">🍔</span>
-            <p className="text-xl font-black italic mt-6">Sem pedidos novos...</p>
+    <div className="min-h-screen bg-zinc-50 pb-40">
+      <div className="p-6 max-w-7xl mx-auto no-print">
+        <header className="flex justify-between items-center mb-8 bg-white p-6 rounded-[2rem] shadow-xl border border-red-50">
+          <div>
+              <h2 className="text-2xl font-black text-red-800 italic leading-none">Cozinha</h2>
+              <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Monitoramento de Pedidos</p>
           </div>
-        ) : (
-          orders.map(o => (
-            <div key={o.id} className={`glass-card p-8 rounded-[2.5rem] border-l-[10px] shadow-2xl transition-all relative overflow-hidden bg-white ${o.status === 'novo' ? 'border-red-600 scale-[1.01]' : 'border-zinc-100 opacity-60'}`}>
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <p className="text-xl font-black text-red-950 leading-none italic">{o.nomeCliente}</p>
-                  <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mt-3 italic">{o.tipo} • {o.pagamento}</p>
-                </div>
-                {o.status === 'novo' && <span className="bg-red-600 text-white text-[8px] font-black px-4 py-1.5 rounded-full uppercase italic shadow-md animate-pulse">Novo</span>}
-              </div>
-              <div className="bg-zinc-50 rounded-[1.2rem] p-5 mb-6 text-[10px] font-bold whitespace-pre-wrap max-h-[160px] overflow-y-auto leading-relaxed text-zinc-700 border border-zinc-100">
-                {o.itens}
-              </div>
-              <div className="flex justify-between items-center mb-6">
-                 <p className="text-2xl font-black text-red-700 italic">R$ {Number(o.total || 0).toFixed(2)}</p>
-                 <button onClick={() => printOrder(o)} className="w-10 h-10 bg-zinc-900 text-white rounded-[0.8rem] flex items-center justify-center text-xl hover:scale-110 active:scale-90 transition-transform shadow-xl">🖨️</button>
-              </div>
-              {o.status === 'novo' ? (
-                <Button fullWidth onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 border-green-500 py-3 rounded-xl text-[9px] font-black uppercase shadow-lg hover:bg-green-700">Concluir Pedido</Button>
-              ) : (
-                <Button fullWidth variant="secondary" onClick={() => updateOrderStatus(o.id, 'novo')} className="py-3 rounded-xl text-[8px] font-black uppercase">Reabrir Pedido</Button>
-              )}
+          <Button variant="secondary" onClick={() => { setIsLoggedIn(false); setView('HOME'); }} className="px-5 py-2 rounded-xl text-[9px] font-black uppercase">SAIR</Button>
+        </header>
+        
+        <div className="space-y-3 animate-fade-in">
+          {orders.length === 0 ? (
+            <div className="col-span-full text-center py-24 opacity-10">
+              <span className="text-[80px] block">🍔</span>
+              <p className="text-xl font-black italic mt-6">Sem pedidos novos...</p>
             </div>
-          ))
-        )}
+          ) : (
+            orders.map(o => (
+              <div key={o.id} className={`bg-white p-5 rounded-[1.5rem] border-l-[6px] shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition-all hover:shadow-md ${o.status === 'novo' ? 'border-red-600' : 'border-zinc-200 opacity-60'}`}>
+                <div className="min-w-[200px]">
+                  <p className="text-sm font-black text-red-950 leading-none italic uppercase">
+                    {o.nomeCliente} <span className="text-zinc-400 not-italic ml-2">{o.telefone}</span>
+                  </p>
+                  <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mt-1 italic">{o.tipo} • {o.pagamento}</p>
+                </div>
+                
+                <div className="flex-1 bg-zinc-50 p-4 rounded-xl text-[10px] font-bold text-zinc-700 whitespace-pre-wrap border border-zinc-100 max-h-[100px] overflow-y-auto leading-relaxed">
+                  {o.itens}
+                </div>
+
+                <div className="flex items-center gap-4 flex-wrap sm:flex-nowrap">
+                   <p className="text-xl font-black text-red-700 italic min-w-[100px]">R$ {Number(o.total || 0).toFixed(2)}</p>
+                   
+                   <div className="flex gap-2 w-full sm:w-auto">
+                     <button onClick={() => printOrder(o)} className="w-10 h-10 bg-zinc-900 text-white rounded-[0.8rem] flex items-center justify-center text-lg hover:scale-105 active:scale-95 transition-all shadow-md">🖨️</button>
+                     
+                     {o.status === 'novo' ? (
+                       <Button onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 border-green-500 py-2 px-4 rounded-xl text-[9px] font-black uppercase shadow-md flex-1 sm:flex-none">Concluir</Button>
+                     ) : (
+                       <Button variant="secondary" onClick={() => updateOrderStatus(o.id, 'novo')} className="py-2 px-4 rounded-xl text-[8px] font-black uppercase flex-1 sm:flex-none">Reabrir</Button>
+                     )}
+                   </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
       <div className="printable-area hidden"><Receipt order={receiptOrder} /></div>
     </div>
@@ -624,7 +611,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-white">
       {view === 'HOME' && (
-        <div className="min-h-screen flex flex-col items-center justify-center p-6 animate-fade-in bg-zinc-50">
+        <div className="min-h-screen flex flex-col items-center justify-center p-6 animate-fade-in bg-zinc-50 no-print">
           <div className="glass-card p-10 md:p-16 rounded-[3rem] text-center shadow-2xl max-w-sm w-full border-red-50 bg-white relative overflow-hidden border-b-[6px] border-red-100">
             <div className="text-[64px] mb-6 animate-float leading-none drop-shadow-xl">🍔</div>
             <h1 className="text-4xl font-black text-red-800 mb-3 tracking-tighter italic leading-none">Cantinho da Sandra</h1>
@@ -632,13 +619,18 @@ export default function App() {
             <Button fullWidth onClick={() => setView('ORDER')} className="text-xl py-5 shadow-xl shadow-red-100 flex items-center justify-center gap-4 group rounded-[2rem] border-b-4 border-red-800 hover:translate-y-[-2px]">
               FAZER PEDIDO <span className="text-3xl group-hover:translate-x-3 transition-transform">➡</span>
             </Button>
-            <button onClick={() => setView('LOGIN')} className="mt-16 text-zinc-200 text-[9px] font-black uppercase tracking-[0.3em] hover:text-red-400 italic transition-all">Administração</button>
+            <button 
+              onClick={() => setView('LOGIN')} 
+              className="mt-16 text-zinc-200 text-[9px] font-black uppercase tracking-[0.3em] hover:text-red-400 italic transition-all hidden md:block w-full"
+            >
+              Administração
+            </button>
           </div>
         </div>
       )}
 
       {view === 'ORDER' && (
-        <div className="max-w-xl mx-auto min-h-screen flex flex-col bg-white border-x border-zinc-100 shadow-2xl">
+        <div className="max-w-xl mx-auto min-h-screen flex flex-col bg-white border-x border-zinc-100 shadow-2xl no-print">
             {step === 'MENU' && (
                 <>
                     <header className="p-5 bg-white/95 sticky top-0 z-50 border-b border-zinc-100 backdrop-blur-md">
@@ -647,7 +639,6 @@ export default function App() {
                             <h2 className="font-black text-red-900 uppercase tracking-[0.15em] text-[10px] italic">Cardápio</h2>
                             <div className="w-10"></div>
                         </div>
-                        {/* BARRA DE PESQUISA */}
                         <div className="relative group">
                           <input 
                             type="text" 
@@ -823,6 +814,13 @@ export default function App() {
         .animate-pulse-slow { animation: pulse-slow 3s infinite ease-in-out; }
         .animate-float { animation: float 6s infinite ease-in-out; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+        
+        @media print {
+            body { background: white !important; padding: 0 !important; margin: 0 !important; }
+            .no-print { display: none !important; }
+            .printable-area { display: block !important; visibility: visible !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
+            #root > div:not(.printable-area) { display: none !important; }
+        }
       `}</style>
     </div>
   );
