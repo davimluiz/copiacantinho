@@ -542,9 +542,12 @@ export default function App() {
                 const formData = new FormData(e.currentTarget);
                 const user = (formData.get('user') as string)?.toLowerCase();
                 const pass = formData.get('pass') as string;
-                if (user === 'sandra' && pass === 'Cantinho@1234') {
+                // Credenciais atualizadas
+                if ((user === 'sandra' && pass === 'Cantinho@2026') || (user === 'admin' && pass === 'admin@1234')) {
                     setIsLoggedIn(true); setView('ADMIN');
-                } else alert("Acesso não autorizado.");
+                } else {
+                    alert("Acesso não autorizado.");
+                }
             }} className="space-y-4">
                 <Input label="Usuário" name="user" required />
                 <Input label="Senha" name="pass" type="password" required />
