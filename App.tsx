@@ -4,14 +4,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   collection, 
-  addDoc, 
   onSnapshot, 
   query, 
   orderBy, 
   updateDoc, 
   doc, 
   serverTimestamp,
-  deleteDoc
+  deleteDoc,
+  addDoc
 } from 'firebase/firestore';
 
 import { db } from './firebase';
@@ -29,7 +29,36 @@ type OrderStep = 'MENU' | 'CART_REVIEW' | 'TYPE_SELECTION' | 'FORM' | 'SUMMARY';
 type AdminTab = 'novo' | 'preparando' | 'concluido' | 'cancelado';
 
 // --- COMPONENTE DE RECIBO PARA IMPRESSÃO ---
-const Receipt = ({ order }: { order: any | null }) => {
+const Receipt = ({ order, stats }: { order: any | null, stats?: any | null }) => {
+    if (stats) {
+        return (
+            <div className="w-full max-w-[80mm] mx-auto text-black font-mono text-[11px] p-4 bg-white border border-zinc-200 shadow-sm printable-content">
+                <div className="text-center mb-4 border-b border-dashed border-black pb-2">
+                    <h1 className="font-bold text-lg uppercase italic">RESUMO DE VENDAS</h1>
+                    <p className="text-[9px]">CANTINHO DA SANDRA</p>
+                    <p className="text-[8px]">{new Date().toLocaleString('pt-BR')}</p>
+                </div>
+                <div className="space-y-3">
+                    <div className="flex justify-between border-b border-dashed border-black pb-1">
+                        <span className="font-bold">TOTAL HOJE:</span>
+                        <span>R$ {stats.daily.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-dashed border-black pb-1">
+                        <span className="font-bold">ESTA SEMANA:</span>
+                        <span>R$ {stats.weekly.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-dashed border-black pb-1">
+                        <span className="font-bold">ESTE MES:</span>
+                        <span>R$ {stats.monthly.toFixed(2)}</span>
+                    </div>
+                </div>
+                <div className="text-center mt-6 text-[8px] italic uppercase">
+                    Relatório gerado pelo sistema
+                </div>
+            </div>
+        );
+    }
+
     if (!order) return null;
     const date = order.criadoEm?.toDate ? order.criadoEm.toDate().toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR');
     
@@ -338,6 +367,7 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [activeCategory, setActiveCategory] = useState(CATEGORIES[0].id);
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
+  const [receiptStats, setReceiptStats] = useState<any>(null);
   const [isSending, setIsSending] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showOutroAlert, setShowOutroAlert] = useState(false);
@@ -357,6 +387,34 @@ export default function App() {
   const total = itemsTotal + currentFee;
 
   const filteredOrders = useMemo(() => orders.filter(o => o.status === adminTab), [orders, adminTab]);
+
+  const salesStats = useMemo(() => {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    // Semanal: Últimos 7 dias
+    const weekStart = new Date(todayStart);
+    weekStart.setDate(todayStart.getDate() - 7);
+    
+    const completed = orders.filter(o => o.status === 'concluido');
+    
+    const daily = completed.filter(o => {
+        const d = o.criadoEm?.toDate();
+        return d && d >= todayStart;
+    }).reduce((acc, o) => acc + (o.total || 0), 0);
+    
+    const weekly = completed.filter(o => {
+        const d = o.criadoEm?.toDate();
+        return d && d >= weekStart;
+    }).reduce((acc, o) => acc + (o.total || 0), 0);
+    
+    const monthly = completed.filter(o => {
+        const d = o.criadoEm?.toDate();
+        return d && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }).reduce((acc, o) => acc + (o.total || 0), 0);
+    
+    return { daily, weekly, monthly };
+  }, [orders]);
 
   const handleFinishOrder = async () => {
     if (isSending) return;
@@ -456,7 +514,14 @@ export default function App() {
 
   const printOrder = (order: any) => {
     setReceiptOrder(order);
+    setReceiptStats(null);
     setTimeout(() => { window.print(); setReceiptOrder(null); }, 500);
+  };
+
+  const printSalesSummary = () => {
+    setReceiptStats(salesStats);
+    setReceiptOrder(null);
+    setTimeout(() => { window.print(); setReceiptStats(null); }, 500);
   };
 
   if (view === 'SUCCESS') return (
@@ -508,6 +573,32 @@ export default function App() {
           </div>
           <Button variant="secondary" onClick={() => { setIsLoggedIn(false); setView('HOME'); }} className="px-5 py-2 rounded-xl text-[9px] font-black uppercase">SAIR</Button>
         </header>
+
+        {adminTab === 'concluido' && (
+            <div className="mb-10 animate-fade-in no-print">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-black text-red-800 uppercase italic">Relatório de Vendas</h3>
+                    <button onClick={printSalesSummary} className="flex items-center gap-2 bg-zinc-900 text-white px-5 py-2 rounded-full text-[10px] font-black uppercase shadow-lg active:scale-95 transition-all">
+                        <span>🖨️ IMPRIMIR RESUMO</span>
+                    </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-green-500">
+                        <p className="text-[10px] font-black text-zinc-400 uppercase italic">Vendas Hoje</p>
+                        <p className="text-3xl font-black text-green-600 mt-1 italic">R$ {salesStats.daily.toFixed(2)}</p>
+                    </div>
+                    <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-blue-500">
+                        <p className="text-[10px] font-black text-zinc-400 uppercase italic">Últimos 7 Dias</p>
+                        <p className="text-3xl font-black text-blue-600 mt-1 italic">R$ {salesStats.weekly.toFixed(2)}</p>
+                    </div>
+                    <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-purple-500">
+                        <p className="text-[10px] font-black text-zinc-400 uppercase italic">Vendas do Mês</p>
+                        <p className="text-3xl font-black text-purple-600 mt-1 italic">R$ {salesStats.monthly.toFixed(2)}</p>
+                    </div>
+                </div>
+            </div>
+        )}
+
         <div className="space-y-3 animate-fade-in">
           {filteredOrders.length === 0 ? (
             <div className="text-center py-24 opacity-10"><p className="text-xl font-black italic uppercase">Vazio</p></div>
@@ -550,7 +641,7 @@ export default function App() {
           )}
         </div>
       </div>
-      <div className="printable-area hidden"><Receipt order={receiptOrder} /></div>
+      <div className="printable-area hidden"><Receipt order={receiptOrder} stats={receiptStats} /></div>
     </div>
   );
 
