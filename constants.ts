@@ -7,6 +7,7 @@ export const CATEGORIES: Category[] = [
   { id: 'franguinho', name: 'Franguinho', icon: '🍗' },
   { id: 'porcoes', name: 'Porções', icon: '🍟' },
   { id: 'bebidas', name: 'Bebidas', icon: '🥤' },
+  { id: 'balcao', name: 'Balcão', icon: '🍰' },
 ];
 
 export const DELIVERY_FEES = [
@@ -84,6 +85,14 @@ export const PRODUCTS: Product[] = [
   { id: 'b8', categoryId: 'bebidas', name: 'Refr. Coca Cola 600 ml', price: 8.00, needsZeroOption: true },
   { id: 'b9', categoryId: 'bebidas', name: 'Refr. Coca Cola 1,5L', price: 12.00, needsZeroOption: true },
   { id: 'b10', categoryId: 'bebidas', name: 'Refr. Coca Cola 2L', price: 15.00, needsZeroOption: true },
+
+  // BALCÃO
+  { id: 'bc1', categoryId: 'balcao', name: 'Feijão Tropeiro (P)', price: 20.00 },
+  { id: 'bc2', categoryId: 'balcao', name: 'Feijão Tropeiro (M)', price: 25.00 },
+  { id: 'bc3', categoryId: 'balcao', name: 'Feijão Tropeiro (G)', price: 30.00 },
+  { id: 'bc4', categoryId: 'balcao', name: 'Feijão Tropeiro (GG)', price: 35.00 },
+  { id: 'bc5', categoryId: 'balcao', name: 'Torta', price: 10.00 },
+  { id: 'bc6', categoryId: 'balcao', name: 'Bolo', price: 8.00 },
 ];
 
 export const PAYMENT_METHODS = [

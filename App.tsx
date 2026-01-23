@@ -459,9 +459,14 @@ export default function App() {
         return section;
       }).filter(Boolean).join('\n\n');
 
-      const fullAddress = customer.orderType === OrderType.DELIVERY 
-        ? `${customer.address}, ${customer.addressNumber} - ${customer.neighborhood}${customer.reference ? ` (${customer.reference})` : ''}` 
-        : "RETIRADA NA LANCHONETE";
+      let fullAddress = "";
+      if (customer.orderType === OrderType.DELIVERY) {
+          fullAddress = `${customer.address}, ${customer.addressNumber} - ${customer.neighborhood}${customer.reference ? ` (${customer.reference})` : ''}`;
+      } else if (customer.orderType === OrderType.COUNTER) {
+          fullAddress = "RETIRADA NA LANCHONETE";
+      } else {
+          fullAddress = "CONSUMO NO LOCAL (MESA)";
+      }
 
       await addDoc(collection(db, 'pedidos'), {
         nomeCliente: clientName.toUpperCase(), 
@@ -777,6 +782,10 @@ export default function App() {
                                 <span className="text-6xl block mb-4">🥡</span>
                                 <span className="font-black text-red-950 text-xl uppercase italic">Retirada na lanchonete</span>
                             </button>
+                            <button onClick={() => { setCustomer({...customer, orderType: OrderType.TABLE}); setStep('FORM'); }} className="bg-zinc-50 border p-8 rounded-[2.5rem] shadow-lg group active:scale-95 transition-all hover:border-red-600">
+                                <span className="text-6xl block mb-4">🍽️</span>
+                                <span className="font-black text-red-950 text-xl uppercase italic">Consumir na Mesa</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -787,7 +796,11 @@ export default function App() {
                     <h2 className="text-3xl font-black text-red-800 mb-8 tracking-tighter italic uppercase">Seus Dados</h2>
                     <form onSubmit={(e) => { e.preventDefault(); setStep('SUMMARY'); }} className="space-y-4">
                         <Input label="Nome" value={customer.name} onChange={e => setCustomer({...customer, name: e.target.value})} placeholder="Seu nome..." required />
-                        <Input label="WhatsApp" type="tel" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} placeholder="(00) 00000-0000" required />
+                        
+                        {customer.orderType !== OrderType.TABLE && (
+                            <Input label="WhatsApp" type="tel" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} placeholder="(00) 00000-0000" required />
+                        )}
+
                         {customer.orderType === OrderType.DELIVERY && (
                             <>
                                 <Select label="Bairro" value={customer.neighborhood} onChange={e => handleNeighborhoodChange(e.target.value)} options={[{ value: '', label: 'Selecione seu bairro' }, ...DELIVERY_FEES.map(f => ({ value: f.neighborhood, label: `${f.neighborhood} - R$ ${f.fee.toFixed(2)}` }))]} required />
@@ -799,6 +812,7 @@ export default function App() {
                                 <Input label="Referência" value={customer.reference} onChange={e => setCustomer({...customer, reference: e.target.value})} placeholder="Ex: Próximo ao mercado..." />
                             </>
                         )}
+                        
                         <Select label="Pagamento" options={PAYMENT_METHODS} value={customer.paymentMethod} onChange={e => setCustomer({...customer, paymentMethod: e.target.value as PaymentMethod})} />
                         <Button type="submit" fullWidth className="py-5 text-lg mt-10 rounded-[1.5rem] uppercase italic border-b-4 border-red-900 shadow-xl">Revisar Pedido</Button>
                     </form>
@@ -811,7 +825,9 @@ export default function App() {
                     <div className="bg-zinc-50 p-6 rounded-[2rem] mb-8 space-y-6 shadow-xl border border-white relative overflow-hidden">
                         <div className="border-b border-zinc-200 pb-5">
                             <p className="text-2xl font-black text-red-950 italic uppercase">{customer.name}</p>
-                            <p className="text-sm font-black text-green-600 uppercase italic mt-1">{customer.phone}</p>
+                            {customer.orderType !== OrderType.TABLE && (
+                                <p className="text-sm font-black text-green-600 uppercase italic mt-1">{customer.phone}</p>
+                            )}
                             <p className="text-[10px] text-zinc-400 font-bold uppercase mt-2">{customer.orderType}</p>
                             {customer.orderType === OrderType.DELIVERY && (
                                 <p className="text-[10px] text-zinc-500 font-medium italic mt-1 uppercase leading-tight">{customer.address}, {customer.addressNumber} - {customer.neighborhood} {customer.reference && `(${customer.reference})`}</p>
