@@ -32,11 +32,11 @@ type AdminTab = 'novo' | 'preparando' | 'concluido' | 'cancelado';
 const Receipt = ({ order, stats }: { order: any | null, stats?: any | null }) => {
     if (stats) {
         return (
-            <div className="w-full max-w-[80mm] mx-auto text-black font-mono text-[11px] p-4 bg-white border border-zinc-200 shadow-sm printable-content">
+            <div className="w-full max-w-[80mm] mx-auto text-black font-mono text-[14px] font-bold p-4 bg-white border border-zinc-200 shadow-sm printable-content">
                 <div className="text-center mb-4 border-b border-dashed border-black pb-2">
                     <h1 className="font-bold text-lg uppercase italic">RESUMO DE VENDAS</h1>
-                    <p className="text-[9px]">CANTINHO DA SANDRA</p>
-                    <p className="text-[8px]">{new Date().toLocaleString('pt-BR')}</p>
+                    <p className="text-[10px]">CANTINHO DA SANDRA</p>
+                    <p className="text-[10px]">{new Date().toLocaleString('pt-BR')}</p>
                 </div>
                 <div className="space-y-3">
                     <div className="flex justify-between border-b border-dashed border-black pb-1">
@@ -52,7 +52,7 @@ const Receipt = ({ order, stats }: { order: any | null, stats?: any | null }) =>
                         <span>R$ {stats.monthly.toFixed(2)}</span>
                     </div>
                 </div>
-                <div className="text-center mt-6 text-[8px] italic uppercase">
+                <div className="text-center mt-6 text-[10px] italic uppercase">
                     Relatório gerado pelo sistema
                 </div>
             </div>
@@ -63,10 +63,10 @@ const Receipt = ({ order, stats }: { order: any | null, stats?: any | null }) =>
     const date = order.criadoEm?.toDate ? order.criadoEm.toDate().toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR');
     
     return (
-        <div className="w-full max-w-[80mm] mx-auto text-black font-mono text-[11px] p-4 bg-white border border-zinc-200 shadow-sm printable-content">
+        <div className="w-full max-w-[80mm] mx-auto text-black font-mono text-[14px] font-bold p-4 bg-white border border-zinc-200 shadow-sm printable-content">
             <div className="text-center mb-4 border-b border-dashed border-black pb-2">
                 <h1 className="font-bold text-lg uppercase italic">Cantinho da Sandra</h1>
-                <p className="text-[9px]">ID: {(order.id || '').slice(-6).toUpperCase()}</p>
+                <p className="text-[10px]">ID: {(order.id || '').slice(-6).toUpperCase()}</p>
             </div>
             <div className="mb-2">
                 <p><strong>CLIENTE:</strong> {String(order.nomeCliente || '').toUpperCase()}</p>
@@ -75,15 +75,15 @@ const Receipt = ({ order, stats }: { order: any | null, stats?: any | null }) =>
                 <p><strong>FONE:</strong> {order.telefone || 'N/A'}</p>
                 {order.endereco && (
                     <div className="mt-1 border border-black p-1">
-                        <p className="leading-tight font-bold underline">ENDEREÇO DE ENTREGA / LOCAL:</p>
+                        <p className="leading-tight font-bold underline uppercase">ENDEREÇO / LOCAL:</p>
                         <p className="leading-tight uppercase break-words">{order.endereco}</p>
                     </div>
                 )}
             </div>
             <div className="border-b border-dashed border-black my-2"></div>
             <div className="mb-2">
-                <p className="font-bold mb-1 uppercase text-[10px] underline">DETALHES DO PEDIDO:</p>
-                <p className="whitespace-pre-wrap leading-tight text-[10px]">{order.itens || 'Nenhum item'}</p>
+                <p className="font-bold mb-1 uppercase text-[12px] underline">DETALHES DO PEDIDO:</p>
+                <p className="whitespace-pre-wrap leading-tight text-[12px]">{order.itens || 'Nenhum item'}</p>
             </div>
             {(order.frete || 0) > 0 && (
                 <div className="mb-2 border-t border-dashed border-black pt-1">
@@ -91,8 +91,8 @@ const Receipt = ({ order, stats }: { order: any | null, stats?: any | null }) =>
                 </div>
             )}
             <div className="border-t border-dashed border-black mt-2 pt-2 text-right">
-                <p className="text-sm font-bold">TOTAL: R$ {Number(order.total || 0).toFixed(2)}</p>
-                <p className="text-[9px] uppercase font-bold">{order.pagamento || 'N/A'}</p>
+                <p className="text-lg font-bold">TOTAL: R$ {Number(order.total || 0).toFixed(2)}</p>
+                <p className="text-[11px] uppercase font-bold">{order.pagamento || 'N/A'}</p>
             </div>
         </div>
     );
@@ -822,6 +822,7 @@ export default function App() {
             .no-print { display: none !important; }
             .printable-area { display: block !important; visibility: visible !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
             #root > div:not(.printable-area) { display: none !important; }
+            .printable-content { font-weight: bold !important; font-size: 14px !important; }
         }
       `}</style>
     </div>

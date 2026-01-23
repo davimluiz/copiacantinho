@@ -105,6 +105,7 @@ export const PRODUCTS: Product[] = [
   { id: 'bc4', categoryId: 'balcao', name: 'Feijão Tropeiro (GG)', price: 35.00 },
   { id: 'bc5', categoryId: 'balcao', name: 'Torta', price: 10.00 },
   { id: 'bc6', categoryId: 'balcao', name: 'Bolo', price: 8.00 },
+  { id: 'bc7', categoryId: 'balcao', name: 'Empadão', price: 12.00 },
 ];
 
 export const PAYMENT_METHODS = [
