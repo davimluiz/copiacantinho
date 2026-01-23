@@ -357,6 +357,7 @@ export default function App() {
   const [view, setView] = useState<AppView>('HOME');
   const [step, setStep] = useState<OrderStep>('MENU');
   const [adminTab, setAdminTab] = useState<AdminTab>('novo');
+  const [quickSaleCat, setQuickSaleCat] = useState<'balcao' | 'bebidas'>('balcao');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customer, setCustomer] = useState<CustomerInfo>({
     name: '', phone: '', address: '', neighborhood: '', addressNumber: '', reference: '', deliveryFee: 0, tableNumber: '',
@@ -391,28 +392,21 @@ export default function App() {
   const salesStats = useMemo(() => {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
-    // Semanal: Últimos 7 dias
     const weekStart = new Date(todayStart);
     weekStart.setDate(todayStart.getDate() - 7);
-    
     const completed = orders.filter(o => o.status === 'concluido');
-    
     const daily = completed.filter(o => {
         const d = o.criadoEm?.toDate ? o.criadoEm.toDate() : null;
         return d && d >= todayStart;
     }).reduce((acc, o) => acc + (o.total || 0), 0);
-    
     const weekly = completed.filter(o => {
         const d = o.criadoEm?.toDate ? o.criadoEm.toDate() : null;
         return d && d >= weekStart;
     }).reduce((acc, o) => acc + (o.total || 0), 0);
-    
     const monthly = completed.filter(o => {
         const d = o.criadoEm?.toDate ? o.criadoEm.toDate() : null;
         return d && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).reduce((acc, o) => acc + (o.total || 0), 0);
-    
     return { daily, weekly, monthly };
   }, [orders]);
 
@@ -421,28 +415,23 @@ export default function App() {
     const clientName = customer.name.trim();
     if (!clientName || cart.length === 0) { alert("Informe seu nome e escolha itens."); return; }
     setIsSending(true);
-
     try {
       const groupedItemsText = CATEGORIES.map(cat => {
         const itemsInCat = cart.filter(i => i.categoryId === cat.id);
         if (itemsInCat.length === 0) return null;
-        
         let section = `--- ${cat.name.toUpperCase()} ---\n`;
         section += itemsInCat.map(i => {
           let line = `${i.quantity}x ${i.name}`;
           if (i.flavor) line += ` (${i.flavor})`;
-          
           if (i.categoryId === 'acai') {
             const isComplete = i.additions?.includes("AÇAÍ COMPLETO");
             if (isComplete) line += `\n  - COMPLETO`;
-            
             const rawAdds = i.additions?.filter(a => a !== "AÇAÍ COMPLETO") || [];
             if (rawAdds.length > 0) {
               const comps = rawAdds.filter(a => ACAI_COMPLEMENTS.includes(a));
               const cobs = rawAdds.filter(a => ACAI_TOPPINGS.includes(a));
               const fruts = rawAdds.filter(a => ACAI_FRUITS.includes(a));
               const paids = rawAdds.filter(a => ACAI_PAID_EXTRAS.some(p => p.name === a));
-              
               if (comps.length) line += `\n  COMPLEMENTOS:\n    • ${comps.join('\n    • ')}`;
               if (cobs.length) line += `\n  COBERTURAS:\n    • ${cobs.join('\n    • ')}`;
               if (fruts.length) line += `\n  FRUTAS:\n    • ${fruts.join('\n    • ')}`;
@@ -455,10 +444,8 @@ export default function App() {
           if (i.observation) line += `\n  *Obs: ${i.observation}*`;
           return line;
         }).join('\n\n');
-        
         return section;
       }).filter(Boolean).join('\n\n');
-
       let fullAddress = "";
       if (customer.orderType === OrderType.DELIVERY) {
           fullAddress = `${customer.address}, ${customer.addressNumber} - ${customer.neighborhood}${customer.reference ? ` (${customer.reference})` : ''}`;
@@ -467,11 +454,9 @@ export default function App() {
       } else {
           fullAddress = "CONSUMO NO LOCAL (MESA)";
       }
-
       const pagamentoInfo = customer.paymentMethod === PaymentMethod.CASH && customer.needsChange 
         ? `${customer.paymentMethod} (TROCO PARA: R$ ${customer.changeAmount})` 
         : customer.paymentMethod;
-
       await addDoc(collection(db, 'pedidos'), {
         nomeCliente: clientName.toUpperCase(), 
         itens: groupedItemsText,
@@ -485,13 +470,8 @@ export default function App() {
         pagamento: pagamentoInfo,
         endereco: fullAddress.toUpperCase()
       });
-      
-      setCart([]); 
-      setView('SUCCESS'); 
-    } catch (err) { 
-      alert('Erro ao enviar: ' + err); 
-      setIsSending(false); 
-    }
+      setCart([]); setView('SUCCESS'); 
+    } catch (err) { alert('Erro ao enviar: ' + err); setIsSending(false); }
   };
 
   const handleQuickSale = async (product: Product) => {
@@ -509,9 +489,7 @@ export default function App() {
         pagamento: PaymentMethod.CASH,
         endereco: "VENDA LOCAL (BALCÃO)"
       });
-    } catch (err) {
-      alert("Erro ao realizar venda rápida: " + err);
-    }
+    } catch (err) { alert("Erro ao realizar venda rápida: " + err); }
   };
 
   const handleNeighborhoodChange = (val: string) => {
@@ -527,59 +505,26 @@ export default function App() {
 
   const deleteOrderPermanently = async (orderId: string) => {
     if (window.confirm("Deseja EXCLUIR DEFINITIVAMENTE este pedido do banco de dados?")) {
-        try {
-            await deleteDoc(doc(db, 'pedidos', orderId));
-        } catch (e) {
-            console.error("Erro ao deletar:", e);
-            alert("Não foi possível excluir o pedido.");
-        }
+        try { await deleteDoc(doc(db, 'pedidos', orderId)); } catch (e) { console.error("Erro ao deletar:", e); alert("Não foi possível excluir o pedido."); }
     }
   };
 
-  const removeFromCart = (cartId: string) => {
-      setCart(prev => prev.filter(i => i.cartId !== cartId));
-  };
-
-  const printOrder = (order: any) => {
-    setReceiptOrder(order);
-    setReceiptStats(null);
-    setTimeout(() => { window.print(); setReceiptOrder(null); }, 500);
-  };
-
-  const printSalesSummary = () => {
-    setReceiptStats(salesStats);
-    setReceiptOrder(null);
-    setTimeout(() => { window.print(); setReceiptStats(null); }, 500);
-  };
+  const removeFromCart = (cartId: string) => { setCart(prev => prev.filter(i => i.cartId !== cartId)); };
+  const printOrder = (order: any) => { setReceiptOrder(order); setReceiptStats(null); setTimeout(() => { window.print(); setReceiptOrder(null); }, 500); };
+  const printSalesSummary = () => { setReceiptStats(salesStats); setReceiptOrder(null); setTimeout(() => { window.print(); setReceiptStats(null); }, 500); };
 
   if (view === 'SUCCESS') return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-zinc-50 fixed inset-0 z-[500] no-print animate-fade-in">
       <div className="glass-card p-10 rounded-[3rem] max-w-sm shadow-2xl border-green-100 border-2 bg-white flex flex-col items-center">
         <div className="text-7xl mb-6 drop-shadow-lg">🎉</div>
         <h2 className="text-2xl font-black text-red-800 mb-4 italic uppercase leading-tight">Pedido realizado com sucesso!</h2>
-        <p className="text-sm font-bold text-zinc-600 mb-2 leading-relaxed">
-          Em instantes, um de nossos atendentes irá confirmar seu pedido pelo WhatsApp.
-        </p>
-        <p className="text-xs font-bold text-zinc-400 mb-8 uppercase tracking-wide">
-          Se preferir agilizar, é só clicar no botão Confirmar pelo WhatsApp 👇
-        </p>
-        
+        <p className="text-sm font-bold text-zinc-600 mb-2 leading-relaxed">Em instantes, um de nossos atendentes irá confirmar seu pedido pelo WhatsApp.</p>
+        <p className="text-xs font-bold text-zinc-400 mb-8 uppercase tracking-wide">Se preferir agilizar, é só clicar no botão Confirmar pelo WhatsApp 👇</p>
         <div className="flex flex-col gap-3 w-full">
-            <a 
-                href="https://wa.me/5527992269550?text=Ol%C3%A1%20Sandra%0AAcabei%20de%20realizar%20um%20pedido%20pelo%20site%20e%20gostaria%20de%20confirmar."
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-black py-4 px-6 rounded-2xl transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 uppercase italic text-sm border-b-4 border-[#075E54]"
-            >
+            <a href="https://wa.me/5527992269550?text=Ol%C3%A1%20Sandra%0AAcabei%20de%20realizar%20um%20pedido%20pelo%20site%20e%20gostaria%20de%20confirmar." target="_blank" rel="noopener noreferrer" className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-black py-4 px-6 rounded-2xl transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 uppercase italic text-sm border-b-4 border-[#075E54]">
                 <span className="text-xl">💬</span> Confirmar pelo WhatsApp
             </a>
-            
-            <button 
-                onClick={() => setView('HOME')}
-                className="w-full bg-zinc-100 hover:bg-zinc-200 text-zinc-500 font-black py-4 px-6 rounded-2xl transition-all active:scale-95 uppercase italic text-xs tracking-widest"
-            >
-                Aguardar confirmação
-            </button>
+            <button onClick={() => setView('HOME')} className="w-full bg-zinc-100 hover:bg-zinc-200 text-zinc-500 font-black py-4 px-6 rounded-2xl transition-all active:scale-95 uppercase italic text-xs tracking-widest">Aguardar confirmação</button>
         </div>
       </div>
     </div>
@@ -625,18 +570,20 @@ export default function App() {
           <Button variant="secondary" onClick={() => { setIsLoggedIn(false); setView('HOME'); }} className="px-5 py-2 rounded-xl text-[9px] font-black uppercase">SAIR</Button>
         </header>
 
-        {/* VENDA RÁPIDA BALCÃO */}
+        {/* VENDA RÁPIDA (BALCÃO + BEBIDAS) */}
         <div className="mb-10 bg-white p-6 rounded-[2rem] shadow-xl border border-red-50 animate-fade-in no-print">
-            <h3 className="text-[10px] font-black text-red-800 uppercase italic tracking-widest mb-4 flex items-center gap-2">
-                <span className="text-lg">⚡</span> VENDA RÁPIDA (BALCÃO)
-            </h3>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <h3 className="text-[10px] font-black text-red-800 uppercase italic tracking-widest flex items-center gap-2">
+                    <span className="text-lg">⚡</span> VENDA RÁPIDA (INTERNA)
+                </h3>
+                <div className="flex bg-zinc-100 p-1 rounded-xl w-full md:w-auto">
+                    <button onClick={() => setQuickSaleCat('balcao')} className={`flex-1 md:px-6 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${quickSaleCat === 'balcao' ? 'bg-red-700 text-white shadow-md' : 'text-zinc-400'}`}>COMIDAS</button>
+                    <button onClick={() => setQuickSaleCat('bebidas')} className={`flex-1 md:px-6 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${quickSaleCat === 'bebidas' ? 'bg-red-700 text-white shadow-md' : 'text-zinc-400'}`}>BEBIDAS</button>
+                </div>
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                {PRODUCTS.filter(p => p.categoryId === 'balcao').map(prod => (
-                    <button 
-                        key={prod.id} 
-                        onClick={() => handleQuickSale(prod)}
-                        className="bg-zinc-50 hover:bg-green-50 hover:border-green-200 border border-zinc-100 p-4 rounded-2xl transition-all active:scale-95 group shadow-sm flex flex-col items-center justify-center text-center gap-1"
-                    >
+                {PRODUCTS.filter(p => p.categoryId === quickSaleCat).map(prod => (
+                    <button key={prod.id} onClick={() => handleQuickSale(prod)} className="bg-zinc-50 hover:bg-green-50 hover:border-green-200 border border-zinc-100 p-4 rounded-2xl transition-all active:scale-95 group shadow-sm flex flex-col items-center justify-center text-center gap-1 min-h-[80px]">
                         <span className="text-[9px] font-black text-red-900 uppercase italic leading-tight group-hover:text-green-700">{prod.name}</span>
                         <span className="text-xs font-black text-green-600">R$ {prod.price.toFixed(2)}</span>
                     </button>
@@ -648,9 +595,7 @@ export default function App() {
             <div className="mb-10 animate-fade-in no-print">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-black text-red-800 uppercase italic">Relatório de Vendas</h3>
-                    <button onClick={printSalesSummary} className="flex items-center gap-2 bg-zinc-900 text-white px-5 py-2 rounded-full text-[10px] font-black uppercase shadow-lg active:scale-95 transition-all">
-                        <span>🖨️ IMPRIMIR RESUMO</span>
-                    </button>
+                    <button onClick={printSalesSummary} className="flex items-center gap-2 bg-zinc-900 text-white px-5 py-2 rounded-full text-[10px] font-black uppercase shadow-lg active:scale-95 transition-all"><span>🖨️ IMPRIMIR RESUMO</span></button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-green-500">
@@ -686,24 +631,15 @@ export default function App() {
                    <p className="text-xl font-black text-red-700 italic min-w-[100px]">R$ {Number(o.total || 0).toFixed(2)}</p>
                    <div className="flex gap-2">
                      <button onClick={() => printOrder(o)} className="w-10 h-10 bg-zinc-900 text-white rounded-[0.8rem] flex items-center justify-center text-lg shadow-md hover:scale-105 active:scale-95 transition-all">🖨️</button>
-                     
-                     {o.status !== 'cancelado' && (
-                        <button onClick={() => updateOrderStatus(o.id, 'cancelado')} className="w-10 h-10 bg-red-100 text-red-700 rounded-[0.8rem] flex items-center justify-center text-lg shadow-md hover:scale-105 active:scale-95 transition-all" title="Mover para Lixeira">🗑️</button>
-                     )}
-
+                     {o.status !== 'cancelado' && <button onClick={() => updateOrderStatus(o.id, 'cancelado')} className="w-10 h-10 bg-red-100 text-red-700 rounded-[0.8rem] flex items-center justify-center text-lg shadow-md hover:scale-105 active:scale-95 transition-all" title="Mover para Lixeira">🗑️</button>}
                      {o.status === 'novo' && (
                        <>
                          <button onClick={() => updateOrderStatus(o.id, 'preparando')} className="bg-orange-500 text-white px-4 h-10 rounded-xl text-[9px] font-black uppercase shadow-md transition-all">Em Preparação</button>
                          <button onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 text-white px-4 h-10 rounded-xl text-[9px] font-black uppercase shadow-md transition-all">Concluído</button>
                        </>
                      )}
-                     {o.status === 'preparando' && (
-                        <button onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 text-white px-4 h-10 rounded-xl text-[9px] font-black uppercase shadow-md transition-all">Concluído</button>
-                     )}
-                     
-                     {o.status === 'cancelado' && (
-                        <button onClick={() => deleteOrderPermanently(o.id)} className="bg-red-700 text-white px-4 h-10 rounded-xl text-[9px] font-black uppercase shadow-md transition-all">Apagar da Lixeira</button>
-                     )}
+                     {o.status === 'preparando' && <button onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 text-white px-4 h-10 rounded-xl text-[9px] font-black uppercase shadow-md transition-all">Concluído</button>}
+                     {o.status === 'cancelado' && <button onClick={() => deleteOrderPermanently(o.id)} className="bg-red-700 text-white px-4 h-10 rounded-xl text-[9px] font-black uppercase shadow-md transition-all">Apagar da Lixeira</button>}
                    </div>
                 </div>
               </div>
@@ -757,29 +693,14 @@ export default function App() {
                             </div>
                         ))}
                     </div>
-                    {cart.length > 0 && (
-                        <div className="fixed bottom-8 left-6 right-6 z-50 animate-slide-up max-w-lg mx-auto">
-                            <Button fullWidth onClick={() => setStep('CART_REVIEW')} className="py-5 text-lg flex justify-between items-center px-8 shadow-2xl rounded-[2rem] border-b-4 border-red-900">
-                                <span className="font-black italic uppercase">Sacola ({cart.length})</span>
-                                <span className="bg-white/20 px-5 py-1.5 rounded-xl text-base font-black">R$ {itemsTotal.toFixed(2)}</span>
-                            </Button>
-                        </div>
-                    )}
+                    {cart.length > 0 && <div className="fixed bottom-8 left-6 right-6 z-50 animate-slide-up max-w-lg mx-auto"><Button fullWidth onClick={() => setStep('CART_REVIEW')} className="py-5 text-lg flex justify-between items-center px-8 shadow-2xl rounded-[2rem] border-b-4 border-red-900"><span className="font-black italic uppercase">Sacola ({cart.length})</span><span className="bg-white/20 px-5 py-1.5 rounded-xl text-base font-black">R$ {itemsTotal.toFixed(2)}</span></Button></div>}
                 </>
             )}
-
             {step === 'CART_REVIEW' && (
                 <div className="p-8 pb-44 flex flex-col min-h-screen bg-white">
                     <button onClick={() => setStep('MENU')} className="self-start mb-6 text-red-800 font-black text-[10px] uppercase bg-red-50 px-6 py-2 rounded-full border border-red-100 shadow-sm active:scale-95 transition-all">← Voltar</button>
                     <h2 className="text-3xl font-black text-red-800 mb-8 tracking-tighter italic uppercase">Revisar Sacola</h2>
-                    
-                    {cart.length === 0 ? (
-                        <div className="flex-1 flex flex-col items-center justify-center text-zinc-300">
-                             <span className="text-6xl mb-4">🛒</span>
-                             <p className="font-black uppercase italic">Sua sacola está vazia</p>
-                             <Button onClick={() => setStep('MENU')} variant="secondary" className="mt-4">Voltar ao Cardápio</Button>
-                        </div>
-                    ) : (
+                    {cart.length === 0 ? <div className="flex-1 flex flex-col items-center justify-center text-zinc-300"><span className="text-6xl mb-4">🛒</span><p className="font-black uppercase italic">Sua sacola está vazia</p><Button onClick={() => setStep('MENU')} variant="secondary" className="mt-4">Voltar ao Cardápio</Button></div> : (
                         <div className="space-y-4">
                             {cart.map(item => (
                                 <div key={item.cartId} className="bg-zinc-50 p-4 rounded-2xl border border-zinc-100 flex justify-between items-center animate-fade-in shadow-sm">
@@ -791,44 +712,23 @@ export default function App() {
                                             {item.additions?.map(i => <span key={i} className="block text-green-600">✓ COM {i}</span>)}
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        <p className="font-black text-red-800 text-sm italic">R$ {(item.price * item.quantity).toFixed(2)}</p>
-                                        <button onClick={() => removeFromCart(item.cartId)} className="w-8 h-8 bg-red-100 text-red-600 rounded-lg flex items-center justify-center text-lg active:scale-90 transition-all">🗑️</button>
-                                    </div>
+                                    <div className="flex items-center gap-3"><p className="font-black text-red-800 text-sm italic">R$ {(item.price * item.quantity).toFixed(2)}</p><button onClick={() => removeFromCart(item.cartId)} className="w-8 h-8 bg-red-100 text-red-600 rounded-lg flex items-center justify-center text-lg active:scale-90 transition-all">🗑️</button></div>
                                 </div>
                             ))}
-                            <div className="pt-6">
-                                <div className="flex justify-between items-center mb-6">
-                                    <span className="text-xl font-black text-zinc-300 italic uppercase">Subtotal</span>
-                                    <span className="text-3xl font-black text-red-700 italic">R$ {itemsTotal.toFixed(2)}</span>
-                                </div>
-                                <Button fullWidth onClick={() => setStep('TYPE_SELECTION')} className="py-5 text-xl rounded-[2rem] shadow-xl border-b-4 border-red-950 flex items-center justify-center gap-2">
-                                    REVISADO! ✅
-                                </Button>
-                            </div>
+                            <div className="pt-6"><div className="flex justify-between items-center mb-6"><span className="text-xl font-black text-zinc-300 italic uppercase">Subtotal</span><span className="text-3xl font-black text-red-700 italic">R$ {itemsTotal.toFixed(2)}</span></div><Button fullWidth onClick={() => setStep('TYPE_SELECTION')} className="py-5 text-xl rounded-[2rem] shadow-xl border-b-4 border-red-950 flex items-center justify-center gap-2">REVISADO! ✅</Button></div>
                         </div>
                     )}
                 </div>
             )}
-
             {step === 'TYPE_SELECTION' && (
                 <div className="p-8 flex flex-col min-h-screen bg-white">
                     <button onClick={() => setStep('CART_REVIEW')} className="self-start mb-10 text-red-800 font-black text-[10px] uppercase bg-red-50 px-6 py-2 rounded-full border border-red-100 shadow-sm active:scale-95 transition-all">← Voltar</button>
                     <div className="flex-1 flex flex-col items-center justify-center space-y-10">
                         <h2 className="text-4xl font-black text-red-900 tracking-tighter italic text-center uppercase leading-none">Como deseja receber?</h2>
                         <div className="grid grid-cols-1 w-full gap-5 max-w-sm">
-                            <button onClick={() => { setCustomer({...customer, orderType: OrderType.DELIVERY}); setStep('FORM'); }} className="bg-zinc-50 border p-8 rounded-[2.5rem] shadow-lg group active:scale-95 transition-all hover:border-red-600">
-                                <span className="text-6xl block mb-4">🛵</span>
-                                <span className="font-black text-red-950 text-xl uppercase italic">Entrega</span>
-                            </button>
-                            <button onClick={() => { setCustomer({...customer, orderType: OrderType.COUNTER}); setStep('FORM'); }} className="bg-zinc-50 border p-8 rounded-[2.5rem] shadow-lg group active:scale-95 transition-all hover:border-red-600">
-                                <span className="text-6xl block mb-4">🥡</span>
-                                <span className="font-black text-red-950 text-xl uppercase italic">Retirada na lanchonete</span>
-                            </button>
-                            <button onClick={() => { setCustomer({...customer, orderType: OrderType.TABLE}); setStep('FORM'); }} className="bg-zinc-50 border p-8 rounded-[2.5rem] shadow-lg group active:scale-95 transition-all hover:border-red-600">
-                                <span className="text-6xl block mb-4">🍽️</span>
-                                <span className="font-black text-red-950 text-xl uppercase italic">Consumir na Mesa</span>
-                            </button>
+                            <button onClick={() => { setCustomer({...customer, orderType: OrderType.DELIVERY}); setStep('FORM'); }} className="bg-zinc-50 border p-8 rounded-[2.5rem] shadow-lg group active:scale-95 transition-all hover:border-red-600"><span className="text-6xl block mb-4">🛵</span><span className="font-black text-red-950 text-xl uppercase italic">Entrega</span></button>
+                            <button onClick={() => { setCustomer({...customer, orderType: OrderType.COUNTER}); setStep('FORM'); }} className="bg-zinc-50 border p-8 rounded-[2.5rem] shadow-lg group active:scale-95 transition-all hover:border-red-600"><span className="text-6xl block mb-4">🥡</span><span className="font-black text-red-950 text-xl uppercase italic">Retirada na lanchonete</span></button>
+                            <button onClick={() => { setCustomer({...customer, orderType: OrderType.TABLE}); setStep('FORM'); }} className="bg-zinc-50 border p-8 rounded-[2.5rem] shadow-lg group active:scale-95 transition-all hover:border-red-600"><span className="text-6xl block mb-4">🍽️</span><span className="font-black text-red-950 text-xl uppercase italic">Consumir na Mesa</span></button>
                         </div>
                     </div>
                 </div>
@@ -839,58 +739,27 @@ export default function App() {
                     <h2 className="text-3xl font-black text-red-800 mb-8 tracking-tighter italic uppercase">Seus Dados</h2>
                     <form onSubmit={(e) => { e.preventDefault(); setStep('SUMMARY'); }} className="space-y-4">
                         <Input label="Nome" value={customer.name} onChange={e => setCustomer({...customer, name: e.target.value})} placeholder="Seu nome..." required />
-                        
-                        {customer.orderType !== OrderType.TABLE && (
-                            <Input label="WhatsApp" type="tel" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} placeholder="(00) 00000-0000" required />
-                        )}
-
+                        {customer.orderType !== OrderType.TABLE && <Input label="WhatsApp" type="tel" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} placeholder="(00) 00000-0000" required />}
                         {customer.orderType === OrderType.DELIVERY && (
                             <>
                                 <Select label="Bairro" value={customer.neighborhood} onChange={e => handleNeighborhoodChange(e.target.value)} options={[{ value: '', label: 'Selecione seu bairro' }, ...DELIVERY_FEES.map(f => ({ value: f.neighborhood, label: `${f.neighborhood} - R$ ${f.fee.toFixed(2)}` }))]} required />
-                                {showOutroAlert && (
-                                  <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-[10px] font-bold text-red-800 italic uppercase animate-fade-in shadow-inner">⚠️ ATENÇÃO: Os preços da entrega poderão ser alterados dependendo do bairro e uma atendente irá informar via WhatsApp.</div>
-                                )}
+                                {showOutroAlert && <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-[10px] font-bold text-red-800 italic uppercase animate-fade-in shadow-inner">⚠️ ATENÇÃO: Os preços da entrega poderão ser alterados dependendo do bairro e uma atendente irá informar via WhatsApp.</div>}
                                 <Input label="Rua" value={customer.address} onChange={e => setCustomer({...customer, address: e.target.value})} placeholder="Ex: Rua das Flores..." required />
                                 <Input label="Número" value={customer.addressNumber} onChange={e => setCustomer({...customer, addressNumber: e.target.value})} placeholder="Ex: 123..." required />
                                 <Input label="Referência" value={customer.reference} onChange={e => setCustomer({...customer, reference: e.target.value})} placeholder="Ex: Próximo ao mercado..." />
                             </>
                         )}
-                        
                         <Select label="Pagamento" options={PAYMENT_METHODS} value={customer.paymentMethod} onChange={e => setCustomer({...customer, paymentMethod: e.target.value as PaymentMethod})} />
-                        
                         {customer.paymentMethod === PaymentMethod.CASH && (
                             <div className="bg-zinc-50 border border-zinc-100 p-5 rounded-2xl animate-fade-in space-y-4 shadow-sm">
                                 <label className="block text-red-700 text-sm font-black mb-2 uppercase italic tracking-wider">Precisa de troco?</label>
                                 <div className="flex gap-4">
-                                    <button 
-                                        type="button"
-                                        onClick={() => setCustomer({...customer, needsChange: true})} 
-                                        className={`flex-1 py-3 rounded-xl font-black text-xs uppercase border-2 transition-all ${customer.needsChange ? 'bg-red-700 border-red-700 text-white shadow-md' : 'bg-white border-zinc-200 text-zinc-400'}`}
-                                    >
-                                        Sim
-                                    </button>
-                                    <button 
-                                        type="button"
-                                        onClick={() => setCustomer({...customer, needsChange: false, changeAmount: ''})} 
-                                        className={`flex-1 py-3 rounded-xl font-black text-xs uppercase border-2 transition-all ${!customer.needsChange ? 'bg-zinc-800 border-zinc-800 text-white shadow-md' : 'bg-white border-zinc-200 text-zinc-400'}`}
-                                    >
-                                        Não
-                                    </button>
+                                    <button type="button" onClick={() => setCustomer({...customer, needsChange: true})} className={`flex-1 py-3 rounded-xl font-black text-xs uppercase border-2 transition-all ${customer.needsChange ? 'bg-red-700 border-red-700 text-white shadow-md' : 'bg-white border-zinc-200 text-zinc-400'}`}>Sim</button>
+                                    <button type="button" onClick={() => setCustomer({...customer, needsChange: false, changeAmount: ''})} className={`flex-1 py-3 rounded-xl font-black text-xs uppercase border-2 transition-all ${!customer.needsChange ? 'bg-zinc-800 border-zinc-800 text-white shadow-md' : 'bg-white border-zinc-200 text-zinc-400'}`}>Não</button>
                                 </div>
-                                {customer.needsChange && (
-                                    <div className="pt-2 animate-fade-in">
-                                        <Input 
-                                            label="Troco para quanto?" 
-                                            value={customer.changeAmount} 
-                                            onChange={e => setCustomer({...customer, changeAmount: e.target.value})} 
-                                            placeholder="Ex: R$ 50,00" 
-                                            required 
-                                        />
-                                    </div>
-                                )}
+                                {customer.needsChange && <div className="pt-2 animate-fade-in"><Input label="Troco para quanto?" value={customer.changeAmount} onChange={e => setCustomer({...customer, changeAmount: e.target.value})} placeholder="Ex: R$ 50,00" required /></div>}
                             </div>
                         )}
-                        
                         <Button type="submit" fullWidth className="py-5 text-lg mt-10 rounded-[1.5rem] uppercase italic border-b-4 border-red-900 shadow-xl">Revisar Pedido</Button>
                     </form>
                 </div>
@@ -902,13 +771,9 @@ export default function App() {
                     <div className="bg-zinc-50 p-6 rounded-[2rem] mb-8 space-y-6 shadow-xl border border-white relative overflow-hidden">
                         <div className="border-b border-zinc-200 pb-5">
                             <p className="text-2xl font-black text-red-950 italic uppercase">{customer.name}</p>
-                            {customer.orderType !== OrderType.TABLE && (
-                                <p className="text-sm font-black text-green-600 uppercase italic mt-1">{customer.phone}</p>
-                            )}
+                            {customer.orderType !== OrderType.TABLE && <p className="text-sm font-black text-green-600 uppercase italic mt-1">{customer.phone}</p>}
                             <p className="text-[10px] text-zinc-400 font-bold uppercase mt-2">{customer.orderType}</p>
-                            {customer.orderType === OrderType.DELIVERY && (
-                                <p className="text-[10px] text-zinc-500 font-medium italic mt-1 uppercase leading-tight">{customer.address}, {customer.addressNumber} - {customer.neighborhood} {customer.reference && `(${customer.reference})`}</p>
-                            )}
+                            {customer.orderType === OrderType.DELIVERY && <p className="text-[10px] text-zinc-500 font-medium italic mt-1 uppercase leading-tight">{customer.address}, {customer.addressNumber} - {customer.neighborhood} {customer.reference && `(${customer.reference})`}</p>}
                         </div>
                         <div className="space-y-4">
                             {cart.map(item => (
@@ -927,28 +792,12 @@ export default function App() {
                             ))}
                         </div>
                         <div className="border-t border-zinc-200 pt-5 space-y-2">
-                            <div className="flex justify-between items-center">
-                                <span className="text-xs font-black text-zinc-400 italic uppercase">Subtotal</span>
-                                <span className="text-xs font-black text-zinc-500">R$ {itemsTotal.toFixed(2)}</span>
-                            </div>
-                            {customer.orderType === OrderType.DELIVERY && (
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs font-black text-red-400 italic uppercase">Entrega ({customer.neighborhood})</span>
-                                    <span className="text-xs font-black text-red-600">R$ {currentFee.toFixed(2)}</span>
-                                </div>
-                            )}
-                            <div className="flex justify-between items-center pt-2">
-                                <span className="text-lg font-black text-zinc-300 italic uppercase">Total</span>
-                                <span className="text-3xl font-black text-red-700 italic">R$ {total.toFixed(2)}</span>
-                            </div>
+                            <div className="flex justify-between items-center"><span className="text-xs font-black text-zinc-400 italic uppercase">Subtotal</span><span className="text-xs font-black text-zinc-500">R$ {itemsTotal.toFixed(2)}</span></div>
+                            {customer.orderType === OrderType.DELIVERY && <div className="flex justify-between items-center"><span className="text-xs font-black text-red-400 italic uppercase">Entrega ({customer.neighborhood})</span><span className="text-xs font-black text-red-600">R$ {currentFee.toFixed(2)}</span></div>}
+                            <div className="flex justify-between items-center pt-2"><span className="text-lg font-black text-zinc-300 italic uppercase">Total</span><span className="text-3xl font-black text-red-700 italic">R$ {total.toFixed(2)}</span></div>
                             <div className="mt-4 pt-4 border-t border-dashed border-zinc-200">
                                 <p className="text-[10px] font-black text-zinc-400 uppercase italic">Forma de Pagamento</p>
-                                <p className="text-sm font-black text-red-800 uppercase italic">
-                                    {customer.paymentMethod}
-                                    {customer.paymentMethod === PaymentMethod.CASH && customer.needsChange && (
-                                        <span className="block text-xs text-red-600 font-bold mt-1">✓ TROCO PARA: R$ {customer.changeAmount}</span>
-                                    )}
-                                </p>
+                                <p className="text-sm font-black text-red-800 uppercase italic">{customer.paymentMethod}{customer.paymentMethod === PaymentMethod.CASH && customer.needsChange && <span className="block text-xs text-red-600 font-bold mt-1">✓ TROCO PARA: R$ {customer.changeAmount}</span>}</p>
                             </div>
                         </div>
                     </div>

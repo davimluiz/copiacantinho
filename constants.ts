@@ -75,6 +75,18 @@ export const PRODUCTS: Product[] = [
   { id: 'p11', categoryId: 'porcoes', name: 'Coxinha c/ Requeijão', price: 25.00, unit: '20un' },
 
   // BEBIDAS
+  { id: 'b_mini', categoryId: 'bebidas', name: 'Refri Mini', price: 3.00 },
+  { id: 'b_gmini', categoryId: 'bebidas', name: 'Guaravita/Suco Mini', price: 2.50 },
+  { id: 'b_amstel', categoryId: 'bebidas', name: 'Amstel', price: 7.00 },
+  { id: 'b_brahma', categoryId: 'bebidas', name: 'Brahma', price: 7.00 },
+  { id: 'b_petra', categoryId: 'bebidas', name: 'Petra', price: 7.00 },
+  { id: 'b_itai', categoryId: 'bebidas', name: 'Itaipava', price: 5.00 },
+  { id: 'b_itai_mega', categoryId: 'bebidas', name: 'Itaipava Mega', price: 7.00 },
+  { id: 'b_spaten', categoryId: 'bebidas', name: 'Spaten', price: 6.00 },
+  { id: 'b_h330', categoryId: 'bebidas', name: 'Heineken 330 ML', price: 9.90 },
+  { id: 'b_h600', categoryId: 'bebidas', name: 'Heineken 600ML', price: 13.90 },
+  { id: 'b_h2o_500', categoryId: 'bebidas', name: 'H2O 500 ML', price: 8.00 },
+  { id: 'b_h2o_15', categoryId: 'bebidas', name: 'H2O 1,5L', price: 12.00 },
   { id: 'b1', categoryId: 'bebidas', name: 'Suco 500ml', price: 9.00, needsFlavor: true },
   { id: 'b2', categoryId: 'bebidas', name: 'Vitamina 500ml', price: 12.00, needsFlavor: true },
   { id: 'b3', categoryId: 'bebidas', name: 'Suco 1L', price: 17.00, needsFlavor: true },
