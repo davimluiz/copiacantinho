@@ -75,7 +75,7 @@ const Receipt = ({ order, stats }: { order: any | null, stats?: any | null }) =>
                 <p><strong>FONE:</strong> {order.telefone || 'N/A'}</p>
                 {order.endereco && (
                     <div className="mt-1 border border-black p-1">
-                        <p className="leading-tight font-bold underline">ENDEREÇO DE ENTREGA:</p>
+                        <p className="leading-tight font-bold underline">ENDEREÇO DE ENTREGA / LOCAL:</p>
                         <p className="leading-tight uppercase break-words">{order.endereco}</p>
                     </div>
                 )}
@@ -360,7 +360,7 @@ export default function App() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customer, setCustomer] = useState<CustomerInfo>({
     name: '', phone: '', address: '', neighborhood: '', addressNumber: '', reference: '', deliveryFee: 0, tableNumber: '',
-    orderType: OrderType.DELIVERY, paymentMethod: PaymentMethod.PIX
+    orderType: OrderType.DELIVERY, paymentMethod: PaymentMethod.PIX, needsChange: false, changeAmount: ''
   });
   const [orders, setOrders] = useState<any[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -399,17 +399,17 @@ export default function App() {
     const completed = orders.filter(o => o.status === 'concluido');
     
     const daily = completed.filter(o => {
-        const d = o.criadoEm?.toDate();
+        const d = o.criadoEm?.toDate ? o.criadoEm.toDate() : null;
         return d && d >= todayStart;
     }).reduce((acc, o) => acc + (o.total || 0), 0);
     
     const weekly = completed.filter(o => {
-        const d = o.criadoEm?.toDate();
+        const d = o.criadoEm?.toDate ? o.criadoEm.toDate() : null;
         return d && d >= weekStart;
     }).reduce((acc, o) => acc + (o.total || 0), 0);
     
     const monthly = completed.filter(o => {
-        const d = o.criadoEm?.toDate();
+        const d = o.criadoEm?.toDate ? o.criadoEm.toDate() : null;
         return d && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).reduce((acc, o) => acc + (o.total || 0), 0);
     
@@ -468,6 +468,10 @@ export default function App() {
           fullAddress = "CONSUMO NO LOCAL (MESA)";
       }
 
+      const pagamentoInfo = customer.paymentMethod === PaymentMethod.CASH && customer.needsChange 
+        ? `${customer.paymentMethod} (TROCO PARA: R$ ${customer.changeAmount})` 
+        : customer.paymentMethod;
+
       await addDoc(collection(db, 'pedidos'), {
         nomeCliente: clientName.toUpperCase(), 
         itens: groupedItemsText,
@@ -478,7 +482,7 @@ export default function App() {
         criadoEm: serverTimestamp(), 
         telefone: customer.phone || "N/A",
         tipo: customer.orderType, 
-        pagamento: customer.paymentMethod,
+        pagamento: pagamentoInfo,
         endereco: fullAddress.toUpperCase()
       });
       
@@ -487,6 +491,26 @@ export default function App() {
     } catch (err) { 
       alert('Erro ao enviar: ' + err); 
       setIsSending(false); 
+    }
+  };
+
+  const handleQuickSale = async (product: Product) => {
+    try {
+      await addDoc(collection(db, 'pedidos'), {
+        nomeCliente: "VENDA BALCÃO",
+        itens: `1x ${product.name}`,
+        total: Number(product.price.toFixed(2)),
+        frete: 0,
+        bairro: "BALCÃO",
+        status: "concluido",
+        criadoEm: serverTimestamp(),
+        telefone: "N/A",
+        tipo: OrderType.COUNTER,
+        pagamento: PaymentMethod.CASH,
+        endereco: "VENDA LOCAL (BALCÃO)"
+      });
+    } catch (err) {
+      alert("Erro ao realizar venda rápida: " + err);
     }
   };
 
@@ -600,6 +624,25 @@ export default function App() {
           </div>
           <Button variant="secondary" onClick={() => { setIsLoggedIn(false); setView('HOME'); }} className="px-5 py-2 rounded-xl text-[9px] font-black uppercase">SAIR</Button>
         </header>
+
+        {/* VENDA RÁPIDA BALCÃO */}
+        <div className="mb-10 bg-white p-6 rounded-[2rem] shadow-xl border border-red-50 animate-fade-in no-print">
+            <h3 className="text-[10px] font-black text-red-800 uppercase italic tracking-widest mb-4 flex items-center gap-2">
+                <span className="text-lg">⚡</span> VENDA RÁPIDA (BALCÃO)
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                {PRODUCTS.filter(p => p.categoryId === 'balcao').map(prod => (
+                    <button 
+                        key={prod.id} 
+                        onClick={() => handleQuickSale(prod)}
+                        className="bg-zinc-50 hover:bg-green-50 hover:border-green-200 border border-zinc-100 p-4 rounded-2xl transition-all active:scale-95 group shadow-sm flex flex-col items-center justify-center text-center gap-1"
+                    >
+                        <span className="text-[9px] font-black text-red-900 uppercase italic leading-tight group-hover:text-green-700">{prod.name}</span>
+                        <span className="text-xs font-black text-green-600">R$ {prod.price.toFixed(2)}</span>
+                    </button>
+                ))}
+            </div>
+        </div>
 
         {adminTab === 'concluido' && (
             <div className="mb-10 animate-fade-in no-print">
@@ -814,6 +857,40 @@ export default function App() {
                         )}
                         
                         <Select label="Pagamento" options={PAYMENT_METHODS} value={customer.paymentMethod} onChange={e => setCustomer({...customer, paymentMethod: e.target.value as PaymentMethod})} />
+                        
+                        {customer.paymentMethod === PaymentMethod.CASH && (
+                            <div className="bg-zinc-50 border border-zinc-100 p-5 rounded-2xl animate-fade-in space-y-4 shadow-sm">
+                                <label className="block text-red-700 text-sm font-black mb-2 uppercase italic tracking-wider">Precisa de troco?</label>
+                                <div className="flex gap-4">
+                                    <button 
+                                        type="button"
+                                        onClick={() => setCustomer({...customer, needsChange: true})} 
+                                        className={`flex-1 py-3 rounded-xl font-black text-xs uppercase border-2 transition-all ${customer.needsChange ? 'bg-red-700 border-red-700 text-white shadow-md' : 'bg-white border-zinc-200 text-zinc-400'}`}
+                                    >
+                                        Sim
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        onClick={() => setCustomer({...customer, needsChange: false, changeAmount: ''})} 
+                                        className={`flex-1 py-3 rounded-xl font-black text-xs uppercase border-2 transition-all ${!customer.needsChange ? 'bg-zinc-800 border-zinc-800 text-white shadow-md' : 'bg-white border-zinc-200 text-zinc-400'}`}
+                                    >
+                                        Não
+                                    </button>
+                                </div>
+                                {customer.needsChange && (
+                                    <div className="pt-2 animate-fade-in">
+                                        <Input 
+                                            label="Troco para quanto?" 
+                                            value={customer.changeAmount} 
+                                            onChange={e => setCustomer({...customer, changeAmount: e.target.value})} 
+                                            placeholder="Ex: R$ 50,00" 
+                                            required 
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        
                         <Button type="submit" fullWidth className="py-5 text-lg mt-10 rounded-[1.5rem] uppercase italic border-b-4 border-red-900 shadow-xl">Revisar Pedido</Button>
                     </form>
                 </div>
@@ -863,6 +940,15 @@ export default function App() {
                             <div className="flex justify-between items-center pt-2">
                                 <span className="text-lg font-black text-zinc-300 italic uppercase">Total</span>
                                 <span className="text-3xl font-black text-red-700 italic">R$ {total.toFixed(2)}</span>
+                            </div>
+                            <div className="mt-4 pt-4 border-t border-dashed border-zinc-200">
+                                <p className="text-[10px] font-black text-zinc-400 uppercase italic">Forma de Pagamento</p>
+                                <p className="text-sm font-black text-red-800 uppercase italic">
+                                    {customer.paymentMethod}
+                                    {customer.paymentMethod === PaymentMethod.CASH && customer.needsChange && (
+                                        <span className="block text-xs text-red-600 font-bold mt-1">✓ TROCO PARA: R$ {customer.changeAmount}</span>
+                                    )}
+                                </p>
                             </div>
                         </div>
                     </div>

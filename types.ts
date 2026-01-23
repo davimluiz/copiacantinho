@@ -59,6 +59,8 @@ export interface CustomerInfo {
   tableNumber: string;
   orderType: OrderType;
   paymentMethod: PaymentMethod;
+  needsChange?: boolean;
+  changeAmount?: string;
 }
 
 export interface Order {
