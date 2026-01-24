@@ -581,7 +581,13 @@ export default function App() {
           itemsText += `\n\n⚠️ TROCO PARA R$ ${customer.changeAmount}`;
       }
 
-      let fullAddress = customer.orderType === OrderType.DELIVERY ? `${customer.address}, ${customer.addressNumber} - ${customer.neighborhood}` : customer.orderType;
+      let fullAddress = "";
+      if (customer.orderType === OrderType.DELIVERY) {
+        fullAddress = `${customer.address} - ${customer.neighborhood}${customer.reference ? ` (${customer.reference})` : ''}`;
+      } else {
+        fullAddress = customer.orderType;
+      }
+
       await addDoc(collection(db, 'pedidos'), { 
           nomeCliente: customer.name.toUpperCase(), 
           itens: itemsText, 
@@ -1034,6 +1040,7 @@ export default function App() {
                                                     setCustomer({...customer, neighborhood: e.target.value, deliveryFee: f?.fee || 0});
                                                 }} options={[{ value: '', label: 'Selecione...' }, ...DELIVERY_FEES.map(f => ({ value: f.neighborhood, label: `${f.neighborhood} - R$ ${f.fee.toFixed(2)}` }))]} required />
                                                 <Input label="Endereço" value={customer.address} onChange={e => setCustomer({...customer, address: e.target.value})} placeholder="Rua e número..." required />
+                                                <Input label="Ponto de Referência" value={customer.reference} onChange={e => setCustomer({...customer, reference: e.target.value})} placeholder="Ex: Próximo ao mercado..." />
                                             </>
                                         )}
                                         <Select label="Pagamento" options={PAYMENT_METHODS} value={customer.paymentMethod} onChange={e => setCustomer({...customer, paymentMethod: e.target.value as PaymentMethod})} />
