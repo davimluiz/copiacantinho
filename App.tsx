@@ -508,14 +508,30 @@ export default function App() {
     if (isSending) return;
     setIsSending(true);
     try {
-      const itemsText = cart.map(i => {
+      let itemsText = cart.map(i => {
         let txt = `${i.quantity}x ${i.name} - R$ ${i.price.toFixed(2)}`;
         if (i.observation) txt += `\n   ↳ ${i.observation.replace(/\n/g, '\n     ')}`;
         return txt;
       }).join('\n');
 
+      if (customer.paymentMethod === PaymentMethod.CASH && customer.needsChange && customer.changeAmount) {
+          itemsText += `\n\n⚠️ TROCO PARA R$ ${customer.changeAmount}`;
+      }
+
       let fullAddress = customer.orderType === OrderType.DELIVERY ? `${customer.address}, ${customer.addressNumber} - ${customer.neighborhood}` : customer.orderType;
-      await addDoc(collection(db, 'pedidos'), { nomeCliente: customer.name.toUpperCase(), itens: itemsText, total: Number(total.toFixed(2)), frete: Number(currentFee.toFixed(2)), bairro: customer.neighborhood || "N/A", status: "novo", criadoEm: serverTimestamp(), telefone: customer.phone || "N/A", tipo: customer.orderType, pagamento: customer.paymentMethod, endereco: fullAddress.toUpperCase() });
+      await addDoc(collection(db, 'pedidos'), { 
+          nomeCliente: customer.name.toUpperCase(), 
+          itens: itemsText, 
+          total: Number(total.toFixed(2)), 
+          frete: Number(currentFee.toFixed(2)), 
+          bairro: customer.neighborhood || "N/A", 
+          status: "novo", 
+          criadoEm: serverTimestamp(), 
+          telefone: customer.phone || "N/A", 
+          tipo: customer.orderType, 
+          pagamento: customer.paymentMethod + (customer.needsChange ? ` (Troco R$ ${customer.changeAmount})` : ''), 
+          endereco: fullAddress.toUpperCase() 
+      });
       setCart([]); setView('SUCCESS'); 
     } catch (err) { alert('Erro ao enviar.'); setIsSending(false); }
   };
@@ -954,6 +970,32 @@ export default function App() {
                                     </>
                                 )}
                                 <Select label="Pagamento" options={PAYMENT_METHODS} value={customer.paymentMethod} onChange={e => setCustomer({...customer, paymentMethod: e.target.value as PaymentMethod})} />
+                                
+                                {customer.paymentMethod === PaymentMethod.CASH && (
+                                    <div className="bg-red-50 p-4 rounded-2xl border border-red-100 animate-fade-in space-y-4">
+                                        <div className="flex items-center gap-3">
+                                            <input 
+                                                type="checkbox" 
+                                                id="needsChange" 
+                                                checked={customer.needsChange} 
+                                                onChange={e => setCustomer({...customer, needsChange: e.target.checked})}
+                                                className="w-5 h-5 rounded accent-red-700"
+                                            />
+                                            <label htmlFor="needsChange" className="text-sm font-black text-red-800 uppercase italic cursor-pointer">Precisa de troco?</label>
+                                        </div>
+                                        {customer.needsChange && (
+                                            <Input 
+                                                label="Troco para quanto?" 
+                                                type="number" 
+                                                placeholder="Ex: 50.00" 
+                                                value={customer.changeAmount} 
+                                                onChange={e => setCustomer({...customer, changeAmount: e.target.value})} 
+                                                required 
+                                            />
+                                        )}
+                                    </div>
+                                )}
+
                                 <Button type="submit" fullWidth className="py-5 text-lg rounded-[1.5rem] mt-10">VERIFICAR PEDIDO</Button>
                                 <button type="button" onClick={() => setStep('MENU')} className="w-full text-zinc-400 font-black uppercase text-xs tracking-widest py-2">Voltar ao Cardápio</button>
                             </form>
@@ -971,6 +1013,12 @@ export default function App() {
                                             <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
                                         </div>
                                     ))}
+                                </div>
+                                <div className="border-t border-zinc-200 pt-4 space-y-2 text-xs font-black uppercase italic">
+                                    <p className="text-zinc-400">PAGAMENTO: {customer.paymentMethod}</p>
+                                    {customer.paymentMethod === PaymentMethod.CASH && customer.needsChange && (
+                                        <p className="text-red-600">LEVAR TROCO PARA R$ {Number(customer.changeAmount).toFixed(2)}</p>
+                                    )}
                                 </div>
                                 <div className="border-t border-zinc-200 pt-4 space-y-2">
                                     {customer.orderType === OrderType.DELIVERY && <div className="flex justify-between text-xs font-black text-red-400 italic"><span>Entrega</span><span>R$ {currentFee.toFixed(2)}</span></div>}
