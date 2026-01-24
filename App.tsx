@@ -32,15 +32,26 @@ const Receipt = ({ order, stats }: { order: any | null, stats?: any | null }) =>
         return (
             <div className="w-full max-w-[80mm] mx-auto text-black font-mono text-[14px] font-bold p-4 bg-white border border-zinc-200 shadow-sm printable-content">
                 <div className="text-center mb-4 border-b border-dashed border-black pb-2">
-                    <h1 className="font-bold text-lg uppercase italic">RESUMO DE VENDAS</h1>
+                    <h1 className="font-bold text-lg uppercase italic">RELATÓRIO DE VENDAS</h1>
                     <p className="text-[10px]">CANTINHO DA SANDRA</p>
                     <p className="text-[10px]">{new Date().toLocaleString('pt-BR')}</p>
                 </div>
-                <div className="space-y-3">
-                    <div className="flex justify-between border-b border-dashed border-black pb-1">
-                        <span className="font-bold">TOTAL VENDAS HOJE:</span>
-                        <span>R$ {stats.daily.toFixed(2)}</span>
+                <div className="space-y-4">
+                    <div>
+                        <p className="border-b border-black text-[11px] mb-1">VENDAS (TOTAL)</p>
+                        <div className="flex justify-between"><span>DIÁRIO:</span><span>R$ {stats.daily.toFixed(2)}</span></div>
+                        <div className="flex justify-between"><span>SEMANAL:</span><span>R$ {stats.weekly.toFixed(2)}</span></div>
+                        <div className="flex justify-between"><span>MENSAL:</span><span>R$ {stats.monthly.toFixed(2)}</span></div>
                     </div>
+                    <div>
+                        <p className="border-b border-black text-[11px] mb-1">ENTREGAS (FRETE)</p>
+                        <div className="flex justify-between"><span>DIÁRIO:</span><span>R$ {stats.deliveryDaily.toFixed(2)}</span></div>
+                        <div className="flex justify-between"><span>SEMANAL:</span><span>R$ {stats.deliveryWeekly.toFixed(2)}</span></div>
+                        <div className="flex justify-between"><span>MENSAL:</span><span>R$ {stats.deliveryMonthly.toFixed(2)}</span></div>
+                    </div>
+                </div>
+                <div className="text-center mt-6 border-t border-dashed border-black pt-2">
+                    <p className="text-[10px]">--- FIM DO RELATÓRIO ---</p>
                 </div>
             </div>
         );
@@ -160,9 +171,11 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [activeCategory, setActiveCategory] = useState(CATEGORIES[0].id);
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
+  const [receiptStats, setReceiptStats] = useState<any>(null);
   const [isSending, setIsSending] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [promoAlert, setPromoAlert] = useState<string | null>(null);
+  const [quickSaleOpen, setQuickSaleOpen] = useState(false);
 
   useEffect(() => {
     onSnapshot(collection(db, 'promocoes'), (snapshot) => setPromos(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Promotion))));
@@ -197,9 +210,22 @@ export default function App() {
   const salesStats = useMemo(() => {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekStart = new Date(todayStart);
+    weekStart.setDate(todayStart.getDate() - 7);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const completed = orders.filter(o => o.status === 'concluido');
-    const daily = completed.filter(o => (o.criadoEm?.toDate ? o.criadoEm.toDate() : null) >= todayStart).reduce((acc, o) => acc + (o.total || 0), 0);
-    return { daily };
+    const getOrdersInRange = (start: Date) => completed.filter(o => (o.criadoEm?.toDate ? o.criadoEm.toDate() : new Date(0)) >= start);
+    const dailyOrders = getOrdersInRange(todayStart);
+    const weeklyOrders = getOrdersInRange(weekStart);
+    const monthlyOrders = getOrdersInRange(monthStart);
+    return {
+      daily: dailyOrders.reduce((acc, o) => acc + (o.total || 0), 0),
+      weekly: weeklyOrders.reduce((acc, o) => acc + (o.total || 0), 0),
+      monthly: monthlyOrders.reduce((acc, o) => acc + (o.total || 0), 0),
+      deliveryDaily: dailyOrders.reduce((acc, o) => acc + (o.frete || 0), 0),
+      deliveryWeekly: weeklyOrders.reduce((acc, o) => acc + (o.frete || 0), 0),
+      deliveryMonthly: monthlyOrders.reduce((acc, o) => acc + (o.frete || 0), 0),
+    };
   }, [orders]);
 
   const handleFinishOrder = async () => {
@@ -213,10 +239,41 @@ export default function App() {
     } catch (err) { alert('Erro ao enviar.'); setIsSending(false); }
   };
 
-  const addPromoToCart = (promo: Promotion) => {
-    const item: CartItem = { id: promo.id, name: `PROMO: ${promo.titulo}`, price: promo.valor, categoryId: 'promos', cartId: Date.now().toString(), quantity: 1, isPromotion: true };
-    setCart([...cart, item]);
-    setPromoAlert(promo.titulo);
+  const handleQuickSale = async (product: Product) => {
+    try {
+      await addDoc(collection(db, 'pedidos'), {
+        nomeCliente: "VENDA RÁPIDA",
+        itens: `1x ${product.name} - R$ ${product.price.toFixed(2)}`,
+        total: Number(product.price.toFixed(2)),
+        frete: 0,
+        bairro: "BALCÃO",
+        status: "concluido",
+        criadoEm: serverTimestamp(),
+        telefone: "N/A",
+        tipo: OrderType.COUNTER,
+        pagamento: PaymentMethod.CASH,
+        endereco: "VENDA LOCAL"
+      });
+      setQuickSaleOpen(false);
+    } catch (err) {
+      alert("Erro ao realizar venda rápida.");
+    }
+  };
+
+  // Fix: addPromoToCart function to allow adding promotions as items to the cart
+  const addPromoToCart = (p: Promotion) => {
+    const promoItem: CartItem = {
+      id: p.id,
+      cartId: Date.now().toString(),
+      name: p.titulo,
+      price: Number(p.valor),
+      quantity: 1,
+      categoryId: 'promocao',
+      isPromotion: true,
+      description: p.itens,
+    };
+    setCart([...cart, promoItem]);
+    setPromoAlert(p.titulo);
   };
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => { await updateDoc(doc(db, 'pedidos', orderId), { status: newStatus }); };
@@ -227,13 +284,42 @@ export default function App() {
     const formData = new FormData(e.currentTarget);
     const u = formData.get('user');
     const p = formData.get('pass');
-    if (u === 'admin' && p === 'admin@1234') {
-        setIsLoggedIn(true);
-        setView('ADMIN');
-    } else {
-        alert("Credenciais incorretas.");
-    }
+    if (u === 'admin' && p === 'admin@1234') { setIsLoggedIn(true); setView('ADMIN'); } else { alert("Credenciais incorretas."); }
   };
+
+  const QuickSaleSection = () => (
+    <div className="bg-white rounded-[2rem] shadow-xl border border-red-50 mb-8 overflow-hidden no-print transition-all">
+        <button 
+          onClick={() => setQuickSaleOpen(!quickSaleOpen)}
+          className="w-full flex items-center justify-between p-6 bg-red-50/30 hover:bg-red-50 transition-colors"
+        >
+          <h3 className="text-lg font-black text-red-800 italic uppercase">Venda Rápida (Balcão/Bebidas)</h3>
+          <span className={`text-2xl transition-transform ${quickSaleOpen ? 'rotate-180' : ''}`}>▼</span>
+        </button>
+        
+        <div className={`transition-all duration-300 ease-in-out ${quickSaleOpen ? 'max-h-[800px] opacity-100 p-6 pt-2 border-t border-red-50' : 'max-h-0 opacity-0 pointer-events-none'}`}>
+          <div className="flex flex-col md:flex-row gap-8 overflow-x-auto no-scrollbar text-left">
+              {['balcao', 'bebidas'].map(catId => (
+                  <div key={catId} className="flex-1 space-y-2 min-w-[200px]">
+                      <p className="text-[10px] font-black text-zinc-400 uppercase italic mb-1">{catId === 'balcao' ? 'Balcão 🍰' : 'Bebidas 🥤'}</p>
+                      <div className="grid grid-cols-1 gap-2">
+                          {PRODUCTS.filter(p => p.categoryId === catId).map(prod => (
+                              <button 
+                                  key={prod.id} 
+                                  onClick={() => handleQuickSale(prod)}
+                                  className="bg-zinc-50 hover:bg-red-50 text-red-950 font-bold text-[11px] p-3 rounded-xl border border-zinc-100 transition-all flex justify-between items-center group"
+                              >
+                                  <span className="uppercase">{prod.name}</span>
+                                  <span className="text-red-600 font-black group-hover:scale-110 transition-transform">R$ {prod.price.toFixed(2)}</span>
+                              </button>
+                          ))}
+                      </div>
+                  </div>
+              ))}
+          </div>
+        </div>
+    </div>
+  );
 
   const PromoManager = () => {
     const [title, setTitle] = useState('');
@@ -322,6 +408,8 @@ export default function App() {
           <Button variant="secondary" onClick={() => { setIsLoggedIn(false); setView('HOME'); }} className="px-5 py-2 text-[9px]">SAIR</Button>
         </header>
 
+        {(adminTab === 'novo' || adminTab === 'preparando') && <QuickSaleSection />}
+
         {adminTab === 'config' && (
             <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-red-50 animate-fade-in text-left">
                 <h3 className="text-lg font-black text-red-800 italic uppercase mb-6">Controle de Funcionamento</h3>
@@ -344,6 +432,40 @@ export default function App() {
 
         {adminTab === 'promos' && <PromoManager />}
 
+        {adminTab === 'concluido' && (
+            <div className="mb-8 space-y-4 animate-fade-in no-print">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-red-600 text-left">
+                        <p className="text-[10px] font-black text-zinc-400 uppercase italic">Vendas Hoje</p>
+                        <p className="text-3xl font-black text-red-800 mt-1 italic leading-none">R$ {salesStats.daily.toFixed(2)}</p>
+                    </div>
+                    <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-red-600 text-left">
+                        <p className="text-[10px] font-black text-zinc-400 uppercase italic">Vendas Semana</p>
+                        <p className="text-3xl font-black text-red-800 mt-1 italic leading-none">R$ {salesStats.weekly.toFixed(2)}</p>
+                    </div>
+                    <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-red-600 text-left">
+                        <p className="text-[10px] font-black text-zinc-400 uppercase italic">Vendas Mês</p>
+                        <p className="text-3xl font-black text-red-800 mt-1 italic leading-none">R$ {salesStats.monthly.toFixed(2)}</p>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-green-600 text-left">
+                        <p className="text-[10px] font-black text-zinc-400 uppercase italic">Entregas Hoje</p>
+                        <p className="text-3xl font-black text-green-700 mt-1 italic leading-none">R$ {salesStats.deliveryDaily.toFixed(2)}</p>
+                    </div>
+                    <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-green-600 text-left">
+                        <p className="text-[10px] font-black text-zinc-400 uppercase italic">Entregas Semana</p>
+                        <p className="text-3xl font-black text-green-700 mt-1 italic leading-none">R$ {salesStats.deliveryWeekly.toFixed(2)}</p>
+                    </div>
+                    <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-green-600 text-left">
+                        <p className="text-[10px] font-black text-zinc-400 uppercase italic">Entregas Mês</p>
+                        <p className="text-3xl font-black text-green-700 mt-1 italic leading-none">R$ {salesStats.deliveryMonthly.toFixed(2)}</p>
+                    </div>
+                </div>
+                <Button onClick={() => { setReceiptStats(salesStats); setReceiptOrder(null); setTimeout(() => { window.print(); setReceiptStats(null); }, 300); }} className="w-full md:w-auto py-3 px-8 rounded-xl flex items-center justify-center gap-2">🖨️ IMPRIMIR RELATÓRIOS</Button>
+            </div>
+        )}
+
         {['novo', 'preparando', 'concluido', 'cancelado'].includes(adminTab) && (
             <div className="space-y-4">
                 {filteredOrders.map(o => (
@@ -357,7 +479,7 @@ export default function App() {
                        <p className="text-xl font-black text-red-700 italic min-w-[100px]">R$ {Number(o.total || 0).toFixed(2)}</p>
                        <div className="flex gap-2">
                          <button onClick={() => setEditingOrder(o)} className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shadow-sm">📝</button>
-                         <button onClick={() => { setReceiptOrder(o); setTimeout(() => window.print(), 300); }} className="w-10 h-10 bg-zinc-900 text-white rounded-xl flex items-center justify-center shadow-sm">🖨️</button>
+                         <button onClick={() => { setReceiptOrder(o); setReceiptStats(null); setTimeout(() => window.print(), 300); }} className="w-10 h-10 bg-zinc-900 text-white rounded-xl flex items-center justify-center shadow-sm">🖨️</button>
                          {o.status === 'novo' && <button onClick={() => updateOrderStatus(o.id, 'preparando')} className="bg-orange-500 text-white px-4 h-10 rounded-xl text-[9px] font-black uppercase">Preparar</button>}
                          {o.status === 'preparando' && <button onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 text-white px-4 h-10 rounded-xl text-[9px] font-black uppercase">Concluir</button>}
                        </div>
@@ -368,7 +490,7 @@ export default function App() {
         )}
       </div>
       <EditOrderModal isOpen={!!editingOrder} order={editingOrder} onClose={() => setEditingOrder(null)} onSave={saveEditedOrder} />
-      <div className="printable-area hidden"><Receipt order={receiptOrder} /></div>
+      <div className="printable-area hidden"><Receipt order={receiptOrder} stats={receiptStats} /></div>
     </div>
   );
 
