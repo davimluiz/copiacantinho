@@ -125,6 +125,7 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
   const [selectedToppings, setSelectedToppings] = useState<string[]>([]);
   const [selectedFruits, setSelectedFruits] = useState<string[]>([]);
   const [selectedPaidExtras, setSelectedPaidExtras] = useState<any[]>([]);
+  const [acaiNames, setAcaiNames] = useState<string[]>([]);
 
   // States Franguinho
   const [selectedSides, setSelectedSides] = useState<string[]>([]);
@@ -155,8 +156,22 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
       setPicanhaAddition(false);
       setSelectedLancheExtras([]);
       setIsTurbined(false);
+      setAcaiNames([]);
     }
   }, [isOpen, product]);
+
+  // Sync acaiNames with quantity
+  useEffect(() => {
+    if (product?.categoryId === 'acai' && quantity > 1) {
+      setAcaiNames(prev => {
+        const next = [...prev];
+        while (next.length < quantity) next.push("");
+        return next.slice(0, quantity);
+      });
+    } else {
+      setAcaiNames([]);
+    }
+  }, [quantity, product]);
 
   if (!product) return null;
 
@@ -183,6 +198,11 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
     let finalDetails = "";
 
     if (category === 'acai') {
+      // Add names if provided
+      if (acaiNames.some(n => n.trim() !== "")) {
+        finalDetails += `\nNomes:\n  ${acaiNames.filter(n => n.trim() !== "").map((n, idx) => `- Açaí #${idx+1}: ${n}`).join('\n  ')}`;
+      }
+
       if (acaiComplete) {
         finalDetails += "\nOpção: COMPLETO";
       } else {
@@ -238,6 +258,31 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
               <button onClick={() => setQuantity(quantity + 1)} className="w-10 h-10 rounded-xl bg-zinc-50 text-red-600 font-black text-xl hover:bg-zinc-100">+</button>
             </div>
           </section>
+
+          {/* ACÁI NAMES SECTION */}
+          {category === 'acai' && quantity > 1 && (
+            <section className="bg-red-50/50 p-5 rounded-3xl border border-red-100 animate-fade-in">
+              <label className="text-red-900 text-[11px] font-black uppercase italic block mb-3 leading-none">Identificar cada Açaí (Opcional):</label>
+              <div className="space-y-3">
+                {acaiNames.map((name, idx) => (
+                  <div key={idx} className="flex flex-col gap-1">
+                    <span className="text-[9px] font-black text-red-400 uppercase italic">Açaí #{idx + 1}</span>
+                    <input 
+                      type="text"
+                      className="w-full bg-white border border-red-100 rounded-xl py-2 px-4 text-xs font-bold text-red-900 outline-none focus:border-red-500 shadow-sm"
+                      placeholder="Nome p/ identificação..."
+                      value={name}
+                      onChange={e => {
+                        const newNames = [...acaiNames];
+                        newNames[idx] = e.target.value;
+                        setAcaiNames(newNames);
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* LANCHES */}
           {category === 'lanches' && (
@@ -677,7 +722,7 @@ export default function App() {
             <div className="bg-red-50 p-6 rounded-3xl border border-red-100 mb-10">
                 <p className="text-red-900 font-bold uppercase italic text-sm">Quarta a Domingo<br/>Das 18:00 às 23:00</p>
             </div>
-            <button onClick={() => setView('LOGIN')} className="hidden md:block text-zinc-300 font-black uppercase text-[10px] tracking-widest">Acesso Restrito</button>
+            <button onClick={() => setView('LOGIN')} className="hidden md:block mt-16 text-zinc-200 text-[9px] font-black uppercase tracking-[0.3em] hover:text-red-400 transition-all w-full">Acesso Restrito</button>
         </div>
     );
   }
