@@ -51,23 +51,21 @@ export const PRODUCTS: Product[] = [
   { id: 'a5', categoryId: 'acai', name: 'Açaí 1000 ML', price: 30.00 },
 
   // FRANGUINHO
-  { id: 'f0', categoryId: 'franguinho', name: 'Franguinho 500g (Puro)', price: 35.00, unit: 'Sem Acompanhamento', maxSides: 0 },
-  { id: 'f00', categoryId: 'franguinho', name: 'Franguinho 1kg (Puro)', price: 50.00, unit: 'Sem Acompanhamento', maxSides: 0 },
-  { id: 'f1', categoryId: 'franguinho', name: 'Franguinho 250g', price: 35.00, unit: '1 Acompanhamento', maxSides: 1 },
-  { id: 'f2', categoryId: 'franguinho', name: 'Franguinho 500g (1 Acomp.)', price: 55.00, unit: '1 Acompanhamento', maxSides: 1 },
-  { id: 'f3', categoryId: 'franguinho', name: 'Franguinho 500g (2 Acomp.)', price: 65.00, unit: '2 Acompanhamentos', maxSides: 2 },
-  { id: 'f4', categoryId: 'franguinho', name: 'Franguinho 500g (3 Acomp.)', price: 75.00, unit: '3 Acompanhamentos', maxSides: 3 },
-  { id: 'f5', categoryId: 'franguinho', name: 'Franguinho 1Kg (1 Acomp.)', price: 70.00, unit: '1 Acompanhamento', maxSides: 1 },
-  { id: 'f6', categoryId: 'franguinho', name: 'Franguinho 1Kg (2 Acomp.)', price: 80.00, unit: '2 Acompanhamentos', maxSides: 2 },
-  { id: 'f7', categoryId: 'franguinho', name: 'Franguinho 1Kg (3 Acomp.)', price: 90.00, unit: '3 Acompanhamentos', maxSides: 3 },
+  { id: 'f1', categoryId: 'franguinho', name: 'Franguinho 250g', price: 35.00, maxSides: 1, unit: 'Até 1 Acompanhamento' },
+  { id: 'f2', categoryId: 'franguinho', name: 'Franguinho 500g', price: 55.00, maxSides: 1, unit: 'Até 1 Acompanhamento' },
+  { id: 'f3', categoryId: 'franguinho', name: 'Franguinho 500g', price: 65.00, maxSides: 2, unit: 'Até 2 Acompanhamentos' },
+  { id: 'f4', categoryId: 'franguinho', name: 'Franguinho 500g', price: 75.00, maxSides: 3, unit: 'Até 3 Acompanhamentos' },
+  { id: 'f5', categoryId: 'franguinho', name: 'Franguinho 1Kg', price: 70.00, maxSides: 1, unit: 'Até 1 Acompanhamento' },
+  { id: 'f6', categoryId: 'franguinho', name: 'Franguinho 1Kg', price: 80.00, maxSides: 2, unit: 'Até 2 Acompanhamentos' },
+  { id: 'f7', categoryId: 'franguinho', name: 'Franguinho 1Kg', price: 90.00, maxSides: 3, unit: 'Até 3 Acompanhamentos' },
 
   // PORÇÕES
-  { id: 'p1', categoryId: 'porcoes', name: 'Tábua de Carne 400g', price: 58.00, description: DESC_TABUA_CARNE },
-  { id: 'p2', categoryId: 'porcoes', name: 'Tábua de Carne 800g', price: 88.00, description: DESC_TABUA_CARNE },
-  { id: 'p3', categoryId: 'porcoes', name: 'Batata 200g', price: 12.00 },
-  { id: 'p4', categoryId: 'porcoes', name: 'Batata 400g', price: 20.00 },
-  { id: 'p5', categoryId: 'porcoes', name: 'Batata cheddar e bacon 300g', price: 28.00 },
-  { id: 'p6', categoryId: 'porcoes', name: 'Aipim raiz 400g', price: 20.00 },
+  { id: 'p1', categoryId: 'porcoes', name: 'Tábua de Carne', price: 58.00, unit: '400g', description: DESC_TABUA_CARNE },
+  { id: 'p2', categoryId: 'porcoes', name: 'Tábua de Carne', price: 88.00, unit: '800g', description: DESC_TABUA_CARNE },
+  { id: 'p3', categoryId: 'porcoes', name: 'Batata', price: 12.00, unit: '200g' },
+  { id: 'p4', categoryId: 'porcoes', name: 'Batata', price: 20.00, unit: '400g' },
+  { id: 'p5', categoryId: 'porcoes', name: 'Batata cheddar e bacon', price: 28.00, unit: '300g' },
+  { id: 'p6', categoryId: 'porcoes', name: 'Aipim raiz', price: 20.00, unit: '400g' },
   { id: 'p7', categoryId: 'porcoes', name: 'Aipim temperado', price: 25.00, unit: '20un' },
   { id: 'p8', categoryId: 'porcoes', name: 'Aipim c/ Queijo', price: 25.00, unit: '20un' },
   { id: 'p9', categoryId: 'porcoes', name: 'Bol. de Queijo', price: 25.00, unit: '20un' },
@@ -85,18 +83,6 @@ export const PRODUCTS: Product[] = [
   { id: 'b8', categoryId: 'bebidas', name: 'Refr. Coca Cola 600 ml', price: 8.00, needsZeroOption: true },
   { id: 'b9', categoryId: 'bebidas', name: 'Refr. Coca Cola 1,5L', price: 12.00, needsZeroOption: true },
   { id: 'b10', categoryId: 'bebidas', name: 'Refr. Coca Cola 2L', price: 15.00, needsZeroOption: true },
-  { id: 'b_mini', categoryId: 'bebidas', name: 'Refri Mini', price: 3.00 },
-  { id: 'b_gmini', categoryId: 'bebidas', name: 'Guaravita/Suco Mini', price: 2.50 },
-  { id: 'b_amstel', categoryId: 'bebidas', name: 'Amstel', price: 7.00 },
-  { id: 'b_brahma', categoryId: 'bebidas', name: 'Brahma', price: 7.00 },
-  { id: 'b_petra', categoryId: 'bebidas', name: 'Petra', price: 7.00 },
-  { id: 'b_itai', categoryId: 'bebidas', name: 'Itaipava', price: 5.00 },
-  { id: 'b_itai_mega', categoryId: 'bebidas', name: 'Itaipava Mega', price: 7.00 },
-  { id: 'b_spaten', categoryId: 'bebidas', name: 'Spaten', price: 6.00 },
-  { id: 'b_h330', categoryId: 'bebidas', name: 'Heineken 330 ML', price: 9.90 },
-  { id: 'b_h600', categoryId: 'bebidas', name: 'Heineken 600ML', price: 13.90 },
-  { id: 'b_h2o_500', categoryId: 'bebidas', name: 'H2O 500 ML', price: 8.00 },
-  { id: 'b_h2o_15', categoryId: 'bebidas', name: 'H2O 1,5L', price: 12.00 },
 
   // BALCÃO
   { id: 'bc1', categoryId: 'balcao', name: 'Feijão Tropeiro (P)', price: 20.00 },
@@ -106,6 +92,7 @@ export const PRODUCTS: Product[] = [
   { id: 'bc5', categoryId: 'balcao', name: 'Torta', price: 10.00 },
   { id: 'bc6', categoryId: 'balcao', name: 'Bolo', price: 8.00 },
   { id: 'bc7', categoryId: 'balcao', name: 'Empadão', price: 12.00 },
+  { id: 'bc8', categoryId: 'balcao', name: 'Refr. Uai 2L', price: 7.00 },
 ];
 
 export const PAYMENT_METHODS = [
@@ -141,5 +128,5 @@ export const ACAI_PAID_EXTRAS = [
   { name: 'Nutella', price: 5.00 },
   { name: 'Mousse de Morango', price: 4.00 },
   { name: 'Mousse de Maracujá', price: 4.00 },
-  { name: 'mousse de Cupuaçu', price: 4.00 }
+  { name: 'Mousse de Cupuaçu', price: 4.00 }
 ];

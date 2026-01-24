@@ -287,7 +287,7 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
                     </div>
                     <button 
                       onClick={() => setIsTurbined(!isTurbined)}
-                      className={`w-full py-4 rounded-xl border-b-4 font-black text-xs transition-all italic shadow-lg ${isTurbined ? 'bg-red-800 text-white border-red-950 scale-[1.02]' : 'bg-red-600 text-white border-red-800 hover:bg-red-700'}`}
+                      className={`w-full py-4 rounded-xl border-b-4 font-black text-xs transition-all italic shadow-lg animate-pulse-slow ${isTurbined ? 'bg-red-800 text-white border-red-950 scale-[1.02]' : 'bg-red-600 text-white border-red-800 hover:bg-red-700'}`}
                     >
                         TURBINE SEU LANCHE POR + 10R$ (150G DE BATATA E UM JUNINHO)
                     </button>
@@ -410,16 +410,18 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
             </section>
           )}
 
-          {/* CAMPO DE OBSERVAÇÃO GERAL (apenas para quem não é Lanche/Açaí com lógica própria, ou como extra) */}
-          <section>
-            <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3">Observação Adicional</label>
-            <textarea 
-              className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-[1.5rem] p-4 text-zinc-800 focus:outline-none min-h-[80px] text-sm font-medium" 
-              placeholder="Algum pedido especial?" 
-              value={observation} 
-              onChange={e => setObservation(e.target.value)} 
-            />
-          </section>
+          {/* CAMPO DE OBSERVAÇÃO GERAL (condicional para Açaí que teve pedido para remover) */}
+          {category !== 'acai' && (
+            <section>
+              <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3">Observação Adicional</label>
+              <textarea 
+                className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-[1.5rem] p-4 text-zinc-800 focus:outline-none min-h-[80px] text-sm font-medium" 
+                placeholder="Algum pedido especial?" 
+                value={observation} 
+                onChange={e => setObservation(e.target.value)} 
+              />
+            </section>
+          )}
         </div>
 
         <div className="p-6 bg-zinc-50/80 border-t border-zinc-100">
