@@ -563,7 +563,7 @@ export default function App() {
       monthly: monthlyOrders.reduce((acc, o) => acc + (o.total || 0), 0),
       deliveryDaily: dailyOrders.reduce((acc, o) => acc + (o.frete || 0), 0),
       deliveryWeekly: weeklyOrders.reduce((acc, o) => acc + (o.frete || 0), 0),
-      deliveryMonthly: monthlyOrders.reduce((acc, o) => acc + (o.frete || 0), 0),
+      deliveryMonthly: monthlyOrders.reduce((acc, o) => acc + (o.total || 0), 0),
     };
   }, [orders]);
 
@@ -1013,6 +1013,7 @@ export default function App() {
                             <div className="grid grid-cols-1 gap-4">
                                 <button onClick={() => { setCustomer({...customer, orderType: OrderType.DELIVERY}); setStep('FORM'); }} className="bg-zinc-50 border p-8 rounded-[2.5rem] flex items-center gap-6 hover:border-red-600 transition-all text-left"><span className="text-5xl">🛵</span><span className="font-black text-red-950 text-xl uppercase italic">Entrega</span></button>
                                 <button onClick={() => { setCustomer({...customer, orderType: OrderType.COUNTER}); setStep('FORM'); }} className="bg-zinc-50 border p-8 rounded-[2.5rem] flex items-center gap-6 hover:border-red-600 transition-all text-left"><span className="text-5xl">🥡</span><span className="font-black text-red-950 text-xl uppercase italic">Retirada</span></button>
+                                <button onClick={() => { setCustomer({...customer, orderType: OrderType.TABLE, paymentMethod: PaymentMethod.NOT_INFORMED}); setStep('FORM'); }} className="bg-zinc-50 border p-8 rounded-[2.5rem] flex items-center gap-6 hover:border-red-600 transition-all text-left"><span className="text-5xl">🪑</span><span className="font-black text-red-950 text-xl uppercase italic">Mesa</span></button>
                             </div>
                             <button onClick={() => setStep('MENU')} className="w-full text-zinc-400 font-black uppercase text-xs tracking-widest py-2">Voltar ao Cardápio</button>
                         </div>
@@ -1022,41 +1023,46 @@ export default function App() {
                             <h2 className="text-3xl font-black text-red-800 italic uppercase">Seus Dados</h2>
                             <form onSubmit={(e) => { e.preventDefault(); setStep('SUMMARY'); }} className="space-y-4">
                                 <Input label="Seu Nome" value={customer.name} onChange={e => setCustomer({...customer, name: e.target.value})} required />
-                                <Input label="WhatsApp" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} placeholder="(00) 00000-0000" required />
-                                {customer.orderType === OrderType.DELIVERY && (
-                                    <>
-                                        <Select label="Bairro" value={customer.neighborhood} onChange={e => {
-                                            const f = DELIVERY_FEES.find(df => df.neighborhood === e.target.value);
-                                            setCustomer({...customer, neighborhood: e.target.value, deliveryFee: f?.fee || 0});
-                                        }} options={[{ value: '', label: 'Selecione...' }, ...DELIVERY_FEES.map(f => ({ value: f.neighborhood, label: `${f.neighborhood} - R$ ${f.fee.toFixed(2)}` }))]} required />
-                                        <Input label="Endereço" value={customer.address} onChange={e => setCustomer({...customer, address: e.target.value})} placeholder="Rua e número..." required />
-                                    </>
-                                )}
-                                <Select label="Pagamento" options={PAYMENT_METHODS} value={customer.paymentMethod} onChange={e => setCustomer({...customer, paymentMethod: e.target.value as PaymentMethod})} />
                                 
-                                {customer.paymentMethod === PaymentMethod.CASH && (
-                                    <div className="bg-red-50 p-4 rounded-2xl border border-red-100 animate-fade-in space-y-4">
-                                        <div className="flex items-center gap-3">
-                                            <input 
-                                                type="checkbox" 
-                                                id="needsChange" 
-                                                checked={customer.needsChange} 
-                                                onChange={e => setCustomer({...customer, needsChange: e.target.checked})}
-                                                className="w-5 h-5 rounded accent-red-700"
-                                            />
-                                            <label htmlFor="needsChange" className="text-sm font-black text-red-800 uppercase italic cursor-pointer">Precisa de troco?</label>
-                                        </div>
-                                        {customer.needsChange && (
-                                            <Input 
-                                                label="Troco para quanto?" 
-                                                type="number" 
-                                                placeholder="Ex: 50.00" 
-                                                value={customer.changeAmount} 
-                                                onChange={e => setCustomer({...customer, changeAmount: e.target.value})} 
-                                                required 
-                                            />
+                                {customer.orderType !== OrderType.TABLE && (
+                                    <>
+                                        <Input label="WhatsApp" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} placeholder="(00) 00000-0000" required />
+                                        {customer.orderType === OrderType.DELIVERY && (
+                                            <>
+                                                <Select label="Bairro" value={customer.neighborhood} onChange={e => {
+                                                    const f = DELIVERY_FEES.find(df => df.neighborhood === e.target.value);
+                                                    setCustomer({...customer, neighborhood: e.target.value, deliveryFee: f?.fee || 0});
+                                                }} options={[{ value: '', label: 'Selecione...' }, ...DELIVERY_FEES.map(f => ({ value: f.neighborhood, label: `${f.neighborhood} - R$ ${f.fee.toFixed(2)}` }))]} required />
+                                                <Input label="Endereço" value={customer.address} onChange={e => setCustomer({...customer, address: e.target.value})} placeholder="Rua e número..." required />
+                                            </>
                                         )}
-                                    </div>
+                                        <Select label="Pagamento" options={PAYMENT_METHODS} value={customer.paymentMethod} onChange={e => setCustomer({...customer, paymentMethod: e.target.value as PaymentMethod})} />
+                                        
+                                        {customer.paymentMethod === PaymentMethod.CASH && (
+                                            <div className="bg-red-50 p-4 rounded-2xl border border-red-100 animate-fade-in space-y-4">
+                                                <div className="flex items-center gap-3">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        id="needsChange" 
+                                                        checked={customer.needsChange} 
+                                                        onChange={e => setCustomer({...customer, needsChange: e.target.checked})}
+                                                        className="w-5 h-5 rounded accent-red-700"
+                                                    />
+                                                    <label htmlFor="needsChange" className="text-sm font-black text-red-800 uppercase italic cursor-pointer">Precisa de troco?</label>
+                                                </div>
+                                                {customer.needsChange && (
+                                                    <Input 
+                                                        label="Troco para quanto?" 
+                                                        type="number" 
+                                                        placeholder="Ex: 50.00" 
+                                                        value={customer.changeAmount} 
+                                                        onChange={e => setCustomer({...customer, changeAmount: e.target.value})} 
+                                                        required 
+                                                    />
+                                                )}
+                                            </div>
+                                        )}
+                                    </>
                                 )}
 
                                 <Button type="submit" fullWidth className="py-5 text-lg rounded-[1.5rem] mt-10">VERIFICAR PEDIDO</Button>
@@ -1078,8 +1084,8 @@ export default function App() {
                                     ))}
                                 </div>
                                 <div className="border-t border-zinc-200 pt-4 space-y-2 text-xs font-black uppercase italic">
-                                    <p className="text-zinc-400">PAGAMENTO: {customer.paymentMethod}</p>
-                                    {customer.paymentMethod === PaymentMethod.CASH && customer.needsChange && (
+                                    {customer.orderType !== OrderType.TABLE && <p className="text-zinc-400">PAGAMENTO: {customer.paymentMethod}</p>}
+                                    {customer.paymentMethod === PaymentMethod.CASH && customer.needsChange && customer.orderType !== OrderType.TABLE && (
                                         <p className="text-red-600">LEVAR TROCO PARA R$ {Number(customer.changeAmount).toFixed(2)}</p>
                                     )}
                                 </div>
