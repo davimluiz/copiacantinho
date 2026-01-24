@@ -1,5 +1,5 @@
 
-import { Category, Product, PaymentMethod, OrderType } from './types';
+import { Category, Product, PaymentMethod } from './types';
 
 export const CATEGORIES: Category[] = [
   { id: 'lanches', name: 'Lanches', icon: '🍔' },
@@ -51,8 +51,8 @@ export const PRODUCTS: Product[] = [
   { id: 'a5', categoryId: 'acai', name: 'Açaí 1000 ML', price: 30.00 },
 
   // FRANGUINHO
-  { id: 'f0', categoryId: 'franguinho', name: 'Franguinho 500g', price: 35.00, unit: 'Sem Acompanhamento', maxSides: 0 },
-  { id: 'f00', categoryId: 'franguinho', name: 'Franguinho 1kg', price: 50.00, unit: 'Sem Acompanhamento', maxSides: 0 },
+  { id: 'f0', categoryId: 'franguinho', name: 'Franguinho 500g (Puro)', price: 35.00, unit: 'Sem Acompanhamento', maxSides: 0 },
+  { id: 'f00', categoryId: 'franguinho', name: 'Franguinho 1kg (Puro)', price: 50.00, unit: 'Sem Acompanhamento', maxSides: 0 },
   { id: 'f1', categoryId: 'franguinho', name: 'Franguinho 250g', price: 35.00, unit: '1 Acompanhamento', maxSides: 1 },
   { id: 'f2', categoryId: 'franguinho', name: 'Franguinho 500g (1 Acomp.)', price: 55.00, unit: '1 Acompanhamento', maxSides: 1 },
   { id: 'f3', categoryId: 'franguinho', name: 'Franguinho 500g (2 Acomp.)', price: 65.00, unit: '2 Acompanhamentos', maxSides: 2 },
@@ -75,6 +75,16 @@ export const PRODUCTS: Product[] = [
   { id: 'p11', categoryId: 'porcoes', name: 'Coxinha c/ Requeijão', price: 25.00, unit: '20un' },
 
   // BEBIDAS
+  { id: 'b1', categoryId: 'bebidas', name: 'Suco 500ml', price: 9.00, needsFlavor: true },
+  { id: 'b2', categoryId: 'bebidas', name: 'Vitamina 500ml', price: 12.00, needsFlavor: true },
+  { id: 'b3', categoryId: 'bebidas', name: 'Suco 1L', price: 17.00, needsFlavor: true },
+  { id: 'b4', categoryId: 'bebidas', name: 'Vitamina 1L', price: 20.00, needsFlavor: true },
+  { id: 'b5', categoryId: 'bebidas', name: 'Refr. Lata', price: 6.00, needsFlavor: true },
+  { id: 'b6', categoryId: 'bebidas', name: 'Refr. Uai 600 ml', price: 5.00, needsFlavor: true },
+  { id: 'b7', categoryId: 'bebidas', name: 'Refr. Uai 2L', price: 7.00, needsFlavor: true },
+  { id: 'b8', categoryId: 'bebidas', name: 'Refr. Coca Cola 600 ml', price: 8.00, needsZeroOption: true },
+  { id: 'b9', categoryId: 'bebidas', name: 'Refr. Coca Cola 1,5L', price: 12.00, needsZeroOption: true },
+  { id: 'b10', categoryId: 'bebidas', name: 'Refr. Coca Cola 2L', price: 15.00, needsZeroOption: true },
   { id: 'b_mini', categoryId: 'bebidas', name: 'Refri Mini', price: 3.00 },
   { id: 'b_gmini', categoryId: 'bebidas', name: 'Guaravita/Suco Mini', price: 2.50 },
   { id: 'b_amstel', categoryId: 'bebidas', name: 'Amstel', price: 7.00 },
@@ -87,16 +97,6 @@ export const PRODUCTS: Product[] = [
   { id: 'b_h600', categoryId: 'bebidas', name: 'Heineken 600ML', price: 13.90 },
   { id: 'b_h2o_500', categoryId: 'bebidas', name: 'H2O 500 ML', price: 8.00 },
   { id: 'b_h2o_15', categoryId: 'bebidas', name: 'H2O 1,5L', price: 12.00 },
-  { id: 'b1', categoryId: 'bebidas', name: 'Suco 500ml', price: 9.00, needsFlavor: true },
-  { id: 'b2', categoryId: 'bebidas', name: 'Vitamina 500ml', price: 12.00, needsFlavor: true },
-  { id: 'b3', categoryId: 'bebidas', name: 'Suco 1L', price: 17.00, needsFlavor: true },
-  { id: 'b4', categoryId: 'bebidas', name: 'Vitamina 1L', price: 20.00, needsFlavor: true },
-  { id: 'b5', categoryId: 'bebidas', name: 'Refr. Lata', price: 6.00, needsFlavor: true },
-  { id: 'b6', categoryId: 'bebidas', name: 'Refr. Uai 600 ml', price: 5.00, needsFlavor: true },
-  { id: 'b7', categoryId: 'bebidas', name: 'Refr. Uai 2L', price: 7.00, needsFlavor: true },
-  { id: 'b8', categoryId: 'bebidas', name: 'Refr. Coca Cola 600 ml', price: 8.00, needsZeroOption: true },
-  { id: 'b9', categoryId: 'bebidas', name: 'Refr. Coca Cola 1,5L', price: 12.00, needsZeroOption: true },
-  { id: 'b10', categoryId: 'bebidas', name: 'Refr. Coca Cola 2L', price: 15.00, needsZeroOption: true },
 
   // BALCÃO
   { id: 'bc1', categoryId: 'balcao', name: 'Feijão Tropeiro (P)', price: 20.00 },

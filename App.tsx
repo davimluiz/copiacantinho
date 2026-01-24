@@ -71,7 +71,7 @@ const Receipt = ({ order, stats }: { order: any | null, stats?: any | null }) =>
                 {order.endereco && <p><strong>END:</strong> {order.endereco}</p>}
             </div>
             <div className="border-b border-dashed border-black my-2"></div>
-            <div className="mb-2 whitespace-pre-wrap leading-tight text-[12px]">{order.itens}</div>
+            <div className="mb-2 whitespace-pre-wrap leading-tight text-[12px] font-bold">{order.itens}</div>
             <div className="border-t border-dashed border-black mt-2 pt-2 text-right">
                 <p className="text-lg font-bold">TOTAL: R$ {Number(order.total || 0).toFixed(2)}</p>
             </div>
@@ -119,87 +119,101 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
   const [quantity, setQuantity] = useState(1);
   const [observation, setObservation] = useState('');
   
-  // States isolados por categoria para evitar bug de nomes duplicados
+  // States Açaí
+  const [acaiComplete, setAcaiComplete] = useState(false);
   const [selectedComplements, setSelectedComplements] = useState<string[]>([]);
   const [selectedToppings, setSelectedToppings] = useState<string[]>([]);
   const [selectedFruits, setSelectedFruits] = useState<string[]>([]);
   const [selectedPaidExtras, setSelectedPaidExtras] = useState<any[]>([]);
+
+  // States Franguinho
   const [selectedSides, setSelectedSides] = useState<string[]>([]);
+
+  // States Bebidas
+  const [drinkFlavor, setDrinkFlavor] = useState('');
+  const [isZero, setIsZero] = useState(false);
+
+  // States Lanches
+  const [removalText, setRemovalText] = useState('');
+  const [picanhaAddition, setPicanhaAddition] = useState(false);
+  const [selectedLancheExtras, setSelectedLancheExtras] = useState<string[]>([]);
+  const [isTurbined, setIsTurbined] = useState(false);
 
   useEffect(() => {
     if (isOpen && product) {
       setQuantity(1);
       setObservation('');
+      setAcaiComplete(false);
       setSelectedComplements([]);
       setSelectedToppings([]);
       setSelectedFruits([]);
       setSelectedPaidExtras([]);
       setSelectedSides([]);
+      setDrinkFlavor('');
+      setIsZero(false);
+      setRemovalText('');
+      setPicanhaAddition(false);
+      setSelectedLancheExtras([]);
+      setIsTurbined(false);
     }
   }, [isOpen, product]);
 
   if (!product) return null;
 
-  const isAcai = product.categoryId === 'acai';
-  const isFranguinho = product.categoryId === 'franguinho' && (product.maxSides || 0) > 0;
-
+  const category = product.categoryId;
+  
   const toggleItem = (item: string, current: string[], setter: (val: string[]) => void) => {
-    if (current.includes(item)) {
-      setter(current.filter(i => i !== item));
-    } else {
-      setter([...current, item]);
-    }
+    if (current.includes(item)) setter(current.filter(i => i !== item));
+    else setter([...current, item]);
   };
 
-  const togglePaidExtra = (extra: any) => {
-    if (selectedPaidExtras.find(e => e.name === extra.name)) {
-      setSelectedPaidExtras(selectedPaidExtras.filter(e => e.name !== extra.name));
-    } else {
-      setSelectedPaidExtras([...selectedPaidExtras, extra]);
+  const calculateTotalPrice = () => {
+    let extra = 0;
+    if (category === 'acai') {
+      extra = selectedPaidExtras.reduce((acc, e) => acc + e.price, 0);
+    } else if (category === 'lanches') {
+      if (picanhaAddition) extra += 4.50;
+      extra += selectedLancheExtras.length * 3.00;
+      if (isTurbined) extra += 10.00;
     }
+    return (Number(product.price) + extra) * quantity;
   };
-
-  const toggleSide = (side: string) => {
-    if (selectedSides.includes(side)) {
-      setSelectedSides(selectedSides.filter(s => s !== side));
-    } else if (selectedSides.length < (product.maxSides || 0)) {
-      setSelectedSides([...selectedSides, side]);
-    }
-  };
-
-  const extrasTotal = selectedPaidExtras.reduce((acc, e) => acc + e.price, 0);
-  const finalUnitPrice = Number(product.price) + extrasTotal;
 
   const handleConfirm = () => {
-    let customDetails = "";
-    if (isAcai) {
-      if (selectedComplements.length) {
-        customDetails += `\nComplementos:\n  - ${selectedComplements.join('\n  - ')}`;
-      }
-      if (selectedFruits.length) {
-        customDetails += `\nFrutas:\n  - ${selectedFruits.join('\n  - ')}`;
-      }
-      if (selectedToppings.length) {
-        customDetails += `\nCoberturas:\n  - ${selectedToppings.join('\n  - ')}`;
-      }
-      if (selectedPaidExtras.length) {
-        customDetails += `\nExtras (Pago):\n  - ${selectedPaidExtras.map(e => e.name).join('\n  - ')}`;
-      }
-    }
-    if (isFranguinho) {
-      if (selectedSides.length) {
-        customDetails += `\nAcomp:\n  - ${selectedSides.join('\n  - ')}`;
-      }
-    }
+    let finalDetails = "";
 
-    const finalObs = observation ? `${observation}${customDetails}` : customDetails.trim();
+    if (category === 'acai') {
+      if (acaiComplete) {
+        finalDetails += "\nOpção: COMPLETO";
+      } else {
+        if (selectedComplements.length) finalDetails += `\nComplementos:\n  - ${selectedComplements.join('\n  - ')}`;
+        if (selectedFruits.length) finalDetails += `\nFrutas:\n  - ${selectedFruits.join('\n  - ')}`;
+        if (selectedToppings.length) finalDetails += `\nCoberturas:\n  - ${selectedToppings.join('\n  - ')}`;
+      }
+      if (selectedPaidExtras.length) finalDetails += `\nAdicionais:\n  - ${selectedPaidExtras.map(e => e.name).join('\n  - ')}`;
+    } else if (category === 'lanches') {
+      if (removalText) finalDetails += `\nRetirar: ${removalText}`;
+      if (picanhaAddition) finalDetails += `\nAdicional: Bife de Picanha (+R$4,50)`;
+      if (selectedLancheExtras.length) finalDetails += `\nAdicionais (+R$3,00 cada):\n  - ${selectedLancheExtras.join('\n  - ')}`;
+      if (isTurbined) finalDetails += `\nTURBINADO (+R$10,00): Batata + Juninho`;
+      if (observation) finalDetails += `\nObs: ${observation}`;
+    } else if (category === 'franguinho') {
+      if (selectedSides.length) finalDetails += `\nAcompanhamentos:\n  - ${selectedSides.join('\n  - ')}`;
+      if (observation) finalDetails += `\nObs: ${observation}`;
+    } else if (category === 'bebidas') {
+      if (product.needsFlavor && drinkFlavor) finalDetails += `\nSabor: ${drinkFlavor}`;
+      if (product.needsZeroOption) finalDetails += `\nOpção: ${isZero ? 'ZERO' : 'NORMAL'}`;
+      if (observation) finalDetails += `\nObs: ${observation}`;
+    } else if (category === 'porcoes') {
+      if (observation) finalDetails += `\nObs: ${observation}`;
+    }
 
     onConfirm({
       ...product,
       cartId: Date.now().toString(),
       quantity,
-      observation: finalObs,
-      price: finalUnitPrice
+      observation: finalDetails.trim(),
+      price: calculateTotalPrice() / quantity // unit price for storage
     });
   };
 
@@ -209,13 +223,13 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
         <div className="p-6 border-b border-red-50 flex justify-between items-center bg-red-50/30">
           <div>
             <h3 className="text-xl font-black text-red-800 italic uppercase">{product.name}</h3>
-            <p className="text-red-600 font-black mt-1 italic">R$ {finalUnitPrice.toFixed(2)}</p>
+            {product.unit && <p className="text-[10px] text-zinc-400 font-black uppercase italic leading-none">{product.unit}</p>}
+            <p className="text-red-600 font-black mt-1 italic text-lg">R$ {calculateTotalPrice().toFixed(2)}</p>
           </div>
           <button onClick={onClose} className="text-zinc-300 hover:text-red-600 text-3xl transition-colors">&times;</button>
         </div>
         
         <div className="flex-1 overflow-y-auto p-6 space-y-8 text-left custom-scrollbar">
-          
           <section>
             <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3">Quantidade</label>
             <div className="flex items-center gap-6">
@@ -225,73 +239,120 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
             </div>
           </section>
 
-          {isAcai && (
+          {/* LANCHES */}
+          {category === 'lanches' && (
             <>
               <section>
-                <div className="flex justify-between items-center mb-3">
-                  <label className="text-red-900 text-[11px] font-black uppercase italic">Complementos (Grátis)</label>
-                  <span className="bg-red-50 text-red-800 text-[9px] px-2 py-0.5 rounded-full font-black">ILIMITADO</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {ACAI_COMPLEMENTS.map(item => (
+                <label className="text-red-900 text-[11px] font-black uppercase italic block mb-2">Ingredientes:</label>
+                <p className="text-xs text-zinc-500 font-medium italic">{product.ingredients?.join(', ')}</p>
+              </section>
+              <section>
+                <label className="text-red-900 text-[11px] font-black uppercase italic block mb-2">Deseja Retirar algo?</label>
+                <Input label="" placeholder="Ex: Sem cebola, sem tomate..." value={removalText} onChange={e => setRemovalText(e.target.value)} />
+              </section>
+              <section>
+                <label className="text-red-900 text-[11px] font-black uppercase italic block mb-3">Adicionais</label>
+                <div className="space-y-2">
                     <button 
-                      key={`comp-${item}`}
-                      onClick={() => toggleItem(item, selectedComplements, setSelectedComplements)}
-                      className={`text-[10px] font-bold p-2.5 rounded-xl border transition-all text-left uppercase italic ${selectedComplements.includes(item) ? 'bg-red-700 border-red-900 text-white shadow-md' : 'bg-zinc-50 border-zinc-100 text-zinc-500 hover:bg-zinc-100'}`}
+                      onClick={() => setPicanhaAddition(!picanhaAddition)}
+                      className={`w-full p-3 rounded-xl border text-left flex justify-between items-center font-bold uppercase text-[10px] transition-all ${picanhaAddition ? 'bg-red-700 text-white border-red-900' : 'bg-zinc-50 border-zinc-100 text-zinc-500'}`}
                     >
-                      {item}
+                        <span>Bife de Picanha</span>
+                        <span>+ R$ 4,50</span>
                     </button>
-                  ))}
+                    <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-100">
+                        <label className="text-[9px] font-black text-zinc-400 uppercase mb-2 block">Acrescentar itens (+ R$ 3,00 cada):</label>
+                        <select 
+                          className="w-full bg-white border border-zinc-200 p-2 rounded-lg text-xs font-bold text-red-900 focus:outline-none"
+                          onChange={(e) => {
+                            if (e.target.value && !selectedLancheExtras.includes(e.target.value)) {
+                                setSelectedLancheExtras([...selectedLancheExtras, e.target.value]);
+                            }
+                            e.target.value = "";
+                          }}
+                        >
+                          <option value="">Selecione para adicionar...</option>
+                          {['Ovo', 'Bacon', 'Carne comum', 'Queijo', 'Presunto', 'Calabresa'].map(item => (
+                            <option key={item} value={item}>{item}</option>
+                          ))}
+                        </select>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                            {selectedLancheExtras.map(item => (
+                                <span key={item} className="bg-red-100 text-red-800 text-[9px] font-black px-2 py-1 rounded-full flex items-center gap-1 uppercase italic">
+                                    {item}
+                                    <button onClick={() => setSelectedLancheExtras(selectedLancheExtras.filter(i => i !== item))}>&times;</button>
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                    <button 
+                      onClick={() => setIsTurbined(!isTurbined)}
+                      className={`w-full py-4 rounded-xl border-b-4 font-black text-xs transition-all italic shadow-lg ${isTurbined ? 'bg-red-800 text-white border-red-950 scale-[1.02]' : 'bg-red-600 text-white border-red-800 hover:bg-red-700'}`}
+                    >
+                        TURBINE SEU LANCHE POR + 10R$ (150G DE BATATA E UM JUNINHO)
+                    </button>
                 </div>
               </section>
+            </>
+          )}
 
+          {/* AÇAÍ */}
+          {category === 'acai' && (
+            <>
               <section>
-                <div className="flex justify-between items-center mb-3">
-                  <label className="text-red-900 text-[11px] font-black uppercase italic">Frutas (Grátis)</label>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {ACAI_FRUITS.map(item => (
-                    <button 
-                      key={`fruit-${item}`}
-                      onClick={() => toggleItem(item, selectedFruits, setSelectedFruits)}
-                      className={`text-[10px] font-bold p-2.5 rounded-xl border transition-all text-left uppercase italic ${selectedFruits.includes(item) ? 'bg-red-700 border-red-900 text-white shadow-md' : 'bg-zinc-50 border-zinc-100 text-zinc-500 hover:bg-zinc-100'}`}
-                    >
-                      {item}
-                    </button>
-                  ))}
-                </div>
+                <button 
+                  onClick={() => {
+                    setAcaiComplete(!acaiComplete);
+                    if (!acaiComplete) {
+                      setSelectedComplements([]);
+                      setSelectedFruits([]);
+                      setSelectedToppings([]);
+                    }
+                  }}
+                  className={`w-full py-4 rounded-[1.5rem] border-b-4 font-black transition-all italic shadow-lg text-lg ${acaiComplete ? 'bg-green-600 text-white border-green-800' : 'bg-zinc-100 text-zinc-400 border-zinc-300'}`}
+                >
+                  {acaiComplete ? '✓ AÇAÍ COMPLETO SELECIONADO' : 'AÇAÍ COMPLETO?'}
+                </button>
               </section>
 
-              <section>
-                <div className="flex justify-between items-center mb-3">
-                  <label className="text-red-900 text-[11px] font-black uppercase italic">Coberturas (Grátis)</label>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {ACAI_TOPPINGS.map(item => (
-                    <button 
-                      key={`top-${item}`}
-                      onClick={() => toggleItem(item, selectedToppings, setSelectedToppings)}
-                      className={`text-[10px] font-bold p-2.5 rounded-xl border transition-all text-left uppercase italic ${selectedToppings.includes(item) ? 'bg-red-700 border-red-900 text-white shadow-md' : 'bg-zinc-50 border-zinc-100 text-zinc-500 hover:bg-zinc-100'}`}
-                    >
-                      {item}
-                    </button>
-                  ))}
-                </div>
-              </section>
+              <div className={acaiComplete ? 'opacity-30 pointer-events-none' : ''}>
+                  <section className="mt-4">
+                    <label className="text-red-900 text-[11px] font-black uppercase italic block mb-3">Complementos (Grátis)</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {ACAI_COMPLEMENTS.map(item => (
+                        <button key={item} onClick={() => toggleItem(item, selectedComplements, setSelectedComplements)} className={`text-[10px] font-bold p-2.5 rounded-xl border text-left uppercase italic ${selectedComplements.includes(item) ? 'bg-red-700 text-white' : 'bg-zinc-50'}`}>{item}</button>
+                      ))}
+                    </div>
+                  </section>
+                  <section className="mt-4">
+                    <label className="text-red-900 text-[11px] font-black uppercase italic block mb-3">Frutas (Grátis)</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {ACAI_FRUITS.map(item => (
+                        <button key={item} onClick={() => toggleItem(item, selectedFruits, setSelectedFruits)} className={`text-[10px] font-bold p-2.5 rounded-xl border text-left uppercase italic ${selectedFruits.includes(item) ? 'bg-red-700 text-white' : 'bg-zinc-50'}`}>{item}</button>
+                      ))}
+                    </div>
+                  </section>
+                  <section className="mt-4">
+                    <label className="text-red-900 text-[11px] font-black uppercase italic block mb-3">Coberturas (Grátis)</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {ACAI_TOPPINGS.map(item => (
+                        <button key={item} onClick={() => toggleItem(item, selectedToppings, setSelectedToppings)} className={`text-[10px] font-bold p-2.5 rounded-xl border text-left uppercase italic ${selectedToppings.includes(item) ? 'bg-red-700 text-white' : 'bg-zinc-50'}`}>{item}</button>
+                      ))}
+                    </div>
+                  </section>
+              </div>
 
-              <section>
-                <div className="flex justify-between items-center mb-3">
-                  <label className="text-red-900 text-[11px] font-black uppercase italic">Extras (Pago)</label>
-                </div>
+              <section className="mt-4">
+                <label className="text-red-900 text-[11px] font-black uppercase italic block mb-3">Adicionais (Pago)</label>
                 <div className="grid grid-cols-1 gap-2">
                   {ACAI_PAID_EXTRAS.map(extra => (
-                    <button 
-                      key={`extra-${extra.name}`}
-                      onClick={() => togglePaidExtra(extra)}
-                      className={`text-[11px] font-bold p-3 rounded-xl border transition-all flex justify-between items-center uppercase italic ${selectedPaidExtras.find(e => e.name === extra.name) ? 'bg-green-600 border-green-800 text-white shadow-md' : 'bg-zinc-50 border-zinc-100 text-zinc-500'}`}
-                    >
+                    <button key={extra.name} onClick={() => {
+                        const exists = selectedPaidExtras.find(e => e.name === extra.name);
+                        if (exists) setSelectedPaidExtras(selectedPaidExtras.filter(e => e.name !== extra.name));
+                        else setSelectedPaidExtras([...selectedPaidExtras, extra]);
+                    }} className={`text-[11px] font-bold p-3 rounded-xl border flex justify-between uppercase italic ${selectedPaidExtras.find(e => e.name === extra.name) ? 'bg-green-600 text-white' : 'bg-zinc-50 text-zinc-500'}`}>
                       <span>{extra.name}</span>
-                      <span className={selectedPaidExtras.find(e => e.name === extra.name) ? 'text-white' : 'text-green-600'}>+ R$ {extra.price.toFixed(2)}</span>
+                      <span>+ R$ {extra.price.toFixed(2)}</span>
                     </button>
                   ))}
                 </div>
@@ -299,18 +360,19 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
             </>
           )}
 
-          {isFranguinho && (
+          {/* FRANGUINHO */}
+          {category === 'franguinho' && (
             <section>
-              <div className="flex justify-between items-center mb-3">
-                <label className="text-red-900 text-[11px] font-black uppercase italic">Acompanhamentos</label>
-                <span className="bg-red-50 text-red-800 text-[9px] px-2 py-0.5 rounded-full font-black">ESCOLHA ATÉ {product.maxSides}</span>
-              </div>
+              <label className="text-red-900 text-[11px] font-black uppercase italic block mb-2">Escolha seus Acompanhamentos ({selectedSides.length}/{product.maxSides}):</label>
               <div className="grid grid-cols-1 gap-2">
                 {FRANGUINHO_SIDES.map(side => (
                   <button 
-                    key={`side-${side}`}
-                    onClick={() => toggleSide(side)}
-                    className={`text-[11px] font-bold p-3 rounded-xl border transition-all text-left uppercase italic ${selectedSides.includes(side) ? 'bg-red-700 border-red-900 text-white shadow-md' : 'bg-zinc-50 border-zinc-100 text-zinc-500 hover:bg-zinc-100'}`}
+                    key={side} 
+                    onClick={() => {
+                        if (selectedSides.includes(side)) setSelectedSides(selectedSides.filter(s => s !== side));
+                        else if (selectedSides.length < (product.maxSides || 0)) setSelectedSides([...selectedSides, side]);
+                    }} 
+                    className={`text-[11px] font-bold p-3 rounded-xl border text-left uppercase italic ${selectedSides.includes(side) ? 'bg-red-700 text-white' : 'bg-zinc-50 text-zinc-500'}`}
                   >
                     {side}
                   </button>
@@ -319,11 +381,41 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
             </section>
           )}
 
+          {/* BEBIDAS */}
+          {category === 'bebidas' && (
+            <>
+              {product.needsFlavor && (
+                <section>
+                    <label className="text-red-900 text-[11px] font-black uppercase italic block mb-2">Qual o sabor?</label>
+                    <Input label="" placeholder="Digite o sabor desejado..." value={drinkFlavor} onChange={e => setDrinkFlavor(e.target.value)} />
+                </section>
+              )}
+              {product.needsZeroOption && (
+                <section>
+                    <label className="text-red-900 text-[11px] font-black uppercase italic block mb-4">Selecione:</label>
+                    <div className="flex gap-4">
+                        <button onClick={() => setIsZero(false)} className={`flex-1 p-4 rounded-xl font-black text-xs uppercase italic border-b-4 ${!isZero ? 'bg-red-700 text-white border-red-900 shadow-md' : 'bg-zinc-50 text-zinc-400 border-zinc-200'}`}>NORMAL</button>
+                        <button onClick={() => setIsZero(true)} className={`flex-1 p-4 rounded-xl font-black text-xs uppercase italic border-b-4 ${isZero ? 'bg-zinc-900 text-white border-black shadow-md' : 'bg-zinc-50 text-zinc-400 border-zinc-200'}`}>ZERO</button>
+                    </div>
+                </section>
+              )}
+            </>
+          )}
+
+          {/* PORÇÕES */}
+          {category === 'porcoes' && product.description && (
+            <section>
+                <label className="text-red-900 text-[11px] font-black uppercase italic block mb-2">Observação:</label>
+                <p className="bg-yellow-50 p-4 border border-yellow-200 rounded-xl text-xs text-red-900 font-bold italic leading-relaxed">{product.description}</p>
+            </section>
+          )}
+
+          {/* CAMPO DE OBSERVAÇÃO GERAL (apenas para quem não é Lanche/Açaí com lógica própria, ou como extra) */}
           <section>
             <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3">Observação Adicional</label>
             <textarea 
               className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-[1.5rem] p-4 text-zinc-800 focus:outline-none min-h-[80px] text-sm font-medium" 
-              placeholder="Ex: Sem cebola, talher, etc..." 
+              placeholder="Algum pedido especial?" 
               value={observation} 
               onChange={e => setObservation(e.target.value)} 
             />
@@ -672,7 +764,7 @@ export default function App() {
                         <p className="text-sm font-black text-red-950 italic uppercase">{o.nomeCliente}</p>
                         <p className="text-[9px] font-black text-zinc-400 uppercase mt-1">{o.tipo} • {o.pagamento}</p>
                     </div>
-                    <div className="flex-1 bg-zinc-50 p-4 rounded-xl text-[10px] font-bold text-zinc-700 whitespace-pre-wrap text-left">{o.itens}</div>
+                    <div className="flex-1 bg-zinc-50 p-4 rounded-xl text-[10px] font-bold text-zinc-700 whitespace-pre-wrap text-left leading-tight">{o.itens}</div>
                     <div className="flex items-center gap-3">
                        <p className="text-xl font-black text-red-700 italic min-w-[100px]">R$ {Number(o.total || 0).toFixed(2)}</p>
                        <div className="flex gap-2">
@@ -711,7 +803,7 @@ export default function App() {
 
       {view === 'SUCCESS' && (
         <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-zinc-50 no-print animate-fade-in text-center">
-          <div className="glass-card p-10 rounded-[3rem] shadow-2xl max-md w-full bg-white border border-green-100">
+          <div className="glass-card p-10 rounded-[3rem] shadow-2xl max-md w-full bg-white border border-green-100 p-8">
             <div className="text-6xl mb-6">✅</div>
             <h2 className="text-2xl font-black text-green-800 uppercase italic mb-4 leading-tight">Pedido realizado com sucesso!</h2>
             <p className="text-zinc-600 font-bold mb-8 leading-relaxed">
@@ -724,7 +816,7 @@ export default function App() {
                 href="https://wa.me/5527992269550?text=Ei%2C%20Sandra!%20J%C3%A1%20fiz%20meu%20pedido%20pelo%20app%20%F0%9F%98%8B%F0%9F%8D%94" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="block w-full bg-green-600 hover:bg-green-700 text-white font-black py-5 rounded-[2rem] shadow-xl uppercase italic text-lg transition-all border-b-4 border-green-900"
+                className="block w-full bg-green-600 hover:bg-green-700 text-white font-black py-5 rounded-[2rem] shadow-xl uppercase italic text-lg transition-all border-b-4 border-green-900 flex items-center justify-center"
               >
                 CONFIRMAR PEDIDO ✅
               </a>
@@ -804,6 +896,7 @@ export default function App() {
                             <div key={prod.id} onClick={() => setSelectedProduct(prod)} className="bg-white border border-zinc-50 p-5 rounded-[2rem] flex justify-between items-center shadow-md active:scale-95 transition-all cursor-pointer">
                                 <div className="flex-1 pr-4 text-left">
                                     <h3 className="text-lg font-black text-red-950 italic uppercase leading-tight">{prod.name}</h3>
+                                    {prod.unit && <p className="text-[10px] text-zinc-400 font-black uppercase italic leading-none mb-1">{prod.unit}</p>}
                                     <p className="text-red-600 font-black text-base italic">R$ {prod.price.toFixed(2)}</p>
                                 </div>
                                 <div className="w-10 h-10 bg-red-700 text-white rounded-xl flex items-center justify-center text-2xl font-black">+</div>
@@ -823,7 +916,7 @@ export default function App() {
                                     <div key={item.cartId} className="bg-zinc-50 p-4 rounded-2xl border border-zinc-100 flex justify-between items-center text-left">
                                         <div className="flex-1 pr-4">
                                             <p className="font-black text-red-950 text-sm italic uppercase leading-tight">{item.quantity}x {item.name}</p>
-                                            {item.observation && <p className="text-[9px] text-zinc-500 font-bold uppercase mt-1 italic leading-tight">{item.observation}</p>}
+                                            {item.observation && <p className="text-[9px] text-zinc-500 font-bold uppercase mt-1 italic leading-tight whitespace-pre-wrap">{item.observation}</p>}
                                             {item.isPromotion && <span className="text-[8px] bg-yellow-400 text-red-800 px-2 py-0.5 rounded-full font-black uppercase italic">Promo 🔥</span>}
                                         </div>
                                         <div className="flex items-center gap-3"><p className="font-black text-red-800 text-sm italic">R$ {(item.price * item.quantity).toFixed(2)}</p><button onClick={() => setCart(cart.filter(c => c.cartId !== item.cartId))} className="text-red-600">🗑️</button></div>
