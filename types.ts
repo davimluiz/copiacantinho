@@ -4,7 +4,8 @@ export enum PaymentMethod {
   CASH = 'DINHEIRO',
   CARD = 'CARTÃO',
   NOT_INFORMED = 'NÃO INFORMOU',
-  BOLSA_ALUNO = 'BOLSA ALUNO'
+  BOLSA_ALUNO = 'BOLSA ALUNO',
+  PAID = 'PAGO'
 }
 
 export enum OrderType {

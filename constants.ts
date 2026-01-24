@@ -113,6 +113,7 @@ export const PAYMENT_METHODS = [
   { value: PaymentMethod.CASH, label: 'Dinheiro' },
   { value: PaymentMethod.CARD, label: 'Cartão' },
   { value: PaymentMethod.BOLSA_ALUNO, label: 'Bolsa Aluno' },
+  { value: PaymentMethod.PAID, label: 'PAGO' },
 ];
 
 export const FRANGUINHO_SIDES = [
