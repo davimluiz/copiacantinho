@@ -125,7 +125,7 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
   const [selectedToppings, setSelectedToppings] = useState<string[]>([]);
   const [selectedFruits, setSelectedFruits] = useState<string[]>([]);
   const [selectedPaidExtras, setSelectedPaidExtras] = useState<any[]>([]);
-  const [acaiNames, setAcaiNames] = useState<string[]>([]);
+  const [acaiOwnerName, setAcaiOwnerName] = useState('');
 
   // States Franguinho
   const [selectedSides, setSelectedSides] = useState<string[]>([]);
@@ -139,6 +139,9 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
   const [picanhaAddition, setPicanhaAddition] = useState(false);
   const [selectedLancheExtras, setSelectedLancheExtras] = useState<string[]>([]);
   const [isTurbined, setIsTurbined] = useState(false);
+
+  // States Balcão
+  const [wantsSalpicao, setWantsSalpicao] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (isOpen && product) {
@@ -156,26 +159,15 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
       setPicanhaAddition(false);
       setSelectedLancheExtras([]);
       setIsTurbined(false);
-      setAcaiNames([]);
+      setAcaiOwnerName('');
+      setWantsSalpicao(null);
     }
   }, [isOpen, product]);
-
-  // Sync acaiNames with quantity
-  useEffect(() => {
-    if (product?.categoryId === 'acai' && quantity > 1) {
-      setAcaiNames(prev => {
-        const next = [...prev];
-        while (next.length < quantity) next.push("");
-        return next.slice(0, quantity);
-      });
-    } else {
-      setAcaiNames([]);
-    }
-  }, [quantity, product]);
 
   if (!product) return null;
 
   const category = product.categoryId;
+  const isTropeiro = product.name.toLowerCase().includes('tropeiro');
   
   const toggleItem = (item: string, current: string[], setter: (val: string[]) => void) => {
     if (current.includes(item)) setter(current.filter(i => i !== item));
@@ -191,18 +183,24 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
       extra += selectedLancheExtras.length * 3.00;
       if (isTurbined) extra += 10.00;
     }
-    return (Number(product.price) + extra) * quantity;
+    return (Number(product.price) + extra) * (category === 'acai' ? 1 : quantity);
   };
 
   const handleConfirm = () => {
+    if (category === 'acai' && !acaiOwnerName.trim()) {
+      alert("Por favor, informe o nome para este açaí.");
+      return;
+    }
+
+    if (isTropeiro && wantsSalpicao === null) {
+      alert("Por favor, selecione se deseja salpicão.");
+      return;
+    }
+
     let finalDetails = "";
 
     if (category === 'acai') {
-      // Add names if provided
-      if (acaiNames.some(n => n.trim() !== "")) {
-        finalDetails += `\nNomes:\n  ${acaiNames.filter(n => n.trim() !== "").map((n, idx) => `- Açaí #${idx+1}: ${n}`).join('\n  ')}`;
-      }
-
+      finalDetails += `Proprietário: ${acaiOwnerName.toUpperCase()}`;
       if (acaiComplete) {
         finalDetails += "\nOpção: COMPLETO";
       } else {
@@ -226,14 +224,19 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
       if (observation) finalDetails += `\nObs: ${observation}`;
     } else if (category === 'porcoes') {
       if (observation) finalDetails += `\nObs: ${observation}`;
+    } else if (category === 'balcao') {
+        if (isTropeiro) {
+            finalDetails += `Opção: ${wantsSalpicao ? 'COM SALPICÃO' : 'SEM SALPICÃO'}`;
+        }
+        if (observation) finalDetails += `\nObs: ${observation}`;
     }
 
     onConfirm({
       ...product,
       cartId: Date.now().toString(),
-      quantity,
+      quantity: category === 'acai' ? 1 : quantity,
       observation: finalDetails.trim(),
-      price: calculateTotalPrice() / quantity // unit price for storage
+      price: calculateTotalPrice() / (category === 'acai' ? 1 : quantity)
     });
   };
 
@@ -250,38 +253,50 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
         </div>
         
         <div className="flex-1 overflow-y-auto p-6 space-y-8 text-left custom-scrollbar">
-          <section>
-            <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3">Quantidade</label>
-            <div className="flex items-center gap-6">
-              <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-10 h-10 rounded-xl bg-zinc-50 text-red-600 font-black text-xl hover:bg-zinc-100">-</button>
-              <span className="text-2xl font-black text-red-900 italic">{quantity}</span>
-              <button onClick={() => setQuantity(quantity + 1)} className="w-10 h-10 rounded-xl bg-zinc-50 text-red-600 font-black text-xl hover:bg-zinc-100">+</button>
-            </div>
-          </section>
-
-          {/* ACÁI NAMES SECTION */}
-          {category === 'acai' && quantity > 1 && (
-            <section className="bg-red-50/50 p-5 rounded-3xl border border-red-100 animate-fade-in">
-              <label className="text-red-900 text-[11px] font-black uppercase italic block mb-3 leading-none">Identificar cada Açaí (Opcional):</label>
-              <div className="space-y-3">
-                {acaiNames.map((name, idx) => (
-                  <div key={idx} className="flex flex-col gap-1">
-                    <span className="text-[9px] font-black text-red-400 uppercase italic">Açaí #{idx + 1}</span>
-                    <input 
-                      type="text"
-                      className="w-full bg-white border border-red-100 rounded-xl py-2 px-4 text-xs font-bold text-red-900 outline-none focus:border-red-500 shadow-sm"
-                      placeholder="Nome p/ identificação..."
-                      value={name}
-                      onChange={e => {
-                        const newNames = [...acaiNames];
-                        newNames[idx] = e.target.value;
-                        setAcaiNames(newNames);
-                      }}
-                    />
-                  </div>
-                ))}
+          {category !== 'acai' && (
+            <section>
+              <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3">Quantidade</label>
+              <div className="flex items-center gap-6">
+                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-10 h-10 rounded-xl bg-zinc-50 text-red-600 font-black text-xl hover:bg-zinc-100">-</button>
+                <span className="text-2xl font-black text-red-900 italic">{quantity}</span>
+                <button onClick={() => setQuantity(quantity + 1)} className="w-10 h-10 rounded-xl bg-zinc-50 text-red-600 font-black text-xl hover:bg-zinc-100">+</button>
               </div>
             </section>
+          )}
+
+          {category === 'acai' && (
+              <section>
+                  <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3">Nome para este Açaí (Obrigatório)</label>
+                  <input 
+                    type="text" 
+                    required 
+                    className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 text-red-900 font-bold focus:outline-none focus:border-red-600"
+                    placeholder="Ex: Açaí do João"
+                    value={acaiOwnerName}
+                    onChange={e => setAcaiOwnerName(e.target.value)}
+                  />
+                  <p className="text-[9px] text-zinc-400 mt-2 font-bold uppercase italic">* Um açaí por pessoa. Adicione um de cada vez.</p>
+              </section>
+          )}
+
+          {isTropeiro && (
+              <section className="bg-red-50/50 p-6 rounded-3xl border border-red-100">
+                  <label className="block text-red-800 text-sm font-black uppercase italic mb-4 text-center">Deseja Salpicão?</label>
+                  <div className="flex gap-4">
+                      <button 
+                        onClick={() => setWantsSalpicao(true)}
+                        className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase italic border-b-4 transition-all ${wantsSalpicao === true ? 'bg-red-700 text-white border-red-950 shadow-md scale-[1.02]' : 'bg-white text-zinc-400 border-zinc-200'}`}
+                      >
+                          SIM
+                      </button>
+                      <button 
+                        onClick={() => setWantsSalpicao(false)}
+                        className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase italic border-b-4 transition-all ${wantsSalpicao === false ? 'bg-zinc-800 text-white border-black shadow-md scale-[1.02]' : 'bg-white text-zinc-400 border-zinc-200'}`}
+                      >
+                          NÃO
+                      </button>
+                  </div>
+              </section>
           )}
 
           {/* LANCHES */}
@@ -455,7 +470,7 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
             </section>
           )}
 
-          {/* CAMPO DE OBSERVAÇÃO GERAL (condicional para Açaí que teve pedido para remover) */}
+          {/* CAMPO DE OBSERVAÇÃO GERAL */}
           {category !== 'acai' && (
             <section>
               <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3">Observação Adicional</label>
@@ -499,6 +514,7 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [promoAlert, setPromoAlert] = useState<string | null>(null);
   const [quickSaleOpen, setQuickSaleOpen] = useState(false);
+  const [showAcaiConfirmation, setShowAcaiConfirmation] = useState(false);
 
   useEffect(() => {
     onSnapshot(collection(db, 'promocoes'), (snapshot) => setPromos(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Promotion))));
@@ -1080,7 +1096,39 @@ export default function App() {
             )}
         </div>
       )}
-      <ProductModal isOpen={!!selectedProduct} product={selectedProduct} onClose={() => setSelectedProduct(null)} onConfirm={(item: CartItem) => { setCart([...cart, item]); setSelectedProduct(null); }} />
+
+      {/* MODAL DE CONFIRMAÇÃO DE AÇAÍ ADICIONADO */}
+      {showAcaiConfirmation && (
+          <div className="fixed inset-0 z-[600] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm animate-fade-in no-print">
+              <div className="bg-white p-8 rounded-[3rem] text-center max-w-sm w-full shadow-2xl border-4 border-red-50">
+                  <div className="text-5xl mb-4">🍧</div>
+                  <h3 className="text-xl font-black text-red-800 uppercase italic mb-2">Açaí Adicionado!</h3>
+                  <p className="text-zinc-500 font-bold mb-8 uppercase text-[10px] italic">Deseja adicionar outro açaí para outra pessoa ou ir para a sacola?</p>
+                  <div className="space-y-3">
+                      <button 
+                        onClick={() => { setShowAcaiConfirmation(false); setActiveCategory('acai'); setStep('MENU'); }}
+                        className="w-full bg-red-700 text-white font-black py-4 rounded-2xl shadow-xl uppercase italic text-xs border-b-4 border-red-950"
+                      >
+                        PEDIR OUTRO AÇAÍ ➕
+                      </button>
+                      <button 
+                        onClick={() => { setShowAcaiConfirmation(false); setStep('CART_REVIEW'); }}
+                        className="w-full bg-zinc-100 text-zinc-500 font-black py-4 rounded-2xl shadow-md uppercase italic text-xs border-b-4 border-zinc-300"
+                      >
+                        VER MINHA SACOLA 🛒
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      <ProductModal isOpen={!!selectedProduct} product={selectedProduct} onClose={() => setSelectedProduct(null)} onConfirm={(item: CartItem) => { 
+          setCart([...cart, item]); 
+          setSelectedProduct(null); 
+          if (item.categoryId === 'acai') {
+              setShowAcaiConfirmation(true);
+          }
+      }} />
       <style>{`
         @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
