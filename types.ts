@@ -34,6 +34,13 @@ export interface Product {
   needsZeroOption?: boolean;
 }
 
+export interface Promotion {
+  id: string;
+  titulo: string;
+  itens: string;
+  valor: number;
+}
+
 export interface Category {
   id: string;
   name: string;
@@ -47,6 +54,7 @@ export interface CartItem extends Product {
   additions?: string[];
   observation?: string;
   flavor?: string;
+  isPromotion?: boolean;
 }
 
 export interface CustomerInfo {
