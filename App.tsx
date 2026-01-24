@@ -40,15 +40,19 @@ const Receipt = ({ order, stats }: { order: any | null, stats?: any | null }) =>
                 </div>
                 <div className="space-y-3">
                     <div className="flex justify-between border-b border-dashed border-black pb-1">
-                        <span className="font-bold">TOTAL HOJE:</span>
+                        <span className="font-bold">TOTAL VENDAS HOJE:</span>
                         <span>R$ {stats.daily.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between border-b border-dashed border-black pb-1">
-                        <span className="font-bold">ESTA SEMANA:</span>
+                        <span className="font-bold">TOTAL ENTREGAS HOJE:</span>
+                        <span>R$ {stats.deliveryDaily.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-dashed border-black pb-1 border-t mt-2 pt-2">
+                        <span className="font-bold">ESTA SEMANA (VENDAS):</span>
                         <span>R$ {stats.weekly.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between border-b border-dashed border-black pb-1">
-                        <span className="font-bold">ESTE MES:</span>
+                        <span className="font-bold">ESTE MES (VENDAS):</span>
                         <span>R$ {stats.monthly.toFixed(2)}</span>
                     </div>
                 </div>
@@ -395,19 +399,38 @@ export default function App() {
     const weekStart = new Date(todayStart);
     weekStart.setDate(todayStart.getDate() - 7);
     const completed = orders.filter(o => o.status === 'concluido');
+
     const daily = completed.filter(o => {
         const d = o.criadoEm?.toDate ? o.criadoEm.toDate() : null;
         return d && d >= todayStart;
     }).reduce((acc, o) => acc + (o.total || 0), 0);
+
+    const deliveryDaily = completed.filter(o => {
+        const d = o.criadoEm?.toDate ? o.criadoEm.toDate() : null;
+        return d && d >= todayStart;
+    }).reduce((acc, o) => acc + (o.frete || 0), 0);
+
     const weekly = completed.filter(o => {
         const d = o.criadoEm?.toDate ? o.criadoEm.toDate() : null;
         return d && d >= weekStart;
     }).reduce((acc, o) => acc + (o.total || 0), 0);
+
+    const deliveryWeekly = completed.filter(o => {
+        const d = o.criadoEm?.toDate ? o.criadoEm.toDate() : null;
+        return d && d >= weekStart;
+    }).reduce((acc, o) => acc + (o.frete || 0), 0);
+
     const monthly = completed.filter(o => {
         const d = o.criadoEm?.toDate ? o.criadoEm.toDate() : null;
         return d && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).reduce((acc, o) => acc + (o.total || 0), 0);
-    return { daily, weekly, monthly };
+
+    const deliveryMonthly = completed.filter(o => {
+        const d = o.criadoEm?.toDate ? o.criadoEm.toDate() : null;
+        return d && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }).reduce((acc, o) => acc + (o.frete || 0), 0);
+
+    return { daily, deliveryDaily, weekly, deliveryWeekly, monthly, deliveryMonthly };
   }, [orders]);
 
   const handleFinishOrder = async () => {
@@ -592,23 +615,43 @@ export default function App() {
         </div>
 
         {adminTab === 'concluido' && (
-            <div className="mb-10 animate-fade-in no-print">
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-black text-red-800 uppercase italic">Relatório de Vendas</h3>
-                    <button onClick={printSalesSummary} className="flex items-center gap-2 bg-zinc-900 text-white px-5 py-2 rounded-full text-[10px] font-black uppercase shadow-lg active:scale-95 transition-all"><span>🖨️ IMPRIMIR RESUMO</span></button>
+            <div className="mb-10 animate-fade-in no-print space-y-10">
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-black text-red-800 uppercase italic flex items-center gap-2">📊 RELATÓRIO DE VENDAS</h3>
+                        <button onClick={printSalesSummary} className="flex items-center gap-2 bg-zinc-900 text-white px-5 py-2 rounded-full text-[10px] font-black uppercase shadow-lg active:scale-95 transition-all"><span>🖨️ IMPRIMIR RESUMO</span></button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-green-500">
+                            <p className="text-[10px] font-black text-zinc-400 uppercase italic">Vendas Hoje</p>
+                            <p className="text-3xl font-black text-green-600 mt-1 italic">R$ {salesStats.daily.toFixed(2)}</p>
+                        </div>
+                        <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-blue-500">
+                            <p className="text-[10px] font-black text-zinc-400 uppercase italic">Últimos 7 Dias</p>
+                            <p className="text-3xl font-black text-blue-600 mt-1 italic">R$ {salesStats.weekly.toFixed(2)}</p>
+                        </div>
+                        <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-purple-500">
+                            <p className="text-[10px] font-black text-zinc-400 uppercase italic">Vendas do Mês</p>
+                            <p className="text-3xl font-black text-purple-600 mt-1 italic">R$ {salesStats.monthly.toFixed(2)}</p>
+                        </div>
+                    </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-green-500">
-                        <p className="text-[10px] font-black text-zinc-400 uppercase italic">Vendas Hoje</p>
-                        <p className="text-3xl font-black text-green-600 mt-1 italic">R$ {salesStats.daily.toFixed(2)}</p>
-                    </div>
-                    <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-blue-500">
-                        <p className="text-[10px] font-black text-zinc-400 uppercase italic">Últimos 7 Dias</p>
-                        <p className="text-3xl font-black text-blue-600 mt-1 italic">R$ {salesStats.weekly.toFixed(2)}</p>
-                    </div>
-                    <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-purple-500">
-                        <p className="text-[10px] font-black text-zinc-400 uppercase italic">Vendas do Mês</p>
-                        <p className="text-3xl font-black text-purple-600 mt-1 italic">R$ {salesStats.monthly.toFixed(2)}</p>
+
+                <div className="space-y-4">
+                    <h3 className="text-lg font-black text-red-800 uppercase italic flex items-center gap-2">🛵 RELATÓRIO DE ENTREGAS</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-orange-500">
+                            <p className="text-[10px] font-black text-zinc-400 uppercase italic">Entregas Hoje</p>
+                            <p className="text-3xl font-black text-orange-600 mt-1 italic">R$ {salesStats.deliveryDaily.toFixed(2)}</p>
+                        </div>
+                        <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-red-500">
+                            <p className="text-[10px] font-black text-zinc-400 uppercase italic">Entregas 7 Dias</p>
+                            <p className="text-3xl font-black text-red-600 mt-1 italic">R$ {salesStats.deliveryWeekly.toFixed(2)}</p>
+                        </div>
+                        <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-rose-500">
+                            <p className="text-[10px] font-black text-zinc-400 uppercase italic">Entregas Mês</p>
+                            <p className="text-3xl font-black text-rose-600 mt-1 italic">R$ {salesStats.deliveryMonthly.toFixed(2)}</p>
+                        </div>
                     </div>
                 </div>
             </div>
