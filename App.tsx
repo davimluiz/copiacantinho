@@ -456,6 +456,16 @@ export default function App() {
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => { await updateDoc(doc(db, 'pedidos', orderId), { status: newStatus }); };
   const saveEditedOrder = async (updatedOrder: any) => { await updateDoc(doc(db, 'pedidos', updatedOrder.id), { itens: updatedOrder.itens, pagamento: updatedOrder.pagamento }); setEditingOrder(null); };
+  
+  const handleDeleteOrder = async (orderId: string) => {
+    if (window.confirm("Tem certeza que deseja excluir este pedido permanentemente?")) {
+      try {
+        await deleteDoc(doc(db, 'pedidos', orderId));
+      } catch (err) {
+        alert("Erro ao excluir pedido.");
+      }
+    }
+  };
 
   const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -656,8 +666,9 @@ export default function App() {
                     <div className="flex items-center gap-3">
                        <p className="text-xl font-black text-red-700 italic min-w-[100px]">R$ {Number(o.total || 0).toFixed(2)}</p>
                        <div className="flex gap-2">
-                         <button onClick={() => setEditingOrder(o)} className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shadow-sm">📝</button>
-                         <button onClick={() => { setReceiptOrder(o); setReceiptStats(null); setTimeout(() => window.print(), 300); }} className="w-10 h-10 bg-zinc-900 text-white rounded-xl flex items-center justify-center shadow-sm">🖨️</button>
+                         <button onClick={() => setEditingOrder(o)} className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shadow-sm" title="Editar Pedido">📝</button>
+                         <button onClick={() => { setReceiptOrder(o); setReceiptStats(null); setTimeout(() => window.print(), 300); }} className="w-10 h-10 bg-zinc-900 text-white rounded-xl flex items-center justify-center shadow-sm" title="Imprimir Recibo">🖨️</button>
+                         <button onClick={() => handleDeleteOrder(o.id)} className="w-10 h-10 bg-red-50 text-red-600 rounded-xl flex items-center justify-center shadow-sm hover:bg-red-100" title="Excluir Pedido">🗑️</button>
                          {o.status === 'novo' && <button onClick={() => updateOrderStatus(o.id, 'preparando')} className="bg-orange-500 text-white px-4 h-10 rounded-xl text-[9px] font-black uppercase">Preparar</button>}
                          {o.status === 'preparando' && <button onClick={() => updateOrderStatus(o.id, 'concluido')} className="bg-green-600 text-white px-4 h-10 rounded-xl text-[9px] font-black uppercase">Concluir</button>}
                        </div>
@@ -684,6 +695,38 @@ export default function App() {
                 <button onClick={() => setView('PROMOTIONS')} className="w-full bg-yellow-400 border-4 border-yellow-200 text-red-800 font-black py-5 rounded-[2rem] shadow-xl animate-pulse-slow uppercase italic text-lg hover:bg-yellow-500 transition-all">🔥 PROMOÇÕES 🔥</button>
             </div>
             <button onClick={() => setView('LOGIN')} className="hidden md:block mt-16 text-zinc-200 text-[9px] font-black uppercase tracking-[0.3em] hover:text-red-400 transition-all w-full">Acesso Restrito</button>
+          </div>
+        </div>
+      )}
+
+      {view === 'SUCCESS' && (
+        <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-zinc-50 no-print animate-fade-in text-center">
+          <div className="glass-card p-10 rounded-[3rem] shadow-2xl max-w-md w-full bg-white border border-green-100">
+            <div className="text-6xl mb-6">✅</div>
+            <h2 className="text-2xl font-black text-green-800 uppercase italic mb-4 leading-tight">Pedido realizado com sucesso!</h2>
+            <p className="text-zinc-600 font-bold mb-8 leading-relaxed">
+              Recebemos seu pedido no Cantinho da Sandra 🍔💛<br/><br/>
+              Em breve, nossa equipe entrará em contato para confirmar os detalhes.<br/>
+              Obrigado pela preferência! 😋✨
+            </p>
+            <div className="space-y-3">
+              <a 
+                href="https://wa.me/5527992269550?text=Ei%2C%20Sandra!%20J%C3%A1%20fiz%20meu%20pedido%20pelo%20app%20%F0%9F%98%8B%F0%9F%8D%94" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="block w-full bg-green-600 hover:bg-green-700 text-white font-black py-5 rounded-[2rem] shadow-xl uppercase italic text-lg transition-all border-b-4 border-green-900"
+              >
+                CONFIRMAR PEDIDO ✅
+              </a>
+              <Button 
+                fullWidth 
+                variant="secondary" 
+                onClick={() => setView('HOME')} 
+                className="py-5 text-zinc-500 border-zinc-200"
+              >
+                AGUARDAR CONFIRMAÇÃO
+              </Button>
+            </div>
           </div>
         </div>
       )}
