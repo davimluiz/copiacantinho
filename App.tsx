@@ -19,7 +19,8 @@ import { db } from './firebase';
 import { Button } from './components/Button';
 import { Input, Select } from './components/Input';
 import { 
-    CATEGORIES, PRODUCTS, PAYMENT_METHODS, DELIVERY_FEES
+    CATEGORIES, PRODUCTS, PAYMENT_METHODS, DELIVERY_FEES,
+    ACAI_COMPLEMENTS, ACAI_TOPPINGS, ACAI_FRUITS, ACAI_PAID_EXTRAS, FRANGUINHO_SIDES
 } from './constants';
 import { Product, CustomerInfo, CartItem, PaymentMethod, OrderType, Promotion } from './types';
 
@@ -118,36 +119,209 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
   const [quantity, setQuantity] = useState(1);
   const [observation, setObservation] = useState('');
   
+  // States isolados por categoria para evitar bug de nomes duplicados
+  const [selectedComplements, setSelectedComplements] = useState<string[]>([]);
+  const [selectedToppings, setSelectedToppings] = useState<string[]>([]);
+  const [selectedFruits, setSelectedFruits] = useState<string[]>([]);
+  const [selectedPaidExtras, setSelectedPaidExtras] = useState<any[]>([]);
+  const [selectedSides, setSelectedSides] = useState<string[]>([]);
+
   useEffect(() => {
     if (isOpen && product) {
-      setQuantity(1); setObservation('');
+      setQuantity(1);
+      setObservation('');
+      setSelectedComplements([]);
+      setSelectedToppings([]);
+      setSelectedFruits([]);
+      setSelectedPaidExtras([]);
+      setSelectedSides([]);
     }
   }, [isOpen, product]);
 
   if (!product) return null;
 
+  const isAcai = product.categoryId === 'acai';
+  const isFranguinho = product.categoryId === 'franguinho' && (product.maxSides || 0) > 0;
+
+  const toggleItem = (item: string, current: string[], setter: (val: string[]) => void) => {
+    if (current.includes(item)) {
+      setter(current.filter(i => i !== item));
+    } else {
+      setter([...current, item]);
+    }
+  };
+
+  const togglePaidExtra = (extra: any) => {
+    if (selectedPaidExtras.find(e => e.name === extra.name)) {
+      setSelectedPaidExtras(selectedPaidExtras.filter(e => e.name !== extra.name));
+    } else {
+      setSelectedPaidExtras([...selectedPaidExtras, extra]);
+    }
+  };
+
+  const toggleSide = (side: string) => {
+    if (selectedSides.includes(side)) {
+      setSelectedSides(selectedSides.filter(s => s !== side));
+    } else if (selectedSides.length < (product.maxSides || 0)) {
+      setSelectedSides([...selectedSides, side]);
+    }
+  };
+
+  const extrasTotal = selectedPaidExtras.reduce((acc, e) => acc + e.price, 0);
+  const finalUnitPrice = Number(product.price) + extrasTotal;
+
+  const handleConfirm = () => {
+    let customDetails = "";
+    if (isAcai) {
+      if (selectedComplements.length) customDetails += `\nComplementos: ${selectedComplements.join(', ')}`;
+      if (selectedToppings.length) customDetails += `\nCoberturas: ${selectedToppings.join(', ')}`;
+      if (selectedFruits.length) customDetails += `\nFrutas: ${selectedFruits.join(', ')}`;
+      if (selectedPaidExtras.length) customDetails += `\nExtras (Pago): ${selectedPaidExtras.map(e => e.name).join(', ')}`;
+    }
+    if (isFranguinho) {
+      if (selectedSides.length) customDetails += `\nAcomp: ${selectedSides.join(', ')}`;
+    }
+
+    const finalObs = observation ? `${observation}${customDetails}` : customDetails.trim();
+
+    onConfirm({
+      ...product,
+      cartId: Date.now().toString(),
+      quantity,
+      observation: finalObs,
+      price: finalUnitPrice
+    });
+  };
+
   return (
     <div className={`fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-opacity no-print ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-      <div className="bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[92vh] animate-fade-in">
+      <div className="bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[92vh] animate-fade-in border-4 border-red-50">
         <div className="p-6 border-b border-red-50 flex justify-between items-center bg-red-50/30">
           <div>
             <h3 className="text-xl font-black text-red-800 italic uppercase">{product.name}</h3>
-            <p className="text-red-600 font-black mt-1 italic">R$ {product.price.toFixed(2)}</p>
+            <p className="text-red-600 font-black mt-1 italic">R$ {finalUnitPrice.toFixed(2)}</p>
           </div>
           <button onClick={onClose} className="text-zinc-300 hover:text-red-600 text-3xl transition-colors">&times;</button>
         </div>
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 text-left">
-          <section><label className="block text-red-900/40 text-[10px] font-black uppercase mb-3">Quantidade</label>
+        
+        <div className="flex-1 overflow-y-auto p-6 space-y-8 text-left custom-scrollbar">
+          
+          <section>
+            <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3">Quantidade</label>
             <div className="flex items-center gap-6">
-              <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-10 h-10 rounded-[0.8rem] bg-zinc-50 text-red-600 font-black text-xl hover:bg-zinc-100">-</button>
+              <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-10 h-10 rounded-xl bg-zinc-50 text-red-600 font-black text-xl hover:bg-zinc-100">-</button>
               <span className="text-2xl font-black text-red-900 italic">{quantity}</span>
-              <button onClick={() => setQuantity(quantity + 1)} className="w-10 h-10 rounded-[0.8rem] bg-zinc-50 text-red-600 font-black text-xl hover:bg-zinc-100">+</button>
+              <button onClick={() => setQuantity(quantity + 1)} className="w-10 h-10 rounded-xl bg-zinc-50 text-red-600 font-black text-xl hover:bg-zinc-100">+</button>
             </div>
           </section>
-          <section><label className="block text-red-900/40 text-[10px] font-black uppercase mb-3">Observação</label><textarea className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-[1.5rem] p-4 text-zinc-800 focus:outline-none min-h-[80px] text-sm font-medium" placeholder="Ex: Sem cebola, etc..." value={observation} onChange={e => setObservation(e.target.value)} /></section>
+
+          {isAcai && (
+            <>
+              <section>
+                <div className="flex justify-between items-center mb-3">
+                  <label className="text-red-900 text-[11px] font-black uppercase italic">Complementos (Grátis)</label>
+                  <span className="bg-red-50 text-red-800 text-[9px] px-2 py-0.5 rounded-full font-black">ILIMITADO</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {ACAI_COMPLEMENTS.map(item => (
+                    <button 
+                      key={`comp-${item}`}
+                      onClick={() => toggleItem(item, selectedComplements, setSelectedComplements)}
+                      className={`text-[10px] font-bold p-2.5 rounded-xl border transition-all text-left uppercase italic ${selectedComplements.includes(item) ? 'bg-red-700 border-red-900 text-white shadow-md' : 'bg-zinc-50 border-zinc-100 text-zinc-500 hover:bg-zinc-100'}`}
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section>
+                <div className="flex justify-between items-center mb-3">
+                  <label className="text-red-900 text-[11px] font-black uppercase italic">Frutas (Grátis)</label>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {ACAI_FRUITS.map(item => (
+                    <button 
+                      key={`fruit-${item}`}
+                      onClick={() => toggleItem(item, selectedFruits, setSelectedFruits)}
+                      className={`text-[10px] font-bold p-2.5 rounded-xl border transition-all text-left uppercase italic ${selectedFruits.includes(item) ? 'bg-red-700 border-red-900 text-white shadow-md' : 'bg-zinc-50 border-zinc-100 text-zinc-500 hover:bg-zinc-100'}`}
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section>
+                <div className="flex justify-between items-center mb-3">
+                  <label className="text-red-900 text-[11px] font-black uppercase italic">Coberturas (Grátis)</label>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {ACAI_TOPPINGS.map(item => (
+                    <button 
+                      key={`top-${item}`}
+                      onClick={() => toggleItem(item, selectedToppings, setSelectedToppings)}
+                      className={`text-[10px] font-bold p-2.5 rounded-xl border transition-all text-left uppercase italic ${selectedToppings.includes(item) ? 'bg-red-700 border-red-900 text-white shadow-md' : 'bg-zinc-50 border-zinc-100 text-zinc-500 hover:bg-zinc-100'}`}
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section>
+                <div className="flex justify-between items-center mb-3">
+                  <label className="text-red-900 text-[11px] font-black uppercase italic">Extras (Pago)</label>
+                </div>
+                <div className="grid grid-cols-1 gap-2">
+                  {ACAI_PAID_EXTRAS.map(extra => (
+                    <button 
+                      key={`extra-${extra.name}`}
+                      onClick={() => togglePaidExtra(extra)}
+                      className={`text-[11px] font-bold p-3 rounded-xl border transition-all flex justify-between items-center uppercase italic ${selectedPaidExtras.find(e => e.name === extra.name) ? 'bg-green-600 border-green-800 text-white shadow-md' : 'bg-zinc-50 border-zinc-100 text-zinc-500'}`}
+                    >
+                      <span>{extra.name}</span>
+                      <span className={selectedPaidExtras.find(e => e.name === extra.name) ? 'text-white' : 'text-green-600'}>+ R$ {extra.price.toFixed(2)}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            </>
+          )}
+
+          {isFranguinho && (
+            <section>
+              <div className="flex justify-between items-center mb-3">
+                <label className="text-red-900 text-[11px] font-black uppercase italic">Acompanhamentos</label>
+                <span className="bg-red-50 text-red-800 text-[9px] px-2 py-0.5 rounded-full font-black">ESCOLHA ATÉ {product.maxSides}</span>
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                {FRANGUINHO_SIDES.map(side => (
+                  <button 
+                    key={`side-${side}`}
+                    onClick={() => toggleSide(side)}
+                    className={`text-[11px] font-bold p-3 rounded-xl border transition-all text-left uppercase italic ${selectedSides.includes(side) ? 'bg-red-700 border-red-900 text-white shadow-md' : 'bg-zinc-50 border-zinc-100 text-zinc-500 hover:bg-zinc-100'}`}
+                  >
+                    {side}
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section>
+            <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3">Observação Adicional</label>
+            <textarea 
+              className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-[1.5rem] p-4 text-zinc-800 focus:outline-none min-h-[80px] text-sm font-medium" 
+              placeholder="Ex: Sem cebola, talher, etc..." 
+              value={observation} 
+              onChange={e => setObservation(e.target.value)} 
+            />
+          </section>
         </div>
+
         <div className="p-6 bg-zinc-50/80 border-t border-zinc-100">
-          <Button fullWidth onClick={() => { onConfirm({ ...product, cartId: Date.now().toString(), quantity, observation, price: Number(product.price) }); }} className="py-4 rounded-[1.5rem]">ADICIONAR À SACOLA</Button>
+          <Button fullWidth onClick={handleConfirm} className="py-4 rounded-[1.5rem] shadow-xl">ADICIONAR À SACOLA</Button>
         </div>
       </div>
     </div>
@@ -232,7 +406,12 @@ export default function App() {
     if (isSending) return;
     setIsSending(true);
     try {
-      const itemsText = cart.map(i => `${i.quantity}x ${i.name} - R$ ${i.price.toFixed(2)}`).join('\n');
+      const itemsText = cart.map(i => {
+        let txt = `${i.quantity}x ${i.name} - R$ ${i.price.toFixed(2)}`;
+        if (i.observation) txt += `\n   ↳ ${i.observation.replace(/\n/g, '\n     ')}`;
+        return txt;
+      }).join('\n');
+
       let fullAddress = customer.orderType === OrderType.DELIVERY ? `${customer.address}, ${customer.addressNumber} - ${customer.neighborhood}` : customer.orderType;
       await addDoc(collection(db, 'pedidos'), { nomeCliente: customer.name.toUpperCase(), itens: itemsText, total: Number(total.toFixed(2)), frete: Number(currentFee.toFixed(2)), bairro: customer.neighborhood || "N/A", status: "novo", criadoEm: serverTimestamp(), telefone: customer.phone || "N/A", tipo: customer.orderType, pagamento: customer.paymentMethod, endereco: fullAddress.toUpperCase() });
       setCart([]); setView('SUCCESS'); 
@@ -260,7 +439,6 @@ export default function App() {
     }
   };
 
-  // Fix: addPromoToCart function to allow adding promotions as items to the cart
   const addPromoToCart = (p: Promotion) => {
     const promoItem: CartItem = {
       id: p.id,
@@ -270,7 +448,7 @@ export default function App() {
       quantity: 1,
       categoryId: 'promocao',
       isPromotion: true,
-      description: p.itens,
+      observation: p.itens,
     };
     setCart([...cart, promoItem]);
     setPromoAlert(p.titulo);
@@ -568,7 +746,7 @@ export default function App() {
                             <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`flex-shrink-0 px-5 py-3 rounded-full font-black text-[9px] uppercase transition-all ${activeCategory === cat.id ? 'bg-red-700 text-white shadow-lg' : 'bg-zinc-50 text-zinc-400'}`}>{cat.icon} {cat.name}</button>
                         ))}
                     </div>
-                    <div className="flex-1 p-5 space-y-4 pb-44 overflow-y-auto">
+                    <div className="flex-1 p-5 space-y-4 pb-44 overflow-y-auto custom-scrollbar">
                         {PRODUCTS.filter(p => (searchTerm === '' ? p.categoryId === activeCategory : p.name.toLowerCase().includes(searchTerm.toLowerCase()))).map(prod => (
                             <div key={prod.id} onClick={() => setSelectedProduct(prod)} className="bg-white border border-zinc-50 p-5 rounded-[2rem] flex justify-between items-center shadow-md active:scale-95 transition-all cursor-pointer">
                                 <div className="flex-1 pr-4 text-left">
@@ -592,6 +770,7 @@ export default function App() {
                                     <div key={item.cartId} className="bg-zinc-50 p-4 rounded-2xl border border-zinc-100 flex justify-between items-center text-left">
                                         <div className="flex-1 pr-4">
                                             <p className="font-black text-red-950 text-sm italic uppercase leading-tight">{item.quantity}x {item.name}</p>
+                                            {item.observation && <p className="text-[9px] text-zinc-500 font-bold uppercase mt-1 italic leading-tight">{item.observation}</p>}
                                             {item.isPromotion && <span className="text-[8px] bg-yellow-400 text-red-800 px-2 py-0.5 rounded-full font-black uppercase italic">Promo 🔥</span>}
                                         </div>
                                         <div className="flex items-center gap-3"><p className="font-black text-red-800 text-sm italic">R$ {(item.price * item.quantity).toFixed(2)}</p><button onClick={() => setCart(cart.filter(c => c.cartId !== item.cartId))} className="text-red-600">🗑️</button></div>
@@ -641,7 +820,7 @@ export default function App() {
                                 <p className="text-2xl font-black text-red-950 italic uppercase leading-none">{customer.name}</p>
                                 <div className="space-y-2 border-t border-zinc-200 pt-4">
                                     {cart.map(item => (
-                                        <div key={item.cartId} className="flex justify-between text-sm italic font-black uppercase text-red-900">
+                                        <div key={item.cartId} className="flex justify-between text-sm italic font-black uppercase text-red-900 leading-tight">
                                             <span>{item.quantity}x {item.name}</span>
                                             <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
                                         </div>
@@ -671,6 +850,8 @@ export default function App() {
         .animate-float { animation: float 5s ease-in-out infinite; }
         .animate-pulse-slow { animation: pulse-slow 2.5s infinite ease-in-out; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #fee2e2; border-radius: 10px; }
         @media print { .no-print { display: none !important; } .printable-area { display: block !important; } }
       `}</style>
     </div>
