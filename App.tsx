@@ -173,13 +173,23 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
   const handleConfirm = () => {
     let customDetails = "";
     if (isAcai) {
-      if (selectedComplements.length) customDetails += `\nComplementos: ${selectedComplements.join(', ')}`;
-      if (selectedToppings.length) customDetails += `\nCoberturas: ${selectedToppings.join(', ')}`;
-      if (selectedFruits.length) customDetails += `\nFrutas: ${selectedFruits.join(', ')}`;
-      if (selectedPaidExtras.length) customDetails += `\nExtras (Pago): ${selectedPaidExtras.map(e => e.name).join(', ')}`;
+      if (selectedComplements.length) {
+        customDetails += `\nComplementos:\n  - ${selectedComplements.join('\n  - ')}`;
+      }
+      if (selectedFruits.length) {
+        customDetails += `\nFrutas:\n  - ${selectedFruits.join('\n  - ')}`;
+      }
+      if (selectedToppings.length) {
+        customDetails += `\nCoberturas:\n  - ${selectedToppings.join('\n  - ')}`;
+      }
+      if (selectedPaidExtras.length) {
+        customDetails += `\nExtras (Pago):\n  - ${selectedPaidExtras.map(e => e.name).join('\n  - ')}`;
+      }
     }
     if (isFranguinho) {
-      if (selectedSides.length) customDetails += `\nAcomp: ${selectedSides.join(', ')}`;
+      if (selectedSides.length) {
+        customDetails += `\nAcomp:\n  - ${selectedSides.join('\n  - ')}`;
+      }
     }
 
     const finalObs = observation ? `${observation}${customDetails}` : customDetails.trim();
@@ -701,7 +711,7 @@ export default function App() {
 
       {view === 'SUCCESS' && (
         <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-zinc-50 no-print animate-fade-in text-center">
-          <div className="glass-card p-10 rounded-[3rem] shadow-2xl max-w-md w-full bg-white border border-green-100">
+          <div className="glass-card p-10 rounded-[3rem] shadow-2xl max-md w-full bg-white border border-green-100">
             <div className="text-6xl mb-6">✅</div>
             <h2 className="text-2xl font-black text-green-800 uppercase italic mb-4 leading-tight">Pedido realizado com sucesso!</h2>
             <p className="text-zinc-600 font-bold mb-8 leading-relaxed">
