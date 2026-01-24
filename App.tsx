@@ -102,6 +102,65 @@ const Receipt = ({ order, stats }: { order: any | null, stats?: any | null }) =>
     );
 };
 
+// --- MODAL DE EDIÇÃO DE PEDIDO ---
+const EditOrderModal = ({ order, isOpen, onClose, onSave }: any) => {
+    const [editedItens, setEditedItens] = useState('');
+    const [editedPayment, setEditedPayment] = useState('');
+
+    useEffect(() => {
+        if (isOpen && order) {
+            setEditedItens(order.itens || '');
+            setEditedPayment(order.pagamento || '');
+        }
+    }, [isOpen, order]);
+
+    if (!order) return null;
+
+    const hasChanged = editedItens !== (order.itens || '') || editedPayment !== (order.pagamento || '');
+
+    return (
+        <div className={`fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-opacity no-print ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+            <div className="bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[92vh] animate-fade-in">
+                <div className="p-6 border-b border-zinc-100 flex justify-between items-center bg-zinc-50">
+                    <div>
+                        <h3 className="text-xl font-black text-red-800 leading-none italic uppercase">Editar Pedido</h3>
+                        <p className="text-[10px] font-bold text-zinc-400 uppercase mt-1">Cliente: {order.nomeCliente}</p>
+                    </div>
+                    <button onClick={onClose} className="text-zinc-300 hover:text-red-600 text-3xl leading-none transition-colors">&times;</button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                    <section>
+                        <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3 tracking-[0.2em]">Itens do Pedido</label>
+                        <textarea 
+                            className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 text-sm font-bold text-red-900 outline-none min-h-[200px]" 
+                            value={editedItens} 
+                            onChange={e => setEditedItens(e.target.value)} 
+                        />
+                    </section>
+                    <section>
+                        <Select 
+                            label="Forma de Pagamento" 
+                            options={PAYMENT_METHODS} 
+                            value={editedPayment} 
+                            onChange={e => setEditedPayment(e.target.value)} 
+                        />
+                    </section>
+                </div>
+                <div className="p-6 bg-zinc-50/80 border-t border-zinc-100 flex gap-3">
+                    <Button variant="secondary" onClick={onClose} className="flex-1 rounded-xl">CANCELAR</Button>
+                    <Button 
+                        disabled={!hasChanged} 
+                        onClick={() => onSave({ ...order, itens: editedItens, pagamento: editedPayment })} 
+                        className="flex-1 rounded-xl"
+                    >
+                        SALVAR ALTERAÇÕES
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // --- MODAL DE PERSONALIZAÇÃO DE PRODUTO ---
 const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
   const [quantity, setQuantity] = useState(1);
@@ -369,6 +428,7 @@ export default function App() {
   });
   const [orders, setOrders] = useState<any[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [editingOrder, setEditingOrder] = useState<any>(null); // State for order being edited
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [activeCategory, setActiveCategory] = useState(CATEGORIES[0].id);
   const [receiptOrder, setReceiptOrder] = useState<any>(null);
@@ -526,6 +586,19 @@ export default function App() {
     try { await updateDoc(doc(db, 'pedidos', orderId), { status: newStatus }); } catch (e) { console.error(e); }
   };
 
+  const saveEditedOrder = async (updatedOrder: any) => {
+      try {
+          await updateDoc(doc(db, 'pedidos', updatedOrder.id), {
+              itens: updatedOrder.itens,
+              pagamento: updatedOrder.pagamento
+          });
+          setEditingOrder(null);
+      } catch (e) {
+          console.error(e);
+          alert("Erro ao salvar edição.");
+      }
+  };
+
   const deleteOrderPermanently = async (orderId: string) => {
     if (window.confirm("Deseja EXCLUIR DEFINITIVAMENTE este pedido do banco de dados?")) {
         try { await deleteDoc(doc(db, 'pedidos', orderId)); } catch (e) { console.error("Erro ao deletar:", e); alert("Não foi possível excluir o pedido."); }
@@ -638,18 +711,18 @@ export default function App() {
                 </div>
 
                 <div className="space-y-4">
-                    <h3 className="text-lg font-black text-red-800 uppercase italic flex items-center gap-2">🛵 RELATÓRIO DE ENTREGAS</h3>
+                    <h3 className="text-lg font-black text-red-800 uppercase italic flex items-center gap-2">🛵 RELATÓRIO DE ENTREGAS (VALOR FRETE)</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-orange-500">
-                            <p className="text-[10px] font-black text-zinc-400 uppercase italic">Entregas Hoje</p>
+                            <p className="text-[10px] font-black text-zinc-400 uppercase italic">Fretes Hoje</p>
                             <p className="text-3xl font-black text-orange-600 mt-1 italic">R$ {salesStats.deliveryDaily.toFixed(2)}</p>
                         </div>
                         <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-red-500">
-                            <p className="text-[10px] font-black text-zinc-400 uppercase italic">Entregas 7 Dias</p>
+                            <p className="text-[10px] font-black text-zinc-400 uppercase italic">Fretes 7 Dias</p>
                             <p className="text-3xl font-black text-red-600 mt-1 italic">R$ {salesStats.deliveryWeekly.toFixed(2)}</p>
                         </div>
                         <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-rose-500">
-                            <p className="text-[10px] font-black text-zinc-400 uppercase italic">Entregas Mês</p>
+                            <p className="text-[10px] font-black text-zinc-400 uppercase italic">Fretes Mês</p>
                             <p className="text-3xl font-black text-rose-600 mt-1 italic">R$ {salesStats.deliveryMonthly.toFixed(2)}</p>
                         </div>
                     </div>
@@ -673,6 +746,7 @@ export default function App() {
                 <div className="flex items-center gap-3 flex-wrap">
                    <p className="text-xl font-black text-red-700 italic min-w-[100px]">R$ {Number(o.total || 0).toFixed(2)}</p>
                    <div className="flex gap-2">
+                     <button onClick={() => setEditingOrder(o)} className="w-10 h-10 bg-blue-50 text-blue-600 rounded-[0.8rem] flex items-center justify-center text-lg shadow-md hover:scale-105 active:scale-95 transition-all" title="Editar Pedido">📝</button>
                      <button onClick={() => printOrder(o)} className="w-10 h-10 bg-zinc-900 text-white rounded-[0.8rem] flex items-center justify-center text-lg shadow-md hover:scale-105 active:scale-95 transition-all">🖨️</button>
                      {o.status !== 'cancelado' && <button onClick={() => updateOrderStatus(o.id, 'cancelado')} className="w-10 h-10 bg-red-100 text-red-700 rounded-[0.8rem] flex items-center justify-center text-lg shadow-md hover:scale-105 active:scale-95 transition-all" title="Mover para Lixeira">🗑️</button>}
                      {o.status === 'novo' && (
@@ -691,6 +765,14 @@ export default function App() {
         </div>
       </div>
       <div className="printable-area hidden"><Receipt order={receiptOrder} stats={receiptStats} /></div>
+      
+      {/* Modais Administrativos */}
+      <EditOrderModal 
+        isOpen={!!editingOrder} 
+        order={editingOrder} 
+        onClose={() => setEditingOrder(null)} 
+        onSave={saveEditedOrder} 
+      />
     </div>
   );
 
