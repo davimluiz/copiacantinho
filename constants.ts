@@ -1,4 +1,3 @@
-
 import { Category, Product, PaymentMethod } from './types';
 
 export const CATEGORIES: Category[] = [
