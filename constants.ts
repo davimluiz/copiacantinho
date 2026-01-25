@@ -83,6 +83,18 @@ export const PRODUCTS: Product[] = [
   { id: 'b8', categoryId: 'bebidas', name: 'Refr. Coca Cola 600 ml', price: 8.00, needsZeroOption: true },
   { id: 'b9', categoryId: 'bebidas', name: 'Refr. Coca Cola 1,5L', price: 12.00, needsZeroOption: true },
   { id: 'b10', categoryId: 'bebidas', name: 'Refr. Coca Cola 2L', price: 15.00, needsZeroOption: true },
+  { id: 'b11', categoryId: 'bebidas', name: 'Refri Mini', price: 3.00 },
+  { id: 'b12', categoryId: 'bebidas', name: 'Guaravita/Suco Mini', price: 2.50 },
+  { id: 'b13', categoryId: 'bebidas', name: 'Amstel', price: 7.00 },
+  { id: 'b14', categoryId: 'bebidas', name: 'Brahma', price: 7.00 },
+  { id: 'b15', categoryId: 'bebidas', name: 'Petra', price: 7.00 },
+  { id: 'b16', categoryId: 'bebidas', name: 'Itaipava', price: 5.00 },
+  { id: 'b17', categoryId: 'bebidas', name: 'Itaipava Mega', price: 7.00 },
+  { id: 'b18', categoryId: 'bebidas', name: 'Spaten', price: 6.00 },
+  { id: 'b19', categoryId: 'bebidas', name: 'Heineken 330 ML', price: 9.90 },
+  { id: 'b20', categoryId: 'bebidas', name: 'Heineken 600ML', price: 13.90 },
+  { id: 'b21', categoryId: 'bebidas', name: 'H2O 500 ML', price: 8.00 },
+  { id: 'b22', categoryId: 'bebidas', name: 'H2O 1,5L', price: 12.00 },
 
   // BALCÃO
   { id: 'bc1', categoryId: 'balcao', name: 'Feijão Tropeiro (P)', price: 20.00 },
