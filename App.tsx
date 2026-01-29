@@ -332,7 +332,7 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
                           }}
                         >
                           <option value="">Selecione para adicionar...</option>
-                          {['Ovo', 'Bacon', 'Carne comum', 'Queijo', 'Presunto', 'Calabresa'].map(item => (
+                          {['Ovo', 'Bacon', 'Carne comum', 'Queijo', 'Presunto', 'Calabresa', 'Banana'].map(item => (
                             <option key={item} value={item}>{item}</option>
                           ))}
                         </select>
@@ -513,7 +513,6 @@ export default function App() {
   const [isSending, setIsSending] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [promoAlert, setPromoAlert] = useState<string | null>(null);
-  const [quickSaleOpen, setQuickSaleOpen] = useState(false);
   const [showAcaiConfirmation, setShowAcaiConfirmation] = useState(false);
   const [customSaleValue, setCustomSaleValue] = useState('');
 
@@ -564,7 +563,7 @@ export default function App() {
       monthly: monthlyOrders.reduce((acc, o) => acc + (o.total || 0), 0),
       deliveryDaily: dailyOrders.reduce((acc, o) => acc + (o.frete || 0), 0),
       deliveryWeekly: weeklyOrders.reduce((acc, o) => acc + (o.frete || 0), 0),
-      deliveryMonthly: monthlyOrders.reduce((acc, o) => acc + (o.total || 0), 0),
+      deliveryMonthly: monthlyOrders.reduce((acc, o) => acc + (o.frete || 0), 0),
     };
   }, [orders]);
 
@@ -604,27 +603,6 @@ export default function App() {
       });
       setCart([]); setView('SUCCESS'); 
     } catch (err) { alert('Erro ao enviar.'); setIsSending(false); }
-  };
-
-  const handleQuickSale = async (product: Product) => {
-    try {
-      await addDoc(collection(db, 'pedidos'), {
-        nomeCliente: "VENDA RÁPIDA",
-        itens: `1x ${product.name} - R$ ${product.price.toFixed(2)}`,
-        total: Number(product.price.toFixed(2)),
-        frete: 0,
-        bairro: "BALCÃO",
-        status: "concluido",
-        criadoEm: serverTimestamp(),
-        telefone: "N/A",
-        tipo: OrderType.COUNTER,
-        pagamento: PaymentMethod.CASH,
-        endereco: "VENDA LOCAL"
-      });
-      setQuickSaleOpen(false);
-    } catch (err) {
-      alert("Erro ao realizar venda rápida.");
-    }
   };
 
   const handleCustomSale = async () => {
@@ -677,6 +655,7 @@ export default function App() {
       try {
         await deleteDoc(doc(db, 'pedidos', orderId));
       } catch (err) {
+        console.error("Erro ao excluir pedido:", err);
         alert("Erro ao excluir pedido.");
       }
     }
@@ -691,56 +670,27 @@ export default function App() {
   };
 
   const QuickSaleSection = () => (
-    <div className="bg-white rounded-[2rem] shadow-xl border border-red-50 mb-8 overflow-hidden no-print transition-all">
-        <button 
-          onClick={() => setQuickSaleOpen(!quickSaleOpen)}
-          className="w-full flex items-center justify-between p-6 bg-red-50/30 hover:bg-red-50 transition-colors"
-        >
-          <h3 className="text-lg font-black text-red-800 italic uppercase">Venda Rápida (Balcão/Bebidas/Manual)</h3>
-          <span className={`text-2xl transition-transform ${quickSaleOpen ? 'rotate-180' : ''}`}>▼</span>
-        </button>
-        
-        <div className={`transition-all duration-300 ease-in-out ${quickSaleOpen ? 'max-h-[1000px] opacity-100 p-6 pt-2 border-t border-red-50' : 'max-h-0 opacity-0 pointer-events-none'}`}>
-          <div className="space-y-8">
-              <section className="bg-red-50/50 p-6 rounded-3xl border border-red-100 text-left">
-                  <p className="text-[10px] font-black text-red-800 uppercase italic mb-3">Venda Avulsa (Valor Livre)</p>
-                  <div className="flex gap-2">
-                      <div className="flex-1">
-                          <input 
-                            type="number" 
-                            step="0.01"
-                            value={customSaleValue}
-                            onChange={(e) => setCustomSaleValue(e.target.value)}
-                            placeholder="R$ 0,00"
-                            className="w-full bg-white border-2 border-red-100 rounded-2xl p-4 text-red-900 font-black focus:outline-none focus:border-red-600 shadow-sm"
-                          />
-                      </div>
-                      <Button onClick={handleCustomSale} className="px-8 rounded-2xl">ADICIONAR</Button>
-                  </div>
-                  <p className="text-[9px] text-zinc-400 mt-2 font-bold uppercase italic">* Use para cobrar itens que não estão no sistema. Registra automaticamente como concluído.</p>
-              </section>
-
-              <div className="flex flex-col md:flex-row gap-8 overflow-x-auto no-scrollbar text-left">
-                  {['balcao', 'bebidas'].map(catId => (
-                      <div key={catId} className="flex-1 space-y-2 min-w-[200px]">
-                          <p className="text-[10px] font-black text-zinc-400 uppercase italic mb-1">{catId === 'balcao' ? 'Balcão 🍰' : 'Bebidas 🥤'}</p>
-                          <div className="grid grid-cols-1 gap-2">
-                              {PRODUCTS.filter(p => p.categoryId === catId).map(prod => (
-                                  <button 
-                                      key={prod.id} 
-                                      onClick={() => handleQuickSale(prod)}
-                                      className="bg-zinc-50 hover:bg-red-50 text-red-950 font-bold text-[11px] p-3 rounded-xl border border-zinc-100 transition-all flex justify-between items-center group"
-                                  >
-                                      <span className="uppercase">{prod.name}</span>
-                                      <span className="text-red-600 font-black group-hover:scale-110 transition-transform">R$ {prod.price.toFixed(2)}</span>
-                                  </button>
-                              ))}
-                          </div>
-                      </div>
-                  ))}
-              </div>
-          </div>
+    <div className="bg-white rounded-[2rem] shadow-xl border border-red-50 mb-8 p-6 no-print text-left">
+      <p className="text-lg font-black text-red-800 uppercase italic mb-3">Venda Avulsa (Valor Livre)</p>
+      <div className="flex gap-2">
+        <div className="flex-1">
+          <input 
+            type="text"
+            inputMode="decimal"
+            maxLength={7} // R$ 1000.00
+            value={customSaleValue}
+            onChange={(e) => {
+                const cleanValue = e.target.value.replace(/[^0-9,.]/g, '').replace(',', '.');
+                if (parseFloat(cleanValue) > 1000) return;
+                setCustomSaleValue(cleanValue);
+            }}
+            placeholder="R$ 0,00"
+            className="w-full bg-zinc-50 border-2 border-red-100 rounded-2xl p-4 text-red-900 font-black focus:outline-none focus:border-red-600 shadow-sm text-lg"
+          />
         </div>
+        <Button onClick={handleCustomSale} className="px-8 rounded-2xl text-base">ADICIONAR</Button>
+      </div>
+      <p className="text-[9px] text-zinc-400 mt-2 font-bold uppercase italic">* Use para cobrar itens que não estão no sistema. Registra automaticamente como concluído.</p>
     </div>
   );
 
