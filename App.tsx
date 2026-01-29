@@ -492,6 +492,36 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
   );
 };
 
+const QuickSaleSection = ({ 
+  value, 
+  onChange, 
+  onSubmit 
+}: { 
+  value: string; 
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; 
+  onSubmit: () => void; 
+}) => (
+    <div className="bg-white rounded-[2rem] shadow-xl border border-red-50 mb-8 p-6 no-print text-left">
+      <p className="text-lg font-black text-red-800 uppercase italic mb-3">Venda Avulsa (Valor Livre)</p>
+      <div className="flex gap-2">
+        <div className="flex-1">
+          <input 
+            type="text"
+            inputMode="decimal"
+            maxLength={7} // R$ 1000.00
+            value={value}
+            onChange={onChange}
+            placeholder="R$ 0,00"
+            className="w-full bg-zinc-50 border-2 border-red-100 rounded-2xl p-4 text-red-900 font-black focus:outline-none focus:border-red-600 shadow-sm text-lg"
+          />
+        </div>
+        <Button onClick={onSubmit} className="px-8 rounded-2xl text-base">ADICIONAR</Button>
+      </div>
+      <p className="text-[9px] text-zinc-400 mt-2 font-bold uppercase italic">* Use para cobrar itens que não estão no sistema. Registra automaticamente como concluído.</p>
+    </div>
+);
+
+
 export default function App() {
   const [view, setView] = useState<AppView>('HOME');
   const [step, setStep] = useState<OrderStep>('MENU');
@@ -606,7 +636,7 @@ export default function App() {
   };
 
   const handleCustomSale = async () => {
-    const val = parseFloat(customSaleValue);
+    const val = parseFloat(customSaleValue.replace(',', '.'));
     if (isNaN(val) || val <= 0) {
         alert("Insira um valor válido.");
         return;
@@ -630,6 +660,12 @@ export default function App() {
     } catch (err) {
         alert("Erro ao registrar venda manual.");
     }
+  };
+
+  const handleCustomSaleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const cleanValue = e.target.value.replace(/[^0-9,.]/g, '');
+    if (parseFloat(cleanValue.replace(',', '.')) > 1000) return;
+    setCustomSaleValue(cleanValue);
   };
 
   const addPromoToCart = (p: Promotion) => {
@@ -668,31 +704,6 @@ export default function App() {
     const p = formData.get('pass');
     if (u === 'admin' && p === 'admin@1234') { setIsLoggedIn(true); setView('ADMIN'); } else { alert("Credenciais incorretas."); }
   };
-
-  const QuickSaleSection = () => (
-    <div className="bg-white rounded-[2rem] shadow-xl border border-red-50 mb-8 p-6 no-print text-left">
-      <p className="text-lg font-black text-red-800 uppercase italic mb-3">Venda Avulsa (Valor Livre)</p>
-      <div className="flex gap-2">
-        <div className="flex-1">
-          <input 
-            type="text"
-            inputMode="decimal"
-            maxLength={7} // R$ 1000.00
-            value={customSaleValue}
-            onChange={(e) => {
-                const cleanValue = e.target.value.replace(/[^0-9,.]/g, '').replace(',', '.');
-                if (parseFloat(cleanValue) > 1000) return;
-                setCustomSaleValue(cleanValue);
-            }}
-            placeholder="R$ 0,00"
-            className="w-full bg-zinc-50 border-2 border-red-100 rounded-2xl p-4 text-red-900 font-black focus:outline-none focus:border-red-600 shadow-sm text-lg"
-          />
-        </div>
-        <Button onClick={handleCustomSale} className="px-8 rounded-2xl text-base">ADICIONAR</Button>
-      </div>
-      <p className="text-[9px] text-zinc-400 mt-2 font-bold uppercase italic">* Use para cobrar itens que não estão no sistema. Registra automaticamente como concluído.</p>
-    </div>
-  );
 
   const PromoManager = () => {
     const [title, setTitle] = useState('');
@@ -781,7 +792,13 @@ export default function App() {
           <Button variant="secondary" onClick={() => { setIsLoggedIn(false); setView('HOME'); }} className="px-5 py-2 text-[9px]">SAIR</Button>
         </header>
 
-        {(adminTab === 'novo' || adminTab === 'preparando') && <QuickSaleSection />}
+        {(adminTab === 'novo' || adminTab === 'preparando') && 
+          <QuickSaleSection 
+            value={customSaleValue}
+            onChange={handleCustomSaleValueChange}
+            onSubmit={handleCustomSale}
+          />
+        }
 
         {adminTab === 'config' && (
             <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-red-50 animate-fade-in text-left">
