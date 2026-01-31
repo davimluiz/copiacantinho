@@ -41,13 +41,13 @@ const Receipt = ({ order, stats }: { order: any | null, stats?: any | null }) =>
                     <div>
                         <p className="border-b border-black text-[11px] mb-1">VENDAS (TOTAL)</p>
                         <div className="flex justify-between"><span>DIÁRIO:</span><span>R$ {stats.daily.toFixed(2)}</span></div>
-                        <div className="flex justify-between"><span>SEMANAL:</span><span>R$ {stats.weekly.toFixed(2)}</span></div>
+                        <div className="flex justify-between"><span>SEMANAL (QUA-DOM):</span><span>R$ {stats.weekly.toFixed(2)}</span></div>
                         <div className="flex justify-between"><span>MENSAL:</span><span>R$ {stats.monthly.toFixed(2)}</span></div>
                     </div>
                     <div>
                         <p className="border-b border-black text-[11px] mb-1">ENTREGAS (FRETE)</p>
                         <div className="flex justify-between"><span>DIÁRIO:</span><span>R$ {stats.deliveryDaily.toFixed(2)}</span></div>
-                        <div className="flex justify-between"><span>SEMANAL:</span><span>R$ {stats.deliveryWeekly.toFixed(2)}</span></div>
+                        <div className="flex justify-between"><span>SEMANAL (QUA-DOM):</span><span>R$ {stats.deliveryWeekly.toFixed(2)}</span></div>
                         <div className="flex justify-between"><span>MENSAL:</span><span>R$ {stats.deliveryMonthly.toFixed(2)}</span></div>
                     </div>
                 </div>
@@ -65,6 +65,7 @@ const Receipt = ({ order, stats }: { order: any | null, stats?: any | null }) =>
             </div>
             <div className="mb-2 uppercase">
                 <p><strong>CLIENTE:</strong> {order.nomeCliente}</p>
+                <p><strong>DATA:</strong> {order.criadoEm?.toDate().toLocaleString('pt-BR')}</p>
                 <p><strong>TIPO:</strong> {order.tipo}</p>
                 <p><strong>FONE:</strong> {order.telefone}</p>
                 <p><strong>PAGAMENTO:</strong> {order.pagamento}</p>
@@ -265,17 +266,17 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
           )}
 
           {category === 'acai' && (
-              <section>
-                  <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3">Nome para este Açaí (Obrigatório)</label>
+              <section className="bg-red-50 p-6 rounded-[2rem] border-2 border-red-200 shadow-inner animate-pulse-subtle">
+                  <label className="block text-red-800 text-sm font-black uppercase italic mb-3 text-center">👇 Nome para este Açaí (Obrigatório) 👇</label>
                   <input 
                     type="text" 
                     required 
-                    className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 text-red-900 font-bold focus:outline-none focus:border-red-600"
-                    placeholder="Ex: Açaí do João"
+                    className="w-full bg-white border-4 border-red-600 rounded-2xl p-5 text-red-900 text-xl font-black focus:outline-none focus:ring-4 focus:ring-red-200 text-center uppercase placeholder:text-red-100 shadow-lg"
+                    placeholder="DIGITE O NOME AQUI"
                     value={acaiOwnerName}
                     onChange={e => setAcaiOwnerName(e.target.value)}
                   />
-                  <p className="text-[9px] text-zinc-400 mt-2 font-bold uppercase italic">* Um açaí por pessoa. Adicione um de cada vez.</p>
+                  <p className="text-[10px] text-red-400 mt-3 font-black uppercase italic text-center leading-tight">PREENCHA O NOME PARA EVITAR CONFUSÃO NA ENTREGA</p>
               </section>
           )}
 
@@ -454,7 +455,7 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
                 <section>
                     <label className="text-red-900 text-[11px] font-black uppercase italic block mb-4">Selecione:</label>
                     <div className="flex gap-4">
-                        <button onClick={() => setIsZero(false)} className={`flex-1 p-4 rounded-xl font-black text-xs uppercase italic border-b-4 ${!isZero ? 'bg-red-700 text-white border-red-900 shadow-md' : 'bg-zinc-50 text-zinc-400 border-zinc-200'}`}>NORMAL</button>
+                        <button onClick={() => setIsZero(false)} className={`flex-1 p-4 rounded-xl font-black text-xs uppercase italic border-b-4 ${!isZero ? 'bg-red-700 text-white border-red-950 shadow-md' : 'bg-zinc-50 text-zinc-400 border-zinc-200'}`}>NORMAL</button>
                         <button onClick={() => setIsZero(true)} className={`flex-1 p-4 rounded-xl font-black text-xs uppercase italic border-b-4 ${isZero ? 'bg-zinc-900 text-white border-black shadow-md' : 'bg-zinc-50 text-zinc-400 border-zinc-200'}`}>ZERO</button>
                     </div>
                 </section>
@@ -579,14 +580,30 @@ export default function App() {
   const salesStats = useMemo(() => {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const weekStart = new Date(todayStart);
-    weekStart.setDate(todayStart.getDate() - 7);
+    
+    // Lógica de Semana Comercial (Quarta a Domingo)
+    // 0: Dom, 1: Seg, 2: Ter, 3: Qua, 4: Qui, 5: Sex, 6: Sab
+    const getBusinessWeekStart = (date: Date) => {
+        const d = new Date(date);
+        const day = d.getDay();
+        // Dias desde a última quarta:
+        // Wed(3) -> 0, Thu(4) -> 1, Fri(5) -> 2, Sat(6) -> 3, Sun(0) -> 4, Mon(1) -> 5, Tue(2) -> 6
+        const diffSinceWed = (day - 3 + 7) % 7;
+        d.setDate(d.getDate() - diffSinceWed);
+        d.setHours(0,0,0,0);
+        return d;
+    };
+
+    const weekStart = getBusinessWeekStart(now);
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const completed = orders.filter(o => o.status === 'concluido');
+    
     const getOrdersInRange = (start: Date) => completed.filter(o => (o.criadoEm?.toDate ? o.criadoEm.toDate() : new Date(0)) >= start);
+    
     const dailyOrders = getOrdersInRange(todayStart);
     const weeklyOrders = getOrdersInRange(weekStart);
     const monthlyOrders = getOrdersInRange(monthStart);
+    
     return {
       daily: dailyOrders.reduce((acc, o) => acc + (o.total || 0), 0),
       weekly: weeklyOrders.reduce((acc, o) => acc + (o.total || 0), 0),
@@ -830,7 +847,7 @@ export default function App() {
                         <p className="text-3xl font-black text-red-800 mt-1 italic leading-none">R$ {salesStats.daily.toFixed(2)}</p>
                     </div>
                     <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-red-600 text-left">
-                        <p className="text-[10px] font-black text-zinc-400 uppercase italic">Vendas Semana</p>
+                        <p className="text-[10px] font-black text-zinc-400 uppercase italic">Semana (Qua-Dom)</p>
                         <p className="text-3xl font-black text-red-800 mt-1 italic leading-none">R$ {salesStats.weekly.toFixed(2)}</p>
                     </div>
                     <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-red-600 text-left">
@@ -844,7 +861,7 @@ export default function App() {
                         <p className="text-3xl font-black text-green-700 mt-1 italic leading-none">R$ {salesStats.deliveryDaily.toFixed(2)}</p>
                     </div>
                     <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-green-600 text-left">
-                        <p className="text-[10px] font-black text-zinc-400 uppercase italic">Entregas Semana</p>
+                        <p className="text-[10px] font-black text-zinc-400 uppercase italic">Entregas Sem (Qua-Dom)</p>
                         <p className="text-3xl font-black text-green-700 mt-1 italic leading-none">R$ {salesStats.deliveryWeekly.toFixed(2)}</p>
                     </div>
                     <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-green-600 text-left">
@@ -861,8 +878,16 @@ export default function App() {
                 {filteredOrders.map(o => (
                   <div key={o.id} className="bg-white p-5 rounded-[1.5rem] border-l-[8px] shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-zinc-200">
                     <div className="min-w-[200px] text-left">
-                        <p className="text-sm font-black text-red-950 italic uppercase">{o.nomeCliente}</p>
-                        <p className="text-[9px] font-black text-zinc-400 uppercase mt-1">{o.tipo} • {o.pagamento}</p>
+                        <div className="flex items-center gap-2">
+                            <p className="text-sm font-black text-red-950 italic uppercase">{o.nomeCliente}</p>
+                            <span className="bg-red-50 text-red-800 text-[9px] font-black px-2 py-0.5 rounded-full">
+                                🕒 {o.criadoEm?.toDate().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                        </div>
+                        <p className="text-[9px] font-black text-zinc-400 uppercase mt-1">
+                            {o.tipo} • {o.pagamento}
+                            {adminTab === 'concluido' && ` • 📅 ${o.criadoEm?.toDate().toLocaleDateString('pt-BR')}`}
+                        </p>
                     </div>
                     <div className="flex-1 bg-zinc-50 p-4 rounded-xl text-[10px] font-bold text-zinc-700 whitespace-pre-wrap text-left leading-tight">{o.itens}</div>
                     <div className="flex items-center gap-3">
@@ -1162,10 +1187,12 @@ export default function App() {
         @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
         @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
         @keyframes pulse-slow { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+        @keyframes pulse-subtle { 0%, 100% { border-color: #fee2e2; } 50% { border-color: #ef4444; } }
         .animate-fade-in { animation: fade-in 0.4s ease-out forwards; }
         .animate-slide-up { animation: slide-up 0.5s ease-out forwards; }
         .animate-float { animation: float 5s ease-in-out infinite; }
         .animate-pulse-slow { animation: pulse-slow 2.5s infinite ease-in-out; }
+        .animate-pulse-subtle { animation: pulse-subtle 2s infinite ease-in-out; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #fee2e2; border-radius: 10px; }
