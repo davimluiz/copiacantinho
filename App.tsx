@@ -614,7 +614,6 @@ export default function App() {
     const getBusinessWeekStart = (date: Date) => {
         const d = new Date(date);
         const day = d.getDay();
-        // Wed(3) -> 0, Thu(4) -> 1, Fri(5) -> 2, Sat(6) -> 3, Sun(0) -> 4, Mon(1) -> 5, Tue(2) -> 6
         const diffSinceWed = (day - 3 + 7) % 7;
         d.setDate(d.getDate() - diffSinceWed);
         d.setHours(0,0,0,0);
@@ -630,6 +629,20 @@ export default function App() {
     const dailyOrders = getOrdersInRange(todayStart);
     const weeklyOrders = getOrdersInRange(weekStart);
     const monthlyOrders = getOrdersInRange(monthStart);
+
+    // Monthly History Calculation
+    const monthlyHistory: Record<string, { total: number, delivery: number, count: number }> = {};
+    completed.forEach(o => {
+        const date = o.criadoEm?.toDate ? o.criadoEm.toDate() : null;
+        if (!date) return;
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        if (!monthlyHistory[monthKey]) {
+            monthlyHistory[monthKey] = { total: 0, delivery: 0, count: 0 };
+        }
+        monthlyHistory[monthKey].total += (o.total || 0);
+        monthlyHistory[monthKey].delivery += (o.frete || 0);
+        monthlyHistory[monthKey].count += 1;
+    });
     
     return {
       daily: dailyOrders.reduce((acc, o) => acc + (o.total || 0), 0),
@@ -637,7 +650,8 @@ export default function App() {
       monthly: monthlyOrders.reduce((acc, o) => acc + (o.total || 0), 0),
       deliveryDaily: dailyOrders.reduce((acc, o) => acc + (o.frete || 0), 0),
       deliveryWeekly: weeklyOrders.reduce((acc, o) => acc + (o.frete || 0), 0),
-      deliveryMonthly: monthlyOrders.reduce((acc, o) => acc + (o.deliveryMonthly || 0), 0),
+      deliveryMonthly: monthlyOrders.reduce((acc, o) => acc + (o.frete || 0), 0),
+      history: Object.entries(monthlyHistory).sort((a, b) => b[0].localeCompare(a[0])),
     };
   }, [orders]);
 
@@ -867,7 +881,7 @@ export default function App() {
         {adminTab === 'promos' && <PromoManager />}
 
         {adminTab === 'concluido' && (
-            <div className="mb-8 space-y-4 animate-fade-in no-print">
+            <div className="mb-8 space-y-8 animate-fade-in no-print">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-red-600 text-left">
                         <p className="text-[10px] font-black text-zinc-400 uppercase italic">Vendas Hoje</p>
@@ -878,10 +892,33 @@ export default function App() {
                         <p className="text-3xl font-black text-red-800 mt-1 italic leading-none">R$ {salesStats.weekly.toFixed(2)}</p>
                     </div>
                     <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-red-600 text-left">
-                        <p className="text-[10px] font-black text-zinc-400 uppercase italic">Vendas Mês</p>
+                        <p className="text-[10px] font-black text-zinc-400 uppercase italic">Vendas Mês Atual</p>
                         <p className="text-3xl font-black text-red-800 mt-1 italic leading-none">R$ {salesStats.monthly.toFixed(2)}</p>
                     </div>
                 </div>
+
+                <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-red-50 text-left">
+                    <h3 className="text-lg font-black text-red-800 italic uppercase mb-6 flex items-center gap-2">
+                        📊 Histórico Mensal
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {salesStats.history.map(([monthKey, data]) => {
+                            const [year, month] = monthKey.split('-');
+                            const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleString('pt-BR', { month: 'long' });
+                            return (
+                                <div key={monthKey} className="bg-zinc-50 p-5 rounded-2xl border border-zinc-100 hover:bg-red-50 transition-colors cursor-default group">
+                                    <p className="text-[10px] font-black text-zinc-400 uppercase italic mb-1 group-hover:text-red-400 transition-colors">{monthName} {year}</p>
+                                    <p className="text-xl font-black text-red-900 italic leading-none">R$ {data.total.toFixed(2)}</p>
+                                    <div className="mt-3 pt-3 border-t border-zinc-200/50 flex flex-col gap-1">
+                                        <p className="text-[9px] font-bold text-zinc-500 uppercase italic">📦 {data.count} pedidos</p>
+                                        <p className="text-[9px] font-bold text-green-600 uppercase italic">🚚 R$ {data.delivery.toFixed(2)} fretes</p>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-green-600 text-left">
                         <p className="text-[10px] font-black text-zinc-400 uppercase italic">Entregas Hoje</p>
@@ -892,7 +929,7 @@ export default function App() {
                         <p className="text-3xl font-black text-green-700 mt-1 italic leading-none">R$ {salesStats.deliveryWeekly.toFixed(2)}</p>
                     </div>
                     <div className="bg-white p-6 rounded-[2rem] shadow-md border-b-4 border-green-600 text-left">
-                        <p className="text-[10px] font-black text-zinc-400 uppercase italic">Entregas Mês</p>
+                        <p className="text-[10px] font-black text-zinc-400 uppercase italic">Entregas Mês Atual</p>
                         <p className="text-3xl font-black text-green-700 mt-1 italic leading-none">R$ {salesStats.deliveryMonthly.toFixed(2)}</p>
                     </div>
                 </div>
