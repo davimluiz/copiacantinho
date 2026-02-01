@@ -637,7 +637,7 @@ export default function App() {
       monthly: monthlyOrders.reduce((acc, o) => acc + (o.total || 0), 0),
       deliveryDaily: dailyOrders.reduce((acc, o) => acc + (o.frete || 0), 0),
       deliveryWeekly: weeklyOrders.reduce((acc, o) => acc + (o.frete || 0), 0),
-      deliveryMonthly: monthlyOrders.reduce((acc, o) => acc + (o.deliveryMonthly.toFixed(2) || 0), 0),
+      deliveryMonthly: monthlyOrders.reduce((acc, o) => acc + (o.deliveryMonthly || 0), 0),
     };
   }, [orders]);
 
@@ -940,9 +940,9 @@ export default function App() {
   return (
     <div className="min-h-screen bg-white">
       {view === 'HOME' && (
-        <div className="min-h-screen flex flex-col items-center justify-between bg-[#0a0a0a] no-print animate-fade-in relative overflow-hidden">
+        <div className="min-h-screen flex flex-col items-center justify-center bg-[#0a0a0a] no-print animate-fade-in relative overflow-hidden">
           {/* Main Content Area */}
-          <div className="flex-1 flex flex-col items-center justify-center w-full z-10 p-6">
+          <div className="flex flex-col items-center justify-center w-full z-10 p-6">
             <div 
               className="w-full max-w-[400px] rounded-[3.5rem] text-center shadow-[0_30px_60px_rgba(0,0,0,0.8)] relative overflow-hidden p-12 flex flex-col items-center border border-white/5"
               style={{
@@ -976,17 +976,11 @@ export default function App() {
                   </button>
               </div>
             </div>
-          </div>
-
-          {/* Piso de Madeira / Rodapé Simulado */}
-          <div 
-            className="w-full h-44 bg-[url('/fundo/fundo.png')] bg-cover bg-bottom flex flex-col items-center justify-center relative mt-auto border-t-[6px] border-[#331d10]/40"
-            style={{ filter: 'brightness(0.65)' }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
+            
+            {/* Acesso Restrito - Visível apenas em Desktop */}
             <button 
               onClick={() => setView('LOGIN')} 
-              className="relative z-20 text-white/30 text-[10px] font-black uppercase tracking-[0.5em] hover:text-white transition-all py-6 mt-10"
+              className="hidden md:flex relative z-20 text-white/30 text-[10px] font-black uppercase tracking-[0.5em] hover:text-white transition-all py-8 mt-4"
             >
               ACESSO RESTRITO
             </button>
