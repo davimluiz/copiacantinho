@@ -940,11 +940,11 @@ export default function App() {
   return (
     <div className="min-h-screen bg-white">
       {view === 'HOME' && (
-        <div className="min-h-screen flex flex-col items-center justify-between bg-[#111111] no-print animate-fade-in relative overflow-hidden">
+        <div className="min-h-screen flex flex-col items-center justify-between bg-[#0a0a0a] no-print animate-fade-in relative overflow-hidden">
           {/* Main Content Area */}
           <div className="flex-1 flex flex-col items-center justify-center w-full z-10 p-6">
             <div 
-              className="w-full max-w-sm rounded-[3rem] text-center shadow-2xl relative overflow-hidden p-10 flex flex-col items-center"
+              className="w-full max-w-[400px] rounded-[3.5rem] text-center shadow-[0_30px_60px_rgba(0,0,0,0.8)] relative overflow-hidden p-12 flex flex-col items-center border border-white/5"
               style={{
                 backgroundImage: 'url("/fundo/fundo.png")',
                 backgroundSize: 'cover',
@@ -952,25 +952,25 @@ export default function App() {
               }}
             >
               {/* Logo Flutuante */}
-              <div className="animate-float mb-6 drop-shadow-[0_20px_20px_rgba(0,0,0,0.5)]">
+              <div className="animate-float mb-10 drop-shadow-[0_15px_15px_rgba(0,0,0,0.6)]">
                 <img 
                   src="/logo/logo.png" 
                   alt="Logo Cantinho da Sandra" 
-                  className="w-72 h-auto"
+                  className="w-80 h-auto"
                 />
               </div>
               
-              <div className="space-y-6 w-full mt-4">
+              <div className="space-y-6 w-full mt-2">
                   <button 
                     onClick={() => setView('ORDER')} 
-                    className="w-full bg-[#d32f2f] hover:bg-[#b71c1c] text-white font-black py-6 rounded-[1.5rem] shadow-[0_8px_0_#9a0007] active:translate-y-1 active:shadow-none transition-all uppercase italic text-2xl flex items-center justify-center gap-2"
+                    className="w-full bg-[#cc2222] hover:bg-[#b01e1e] text-white font-black py-7 rounded-[1.8rem] shadow-[0_10px_0_#8a0a0a] active:translate-y-1 active:shadow-none transition-all uppercase italic text-2xl flex items-center justify-center gap-2 border border-white/10"
                   >
                     FAZER PEDIDO <span className="text-3xl">➡</span>
                   </button>
                   
                   <button 
                     onClick={() => setView('PROMOTIONS')} 
-                    className="w-full bg-[#fbc02d] hover:bg-[#f9a825] text-[#212121] font-black py-6 rounded-[1.5rem] shadow-xl animate-pulse-slow uppercase italic text-2xl border-4 border-[#ffeb3b]"
+                    className="w-full bg-[#f6b400] hover:bg-[#e0a400] text-[#111] font-black py-7 rounded-[1.8rem] shadow-[0_10px_0_#9c7200] active:translate-y-1 active:shadow-none transition-all uppercase italic text-2xl border-2 border-[#fff200]/30 animate-pulse-slow"
                   >
                     🔥 PROMOÇÕES 🔥
                   </button>
@@ -978,15 +978,15 @@ export default function App() {
             </div>
           </div>
 
-          {/* Piso de Madeira / Rodapé */}
+          {/* Piso de Madeira / Rodapé Simulado */}
           <div 
-            className="w-full h-40 bg-[url('/fundo/fundo.png')] bg-cover bg-bottom flex flex-col items-center justify-center relative mt-auto border-t-4 border-[#333]/30"
-            style={{ filter: 'brightness(0.7)' }}
+            className="w-full h-44 bg-[url('/fundo/fundo.png')] bg-cover bg-bottom flex flex-col items-center justify-center relative mt-auto border-t-[6px] border-[#331d10]/40"
+            style={{ filter: 'brightness(0.65)' }}
           >
-            <div className="absolute inset-0 bg-black/40"></div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
             <button 
               onClick={() => setView('LOGIN')} 
-              className="relative z-10 text-white/40 text-[11px] font-black uppercase tracking-[0.4em] hover:text-white transition-all py-4"
+              className="relative z-20 text-white/30 text-[10px] font-black uppercase tracking-[0.5em] hover:text-white transition-all py-6 mt-10"
             >
               ACESSO RESTRITO
             </button>
@@ -1251,15 +1251,15 @@ export default function App() {
           }
       }} />
       <style>{`
-        @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fade-in { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
-        @keyframes pulse-slow { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-18px); } }
+        @keyframes pulse-slow { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.02); opacity: 0.95; } }
         @keyframes pulse-subtle { 0%, 100% { border-color: #fee2e2; transform: scale(1); } 50% { border-color: #ef4444; transform: scale(1.01); } }
-        .animate-fade-in { animation: fade-in 0.4s ease-out forwards; }
+        .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
         .animate-slide-up { animation: slide-up 0.5s ease-out forwards; }
-        .animate-float { animation: float 5s ease-in-out infinite; }
-        .animate-pulse-slow { animation: pulse-slow 2.5s infinite ease-in-out; }
+        .animate-float { animation: float 4.5s ease-in-out infinite; }
+        .animate-pulse-slow { animation: pulse-slow 2s infinite ease-in-out; }
         .animate-pulse-subtle { animation: pulse-subtle 2s infinite ease-in-out; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
