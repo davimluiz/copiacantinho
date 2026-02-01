@@ -217,7 +217,12 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
       if (isTurbined) finalDetails += `\nTURBINADO (+R$10,00): Batata + Juninho`;
       if (observation) finalDetails += `\nObs: ${observation}`;
     } else if (category === 'franguinho') {
-      if (selectedSides.length) finalDetails += `\nAcompanhamentos:\n  - ${selectedSides.join('\n  - ')}`;
+      if (selectedSides.length) {
+        const counts: Record<string, number> = {};
+        selectedSides.forEach(s => counts[s] = (counts[s] || 0) + 1);
+        const summary = Object.entries(counts).map(([name, count]) => `${count}x ${name}`).join('\n  - ');
+        finalDetails += `Acompanhamentos:\n  - ${summary}`;
+      }
       if (observation) finalDetails += `\nObs: ${observation}`;
     } else if (category === 'bebidas') {
       if (product.needsFlavor && drinkFlavor) finalDetails += `\nSabor: ${drinkFlavor}`;
@@ -423,21 +428,45 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
 
           {/* FRANGUINHO */}
           {category === 'franguinho' && (
-            <section>
-              <label className="text-red-900 text-[11px] font-black uppercase italic block mb-2">Escolha seus Acompanhamentos ({selectedSides.length}/{product.maxSides}):</label>
-              <div className="grid grid-cols-1 gap-2">
-                {FRANGUINHO_SIDES.map(side => (
-                  <button 
-                    key={side} 
-                    onClick={() => {
-                        if (selectedSides.includes(side)) setSelectedSides(selectedSides.filter(s => s !== side));
-                        else if (selectedSides.length < (product.maxSides || 0)) setSelectedSides([...selectedSides, side]);
-                    }} 
-                    className={`text-[11px] font-bold p-3 rounded-xl border text-left uppercase italic ${selectedSides.includes(side) ? 'bg-red-700 text-white' : 'bg-zinc-50 text-zinc-500'}`}
-                  >
-                    {side}
-                  </button>
-                ))}
+            <section className="space-y-4">
+              <div className="bg-red-50 p-4 rounded-2xl border border-red-100 text-center shadow-inner">
+                <label className="text-red-900 text-[11px] font-black uppercase italic block mb-1">Acompanhamentos</label>
+                <p className="text-2xl font-black text-red-700 italic">{selectedSides.length} / {product.maxSides}</p>
+                <p className="text-[9px] text-red-400 font-bold uppercase italic mt-1 leading-none">Você pode repetir o mesmo item se desejar.<br/>Cada seleção conta como 1 slot.</p>
+              </div>
+              <div className="grid grid-cols-1 gap-3">
+                {FRANGUINHO_SIDES.map(side => {
+                  const count = selectedSides.filter(s => s === side).length;
+                  return (
+                    <div key={side} className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${count > 0 ? 'bg-red-50 border-red-600 shadow-md scale-[1.02]' : 'bg-zinc-50 border-zinc-100 opacity-60'}`}>
+                      <span className="text-[11px] font-black uppercase italic text-red-950 flex-1">{side}</span>
+                      <div className="flex items-center gap-4">
+                        <button 
+                          onClick={() => {
+                            const idx = selectedSides.indexOf(side);
+                            if (idx > -1) {
+                              const next = [...selectedSides];
+                              next.splice(idx, 1);
+                              setSelectedSides(next);
+                            }
+                          }}
+                          disabled={count === 0}
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg transition-all ${count > 0 ? 'bg-white text-red-600 border-2 border-red-200 shadow-sm' : 'bg-zinc-200 text-zinc-400'}`}
+                        >-</button>
+                        <span className="w-6 text-center font-black text-red-900 text-lg italic">{count}</span>
+                        <button 
+                          onClick={() => {
+                            if (selectedSides.length < (product.maxSides || 0)) {
+                              setSelectedSides([...selectedSides, side]);
+                            }
+                          }}
+                          disabled={selectedSides.length >= (product.maxSides || 0)}
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg transition-all ${selectedSides.length < (product.maxSides || 0) ? 'bg-red-700 text-white shadow-md' : 'bg-zinc-200 text-zinc-400'}`}
+                        >+</button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </section>
           )}
@@ -582,11 +611,9 @@ export default function App() {
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     
     // Lógica de Semana Comercial (Quarta a Domingo)
-    // 0: Dom, 1: Seg, 2: Ter, 3: Qua, 4: Qui, 5: Sex, 6: Sab
     const getBusinessWeekStart = (date: Date) => {
         const d = new Date(date);
         const day = d.getDay();
-        // Dias desde a última quarta:
         // Wed(3) -> 0, Thu(4) -> 1, Fri(5) -> 2, Sat(6) -> 3, Sun(0) -> 4, Mon(1) -> 5, Tue(2) -> 6
         const diffSinceWed = (day - 3 + 7) % 7;
         d.setDate(d.getDate() - diffSinceWed);
@@ -1187,7 +1214,7 @@ export default function App() {
         @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
         @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
         @keyframes pulse-slow { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
-        @keyframes pulse-subtle { 0%, 100% { border-color: #fee2e2; } 50% { border-color: #ef4444; } }
+        @keyframes pulse-subtle { 0%, 100% { border-color: #fee2e2; transform: scale(1); } 50% { border-color: #ef4444; transform: scale(1.01); } }
         .animate-fade-in { animation: fade-in 0.4s ease-out forwards; }
         .animate-slide-up { animation: slide-up 0.5s ease-out forwards; }
         .animate-float { animation: float 5s ease-in-out infinite; }
