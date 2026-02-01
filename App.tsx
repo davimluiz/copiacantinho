@@ -940,15 +940,56 @@ export default function App() {
   return (
     <div className="min-h-screen bg-white">
       {view === 'HOME' && (
-        <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-zinc-50 no-print animate-fade-in">
-          <div className="glass-card p-10 md:p-16 rounded-[3rem] text-center shadow-2xl max-w-sm w-full bg-white relative overflow-hidden border-b-[6px] border-red-100">
-            <div className="text-[64px] mb-6 animate-float leading-none">🍔</div>
-            <h1 className="text-4xl font-black text-red-800 mb-8 tracking-tighter italic leading-none">Cantinho da Sandra</h1>
-            <div className="space-y-4">
-                <Button fullWidth onClick={() => setView('ORDER')} className="text-xl py-5 rounded-[2rem] border-b-4 border-red-800">FAZER PEDIDO ➡</Button>
-                <button onClick={() => setView('PROMOTIONS')} className="w-full bg-yellow-400 border-4 border-yellow-200 text-red-800 font-black py-5 rounded-[2rem] shadow-xl animate-pulse-slow uppercase italic text-lg hover:bg-yellow-500 transition-all">🔥 PROMOÇÕES 🔥</button>
+        <div className="min-h-screen flex flex-col items-center justify-between bg-[#111111] no-print animate-fade-in relative overflow-hidden">
+          {/* Main Content Area */}
+          <div className="flex-1 flex flex-col items-center justify-center w-full z-10 p-6">
+            <div 
+              className="w-full max-w-sm rounded-[3rem] text-center shadow-2xl relative overflow-hidden p-10 flex flex-col items-center"
+              style={{
+                backgroundImage: 'url("/fundo/fundo.png")',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center'
+              }}
+            >
+              {/* Logo Flutuante */}
+              <div className="animate-float mb-6 drop-shadow-[0_20px_20px_rgba(0,0,0,0.5)]">
+                <img 
+                  src="/logo/logo.png" 
+                  alt="Logo Cantinho da Sandra" 
+                  className="w-72 h-auto"
+                />
+              </div>
+              
+              <div className="space-y-6 w-full mt-4">
+                  <button 
+                    onClick={() => setView('ORDER')} 
+                    className="w-full bg-[#d32f2f] hover:bg-[#b71c1c] text-white font-black py-6 rounded-[1.5rem] shadow-[0_8px_0_#9a0007] active:translate-y-1 active:shadow-none transition-all uppercase italic text-2xl flex items-center justify-center gap-2"
+                  >
+                    FAZER PEDIDO <span className="text-3xl">➡</span>
+                  </button>
+                  
+                  <button 
+                    onClick={() => setView('PROMOTIONS')} 
+                    className="w-full bg-[#fbc02d] hover:bg-[#f9a825] text-[#212121] font-black py-6 rounded-[1.5rem] shadow-xl animate-pulse-slow uppercase italic text-2xl border-4 border-[#ffeb3b]"
+                  >
+                    🔥 PROMOÇÕES 🔥
+                  </button>
+              </div>
             </div>
-            <button onClick={() => setView('LOGIN')} className="hidden md:block mt-16 text-zinc-200 text-[9px] font-black uppercase tracking-[0.3em] hover:text-red-400 transition-all w-full">Acesso Restrito</button>
+          </div>
+
+          {/* Piso de Madeira / Rodapé */}
+          <div 
+            className="w-full h-40 bg-[url('/fundo/fundo.png')] bg-cover bg-bottom flex flex-col items-center justify-center relative mt-auto border-t-4 border-[#333]/30"
+            style={{ filter: 'brightness(0.7)' }}
+          >
+            <div className="absolute inset-0 bg-black/40"></div>
+            <button 
+              onClick={() => setView('LOGIN')} 
+              className="relative z-10 text-white/40 text-[11px] font-black uppercase tracking-[0.4em] hover:text-white transition-all py-4"
+            >
+              ACESSO RESTRITO
+            </button>
           </div>
         </div>
       )}
