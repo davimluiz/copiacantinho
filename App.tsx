@@ -83,33 +83,104 @@ const Receipt = ({ order, stats }: { order: any | null, stats?: any | null }) =>
 const EditOrderModal = ({ order, isOpen, onClose, onSave }: any) => {
     const [editedItens, setEditedItens] = useState('');
     const [editedPayment, setEditedPayment] = useState('');
+    const [editedTotal, setEditedTotal] = useState('');
+    const [editReason, setEditReason] = useState('');
+
     useEffect(() => {
         if (isOpen && order) {
             setEditedItens(order.itens || '');
             setEditedPayment(order.pagamento || '');
+            setEditedTotal(String(order.total || '0'));
+            setEditReason('');
         }
     }, [isOpen, order]);
+
     if (!order) return null;
-    const hasChanged = editedItens !== (order.itens || '') || editedPayment !== (order.pagamento || '');
+
+    const totalChanged = Number(editedTotal) !== Number(order.total);
+    const hasChanged = editedItens !== (order.itens || '') || 
+                       editedPayment !== (order.pagamento || '') || 
+                       totalChanged;
+
+    const canSave = hasChanged && (!totalChanged || (totalChanged && editReason.trim().length > 0));
+
+    const handleSave = () => {
+        if (!canSave) return;
+        
+        let finalItens = editedItens;
+        if (totalChanged) {
+            finalItens += `\n\n📝 MOTIVO DA ALTERAÇÃO DE VALOR:\n${editReason.toUpperCase()}`;
+        }
+
+        onSave({ 
+            ...order, 
+            itens: finalItens, 
+            pagamento: editedPayment, 
+            total: Number(editedTotal),
+            motivoAlteracao: editReason || null
+        });
+    };
+
     return (
         <div className={`fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-opacity no-print ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-            <div className="bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[92vh] animate-fade-in">
+            <div className="bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[92vh] animate-fade-in border-4 border-red-50">
                 <div className="p-6 border-b border-zinc-100 flex justify-between items-center bg-zinc-50">
-                    <h3 className="text-xl font-black text-red-800 italic uppercase">Editar Pedido</h3>
+                    <h3 className="text-xl font-black text-red-800 italic uppercase leading-none">Editar Pedido</h3>
                     <button onClick={onClose} className="text-zinc-300 hover:text-red-600 text-3xl leading-none transition-colors">&times;</button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-6 space-y-6 text-left">
+                <div className="flex-1 overflow-y-auto p-6 space-y-6 text-left custom-scrollbar">
                     <section>
-                        <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3">Itens do Pedido</label>
-                        <textarea className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 text-sm font-bold text-red-900 outline-none min-h-[200px]" value={editedItens} onChange={e => setEditedItens(e.target.value)} />
+                        <label className="block text-red-900/40 text-[10px] font-black uppercase mb-3">Itens do Pedido (Adicione ou remova linhas)</label>
+                        <textarea 
+                            className="w-full bg-zinc-50 border-2 border-zinc-100 rounded-2xl p-4 text-xs font-bold text-zinc-700 outline-none min-h-[180px] focus:border-red-200 transition-all leading-relaxed" 
+                            value={editedItens} 
+                            onChange={e => setEditedItens(e.target.value)} 
+                        />
                     </section>
-                    <section>
-                        <Select label="Forma de Pagamento" options={PAYMENT_METHODS} value={editedPayment} onChange={e => setEditedPayment(e.target.value)} />
-                    </section>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <section>
+                            <Select 
+                                label="Forma de Pagamento" 
+                                options={PAYMENT_METHODS} 
+                                value={editedPayment} 
+                                onChange={e => setEditedPayment(e.target.value)} 
+                            />
+                        </section>
+                        <section>
+                            <label className="block text-red-700 text-sm font-bold mb-2 ml-1">Valor Total (R$)</label>
+                            <input 
+                                type="number" 
+                                step="0.01"
+                                className="w-full bg-zinc-900 text-white p-3 rounded-xl font-black text-lg outline-none focus:ring-2 focus:ring-red-500"
+                                value={editedTotal}
+                                onChange={e => setEditedTotal(e.target.value)}
+                            />
+                        </section>
+                    </div>
+
+                    {totalChanged && (
+                        <section className="animate-fade-in">
+                            <label className="block text-red-600 text-xs font-black uppercase mb-3">Motivo da alteração de valor (OBRIGATÓRIO)</label>
+                            <textarea 
+                                required
+                                placeholder="Por que o valor mudou? Ex: Adicionado bife extra, desconto aplicado..."
+                                className="w-full bg-red-50 border-2 border-red-200 rounded-2xl p-4 text-xs font-bold text-red-900 outline-none min-h-[80px] focus:ring-2 focus:ring-red-300 transition-all shadow-inner uppercase" 
+                                value={editReason} 
+                                onChange={e => setEditReason(e.target.value)} 
+                            />
+                        </section>
+                    )}
                 </div>
                 <div className="p-6 bg-zinc-50/80 border-t border-zinc-100 flex gap-3">
-                    <Button variant="secondary" onClick={onClose} className="flex-1 rounded-xl">CANCELAR</Button>
-                    <Button disabled={!hasChanged} onClick={() => onSave({ ...order, itens: editedItens, pagamento: editedPayment })} className="flex-1 rounded-xl">SALVAR ALTERAÇÕES</Button>
+                    <Button variant="secondary" onClick={onClose} className="flex-1 rounded-2xl">CANCELAR</Button>
+                    <Button 
+                        disabled={!canSave} 
+                        onClick={handleSave} 
+                        className={`flex-1 rounded-2xl ${!canSave ? 'opacity-30' : ''}`}
+                    >
+                        SALVAR ALTERAÇÕES
+                    </Button>
                 </div>
             </div>
         </div>
@@ -614,6 +685,7 @@ export default function App() {
     const getBusinessWeekStart = (date: Date) => {
         const d = new Date(date);
         const day = d.getDay();
+        // Wed(3) -> 0, Thu(4) -> 1, Fri(5) -> 2, Sat(6) -> 3, Sun(0) -> 4, Mon(1) -> 5, Tue(2) -> 6
         const diffSinceWed = (day - 3 + 7) % 7;
         d.setDate(d.getDate() - diffSinceWed);
         d.setHours(0,0,0,0);
@@ -742,7 +814,16 @@ export default function App() {
   };
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => { await updateDoc(doc(db, 'pedidos', orderId), { status: newStatus }); };
-  const saveEditedOrder = async (updatedOrder: any) => { await updateDoc(doc(db, 'pedidos', updatedOrder.id), { itens: updatedOrder.itens, pagamento: updatedOrder.pagamento }); setEditingOrder(null); };
+  
+  const saveEditedOrder = async (updatedOrder: any) => { 
+    await updateDoc(doc(db, 'pedidos', updatedOrder.id), { 
+        itens: updatedOrder.itens, 
+        pagamento: updatedOrder.pagamento,
+        total: updatedOrder.total,
+        motivoAlteracao: updatedOrder.motivoAlteracao || null
+    }); 
+    setEditingOrder(null); 
+  };
   
   const handleDeleteOrder = async (orderId: string) => {
     if (window.confirm("Tem certeza que deseja excluir este pedido permanentemente?")) {
