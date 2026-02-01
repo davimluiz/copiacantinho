@@ -637,7 +637,7 @@ export default function App() {
       monthly: monthlyOrders.reduce((acc, o) => acc + (o.total || 0), 0),
       deliveryDaily: dailyOrders.reduce((acc, o) => acc + (o.frete || 0), 0),
       deliveryWeekly: weeklyOrders.reduce((acc, o) => acc + (o.frete || 0), 0),
-      deliveryMonthly: monthlyOrders.reduce((acc, o) => acc + (o.frete || 0), 0),
+      deliveryMonthly: monthlyOrders.reduce((acc, o) => acc + (o.deliveryMonthly.toFixed(2) || 0), 0),
     };
   }, [orders]);
 
