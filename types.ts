@@ -32,6 +32,7 @@ export interface Product {
   unit?: string;
   needsFlavor?: boolean;
   needsZeroOption?: boolean;
+  enabled?: boolean;
 }
 
 export interface Promotion {

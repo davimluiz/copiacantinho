@@ -12,17 +12,19 @@ import {
   serverTimestamp,
   deleteDoc,
   addDoc,
-  setDoc
+  setDoc,
+  getDocs
 } from 'firebase/firestore';
 
 import { db } from './firebase';
 import { Button } from './components/Button';
 import { Input, Select } from './components/Input';
 import { 
-    CATEGORIES, PRODUCTS, PAYMENT_METHODS, DELIVERY_FEES,
-    ACAI_COMPLEMENTS, ACAI_TOPPINGS, ACAI_FRUITS, ACAI_PAID_EXTRAS, FRANGUINHO_SIDES
+    CATEGORIES, PAYMENT_METHODS,
+    ACAI_COMPLEMENTS, ACAI_TOPPINGS, ACAI_FRUITS, ACAI_PAID_EXTRAS, FRANGUINHO_SIDES,
+    INITIAL_PRODUCTS, INITIAL_DELIVERY_FEES
 } from './constants';
-import { Product, CustomerInfo, CartItem, PaymentMethod, OrderType, Promotion } from './types';
+import { Product, CustomerInfo, CartItem, PaymentMethod, OrderType, Promotion, Category } from './types';
 
 type AppView = 'HOME' | 'ORDER' | 'LOGIN' | 'ADMIN' | 'SUCCESS' | 'PROMOTIONS';
 type OrderStep = 'MENU' | 'CART_REVIEW' | 'TYPE_SELECTION' | 'FORM' | 'SUMMARY';
@@ -623,6 +625,13 @@ const QuickSaleSection = ({
 );
 
 
+const ToggleSwitch = ({ checked, onChange }: { checked: boolean, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void }) => (
+    <label className="relative inline-flex items-center cursor-pointer">
+        <input type="checkbox" checked={checked} onChange={onChange} className="sr-only peer" />
+        <div className="w-11 h-6 bg-zinc-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-red-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+    </label>
+);
+
 export default function App() {
   const [view, setView] = useState<AppView>('HOME');
   const [step, setStep] = useState<OrderStep>('MENU');
@@ -634,7 +643,10 @@ export default function App() {
   });
   const [orders, setOrders] = useState<any[]>([]);
   const [promos, setPromos] = useState<Promotion[]>([]);
-  const [config, setConfig] = useState({ mode: 'auto' });
+  const [config, setConfig] = useState<any>({ mode: 'auto' });
+  const [products, setProducts] = useState<Product[]>([]);
+  const [deliveryFees, setDeliveryFees] = useState<any[]>([]);
+
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [editingOrder, setEditingOrder] = useState<any>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -648,11 +660,70 @@ export default function App() {
   const [customSaleValue, setCustomSaleValue] = useState('');
 
   useEffect(() => {
-    onSnapshot(collection(db, 'promocoes'), (snapshot) => setPromos(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Promotion))));
-    onSnapshot(doc(db, 'config', 'loja'), (snapshot) => {
+    const seedDatabase = async () => {
+        try {
+            const productsSnapshot = await getDocs(collection(db, 'products'));
+            if (productsSnapshot.empty) {
+                console.log("Seeding products...");
+                const batch = [];
+                for (const product of INITIAL_PRODUCTS) {
+                    batch.push(addDoc(collection(db, 'products'), { ...product, enabled: true }));
+                }
+                await Promise.all(batch);
+            }
+
+            const feesSnapshot = await getDocs(collection(db, 'delivery_fees'));
+            if (feesSnapshot.empty) {
+                console.log("Seeding delivery fees...");
+                const batch = [];
+                for (const fee of INITIAL_DELIVERY_FEES) {
+                    batch.push(addDoc(collection(db, 'delivery_fees'), fee));
+                }
+                await Promise.all(batch);
+            }
+        } catch(e) {
+            console.error("Seeding error:", e);
+        }
+    };
+    seedDatabase();
+
+    const unsubPromos = onSnapshot(collection(db, 'promocoes'), (snapshot) => setPromos(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Promotion))));
+    const unsubConfig = onSnapshot(doc(db, 'config', 'loja'), (snapshot) => {
         if (snapshot.exists()) setConfig(snapshot.data() as any);
-        else setDoc(doc(db, 'config', 'loja'), { mode: 'auto' });
+        else {
+            const defaultConfig = { 
+                mode: 'auto', 
+                specialItemsOverride: false,
+                closedTitle: 'Estamos Fechados!',
+                closedMessage: 'No momento estamos descansando para preparar o melhor para você amanhã!'
+            };
+            setDoc(doc(db, 'config', 'loja'), defaultConfig);
+            setConfig(defaultConfig);
+        }
     });
+
+    const unsubProducts = onSnapshot(query(collection(db, 'products')), (snapshot) => {
+        const fetchedProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+        fetchedProducts.sort((a, b) => {
+            if (a.categoryId < b.categoryId) return -1;
+            if (a.categoryId > b.categoryId) return 1;
+            if (a.name < b.name) return -1;
+            if (a.name > b.name) return 1;
+            return 0;
+        });
+        setProducts(fetchedProducts);
+    });
+    
+    const unsubFees = onSnapshot(query(collection(db, 'delivery_fees'), orderBy('neighborhood')), (snapshot) => {
+        setDeliveryFees(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    return () => {
+        unsubPromos();
+        unsubConfig();
+        unsubProducts();
+        unsubFees();
+    };
   }, []);
 
   useEffect(() => {
@@ -671,6 +742,25 @@ export default function App() {
     const isWorkingDay = [0, 3, 4, 5, 6].includes(day);
     return isWorkingDay && hour >= 18 && hour < 23;
   }, [config]);
+  
+  const visibleProducts = useMemo(() => {
+    if (!products.length) return [];
+    const now = new Date();
+    const day = now.getDay();
+    const isWeekendSpecial = day === 5 || day === 6; // Friday or Saturday
+    const specialItemNames = ['Torta', 'Bolo', 'Empadão', 'Feijão Tropeiro (P)', 'Feijão Tropeiro (M)', 'Feijão Tropeiro (G)', 'Feijão Tropeiro (GG)'];
+    
+    return products.filter(p => {
+        if (p.enabled === false) return false;
+        
+        const isSpecial = specialItemNames.some(name => p.name.includes(name));
+        if (isSpecial) {
+            return config.specialItemsOverride || isWeekendSpecial;
+        }
+        return true;
+    });
+  }, [products, config]);
+
 
   const itemsTotal = useMemo(() => cart.reduce((acc, item) => acc + (Number(item.price) * Number(item.quantity)), 0), [cart]);
   const currentFee = (customer.orderType === OrderType.DELIVERY) ? (customer.deliveryFee || 0) : 0;
@@ -681,11 +771,9 @@ export default function App() {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     
-    // Lógica de Semana Comercial (Quarta a Domingo)
     const getBusinessWeekStart = (date: Date) => {
         const d = new Date(date);
         const day = d.getDay();
-        // Wed(3) -> 0, Thu(4) -> 1, Fri(5) -> 2, Sat(6) -> 3, Sun(0) -> 4, Mon(1) -> 5, Tue(2) -> 6
         const diffSinceWed = (day - 3 + 7) % 7;
         d.setDate(d.getDate() - diffSinceWed);
         d.setHours(0,0,0,0);
@@ -702,7 +790,6 @@ export default function App() {
     const weeklyOrders = getOrdersInRange(weekStart);
     const monthlyOrders = getOrdersInRange(monthStart);
 
-    // Monthly History Calculation
     const monthlyHistory: Record<string, { total: number, delivery: number, count: number }> = {};
     completed.forEach(o => {
         const date = o.criadoEm?.toDate ? o.criadoEm.toDate() : null;
@@ -882,13 +969,143 @@ export default function App() {
         </div>
     );
   };
+  
+  const ConfigManager = ({ products, deliveryFees, config }: any) => {
+    const [newFeeName, setNewFeeName] = useState('');
+    const [newFeeValue, setNewFeeValue] = useState('');
 
+    const handleProductUpdate = async (productId: string, field: string, value: any) => {
+        try {
+            await updateDoc(doc(db, 'products', productId), { [field]: value });
+        } catch (e) { console.error("Error updating product:", e); }
+    };
+
+    const handleConfigUpdate = async (field: string, value: any) => {
+        try {
+            await updateDoc(doc(db, 'config', 'loja'), { [field]: value });
+        } catch (e) { console.error("Error updating config:", e); }
+    };
+
+    const handleAddFee = async () => {
+        if (!newFeeName.trim() || !newFeeValue) return;
+        try {
+            await addDoc(collection(db, 'delivery_fees'), {
+                neighborhood: newFeeName,
+                fee: Number(newFeeValue)
+            });
+            setNewFeeName('');
+            setNewFeeValue('');
+        } catch (e) { console.error("Error adding fee:", e); }
+    };
+    
+    return (
+        <div className="space-y-8 animate-fade-in">
+            {/* Funcionamento da Loja */}
+            <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-red-50 text-left">
+                <h3 className="text-lg font-black text-red-800 italic uppercase mb-6">Funcionamento da Loja</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                    <Select
+                        label="Modo de Funcionamento"
+                        value={config.mode || 'auto'}
+                        onChange={e => handleConfigUpdate('mode', e.target.value)}
+                        options={[
+                            { value: 'auto', label: '⏰ Automático' },
+                            { value: 'open', label: '🔓 Forçar Aberto' },
+                            { value: 'closed', label: '🔒 Forçar Fechado' },
+                        ]}
+                    />
+                    <div></div> {/* Spacer */}
+                    <Input 
+                        label="Título (Quando Fechado)"
+                        defaultValue={config.closedTitle || ''}
+                        onBlur={e => handleConfigUpdate('closedTitle', e.target.value)}
+                    />
+                    <div>
+                        <label className="block text-red-700 text-sm font-bold mb-2 ml-1">Mensagem (Quando Fechado)</label>
+                        <textarea
+                            className="appearance-none border border-red-900/10 rounded-xl w-full py-3 px-4 bg-zinc-900 text-white leading-tight focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600/20 transition-all backdrop-blur-sm placeholder-zinc-500 shadow-sm min-h-[100px]"
+                            defaultValue={config.closedMessage || ''}
+                            onBlur={e => handleConfigUpdate('closedMessage', e.target.value)}
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {/* Taxas de Entrega */}
+            <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-red-50 text-left">
+                <h3 className="text-lg font-black text-red-800 italic uppercase mb-6">Taxas de Entrega</h3>
+                <div className="space-y-3 mb-6">
+                    {deliveryFees.map((fee: any) => (
+                        <div key={fee.id} className="flex items-center gap-3 bg-zinc-50 p-3 rounded-xl border">
+                            <span className="flex-1 font-bold text-sm text-zinc-600">{fee.neighborhood}</span>
+                            <input 
+                                type="number" 
+                                step="0.50"
+                                defaultValue={fee.fee.toFixed(2)}
+                                onBlur={e => updateDoc(doc(db, 'delivery_fees', fee.id), { fee: Number(e.target.value) })}
+                                className="w-24 bg-white border border-zinc-200 rounded-lg px-2 py-1 text-sm font-bold text-right"
+                            />
+                            <button onClick={() => deleteDoc(doc(db, 'delivery_fees', fee.id))} className="text-red-500 hover:text-red-700">🗑️</button>
+                        </div>
+                    ))}
+                </div>
+                <div className="flex items-end gap-3 border-t pt-4">
+                    <Input label="Novo Bairro" value={newFeeName} onChange={e => setNewFeeName(e.target.value)} className="mb-0"/>
+                    <Input label="Taxa (R$)" type="number" value={newFeeValue} onChange={e => setNewFeeValue(e.target.value)} className="mb-0 w-32"/>
+                    <Button onClick={handleAddFee} className="h-12">Adicionar</Button>
+                </div>
+            </div>
+
+            {/* Gerenciador de Cardápio */}
+            <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-red-50 text-left">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-lg font-black text-red-800 italic uppercase">Gerenciar Cardápio</h3>
+                    <div className="flex items-center gap-3">
+                        <span className="text-xs font-bold text-zinc-500 uppercase">Habilitar Itens de Fim de Semana</span>
+                        <ToggleSwitch checked={config.specialItemsOverride || false} onChange={e => handleConfigUpdate('specialItemsOverride', e.target.checked)}/>
+                    </div>
+                </div>
+                
+                <div className="space-y-6">
+                    {CATEGORIES.map(category => (
+                        <div key={category.id}>
+                            <h4 className="text-sm font-black text-red-900/50 uppercase italic border-b border-zinc-100 pb-2 mb-3">{category.icon} {category.name}</h4>
+                            <div className="space-y-2">
+                                {products.filter((p: Product) => p.categoryId === category.id).map((p: Product) => (
+                                    <div key={p.id} className={`grid grid-cols-[1fr,120px,80px] items-center gap-4 p-2 rounded-lg ${p.enabled !== false ? 'bg-white' : 'bg-zinc-100 opacity-60'}`}>
+                                        <input 
+                                            defaultValue={p.name}
+                                            onBlur={e => handleProductUpdate(p.id, 'name', e.target.value)}
+                                            className="bg-transparent font-bold text-red-900 focus:bg-zinc-100 p-2 rounded-lg outline-none"
+                                        />
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">R$</span>
+                                            <input 
+                                                type="number"
+                                                step="0.50"
+                                                defaultValue={p.price.toFixed(2)}
+                                                onBlur={e => handleProductUpdate(p.id, 'price', Number(e.target.value))}
+                                                className="w-full bg-zinc-50 border border-zinc-200 rounded-lg py-2 pl-8 pr-2 text-sm font-bold text-right focus:ring-1 focus:ring-red-500"
+                                            />
+                                        </div>
+                                        <ToggleSwitch checked={p.enabled ?? true} onChange={e => handleProductUpdate(p.id, 'enabled', e.target.checked)} />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+  };
+  
   if (!isOpenNow && view !== 'ADMIN' && view !== 'LOGIN') {
     return (
         <div className="min-h-screen bg-white flex flex-col items-center justify-center p-8 text-center animate-fade-in">
             <div className="text-8xl mb-8">🌙</div>
-            <h1 className="text-4xl font-black text-red-800 italic uppercase mb-4 tracking-tighter leading-none">Estamos Fechados!</h1>
-            <p className="text-zinc-500 font-bold text-lg mb-8 max-w-xs">No momento estamos descansando para preparar o melhor para você amanhã!</p>
+            <h1 className="text-4xl font-black text-red-800 italic uppercase mb-4 tracking-tighter leading-none">{config.closedTitle || "Estamos Fechados!"}</h1>
+            <p className="text-zinc-500 font-bold text-lg mb-8 max-w-xs">{config.closedMessage || "No momento estamos descansando para preparar o melhor para você amanhã!"}</p>
             <div className="bg-red-50 p-6 rounded-3xl border border-red-100 mb-10">
                 <p className="text-red-900 font-bold uppercase italic text-sm">Quarta a Domingo<br/>Das 18:00 às 23:00</p>
             </div>
@@ -939,27 +1156,11 @@ export default function App() {
           />
         }
 
-        {adminTab === 'config' && (
-            <div className="bg-white p-8 rounded-[2rem] shadow-xl border border-red-50 animate-fade-in text-left">
-                <h3 className="text-lg font-black text-red-800 italic uppercase mb-6">Controle de Funcionamento</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <button onClick={() => updateDoc(doc(db, 'config', 'loja'), { mode: 'auto' })} className={`p-8 rounded-3xl border-4 transition-all text-center ${config.mode === 'auto' ? 'bg-red-700 border-red-950 text-white' : 'bg-zinc-50 border-zinc-100 text-zinc-400'}`}>
-                        <span className="text-4xl block mb-2">⏰</span>
-                        <span className="font-black uppercase italic">Automático</span>
-                    </button>
-                    <button onClick={() => updateDoc(doc(db, 'config', 'loja'), { mode: 'open' })} className={`p-8 rounded-3xl border-4 transition-all text-center ${config.mode === 'open' ? 'bg-green-600 border-green-800 text-white' : 'bg-zinc-50 border-zinc-100 text-zinc-400'}`}>
-                        <span className="text-4xl block mb-2">🔓</span>
-                        <span className="font-black uppercase italic">FORÇAR ABERTO</span>
-                    </button>
-                    <button onClick={() => updateDoc(doc(db, 'config', 'loja'), { mode: 'closed' })} className={`p-8 rounded-3xl border-4 transition-all text-center ${config.mode === 'closed' ? 'bg-zinc-800 border-black text-white' : 'bg-zinc-50 border-zinc-100 text-zinc-400'}`}>
-                        <span className="text-4xl block mb-2">🔒</span>
-                        <span className="font-black uppercase italic">FORÇAR FECHADO</span>
-                    </button>
-                </div>
-            </div>
-        )}
-
         {adminTab === 'promos' && <PromoManager />}
+        
+        {adminTab === 'config' && (
+            <ConfigManager products={products} deliveryFees={deliveryFees} config={config} />
+        )}
 
         {adminTab === 'concluido' && (
             <div className="mb-8 space-y-8 animate-fade-in no-print">
@@ -1059,20 +1260,18 @@ export default function App() {
     <div className="min-h-screen bg-white">
       {view === 'HOME' && (
         <div className="min-h-screen flex flex-col items-center justify-center bg-[#0a0a0a] no-print animate-fade-in relative overflow-hidden">
-          {/* Main Content Area */}
           <div className="flex flex-col items-center justify-center w-full z-10 p-6">
             <div 
               className="w-full max-w-[400px] rounded-[3.5rem] text-center shadow-[0_30px_60px_rgba(0,0,0,0.8)] relative overflow-hidden p-12 flex flex-col items-center border border-white/5"
               style={{
-                backgroundImage: 'url("/fundo/fundo.png")',
+                backgroundImage: 'url("https://drive.google.com/uc?export=view&id=1ELlK7zQlmvTPWfjxBk-xl0_ti1rUywLr")',
                 backgroundSize: 'cover',
                 backgroundPosition: 'center'
               }}
             >
-              {/* Logo Flutuante */}
               <div className="animate-float mb-10 drop-shadow-[0_15px_15px_rgba(0,0,0,0.6)]">
                 <img 
-                  src="/logo/logo.png" 
+                  src="https://drive.google.com/uc?export=view&id=1O7AGDosLVs1mi3EjEao_7cx1o_uW2Icb" 
                   alt="Logo Cantinho da Sandra" 
                   className="w-80 h-auto"
                 />
@@ -1095,7 +1294,6 @@ export default function App() {
               </div>
             </div>
             
-            {/* Acesso Restrito - Visível apenas em Desktop */}
             <button 
               onClick={() => setView('LOGIN')} 
               className="hidden md:flex relative z-20 text-white/30 text-[10px] font-black uppercase tracking-[0.5em] hover:text-white transition-all py-8 mt-4"
@@ -1197,7 +1395,7 @@ export default function App() {
                         ))}
                     </div>
                     <div className="flex-1 p-5 space-y-4 pb-44 overflow-y-auto custom-scrollbar">
-                        {PRODUCTS.filter(p => (searchTerm === '' ? p.categoryId === activeCategory : p.name.toLowerCase().includes(searchTerm.toLowerCase()))).map(prod => (
+                        {visibleProducts.filter(p => (searchTerm === '' ? p.categoryId === activeCategory : p.name.toLowerCase().includes(searchTerm.toLowerCase()))).map(prod => (
                             <div key={prod.id} onClick={() => setSelectedProduct(prod)} className="bg-white border border-zinc-50 p-5 rounded-[2rem] flex justify-between items-center shadow-md active:scale-95 transition-all cursor-pointer">
                                 <div className="flex-1 pr-4 text-left">
                                     <h3 className="text-lg font-black text-red-950 italic uppercase leading-tight">{prod.name}</h3>
@@ -1256,9 +1454,9 @@ export default function App() {
                                         {customer.orderType === OrderType.DELIVERY && (
                                             <>
                                                 <Select label="Bairro" value={customer.neighborhood} onChange={e => {
-                                                    const f = DELIVERY_FEES.find(df => df.neighborhood === e.target.value);
+                                                    const f = deliveryFees.find(df => df.neighborhood === e.target.value);
                                                     setCustomer({...customer, neighborhood: e.target.value, deliveryFee: f?.fee || 0});
-                                                }} options={[{ value: '', label: 'Selecione...' }, ...DELIVERY_FEES.map(f => ({ value: f.neighborhood, label: `${f.neighborhood} - R$ ${f.fee.toFixed(2)}` }))]} required />
+                                                }} options={[{ value: '', label: 'Selecione...' }, ...deliveryFees.map(f => ({ value: f.neighborhood, label: `${f.neighborhood} - R$ ${f.fee.toFixed(2)}` }))]} required />
                                                 <Input label="Endereço" value={customer.address} onChange={e => setCustomer({...customer, address: e.target.value})} placeholder="Rua e número..." required />
                                                 <Input label="Ponto de Referência" value={customer.reference} onChange={e => setCustomer({...customer, reference: e.target.value})} placeholder="Ex: Próximo ao mercado..." />
                                             </>
@@ -1330,7 +1528,6 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL DE CONFIRMAÇÃO DE AÇAÍ ADICIONADO */}
       {showAcaiConfirmation && (
           <div className="fixed inset-0 z-[600] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm animate-fade-in no-print">
               <div className="bg-white p-8 rounded-[3rem] text-center max-w-sm w-full shadow-2xl border-4 border-red-50">
