@@ -1264,14 +1264,14 @@ export default function App() {
             <div 
               className="w-full max-w-[400px] rounded-[3.5rem] text-center shadow-[0_30px_60px_rgba(0,0,0,0.8)] relative overflow-hidden p-12 flex flex-col items-center border border-white/5"
               style={{
-                backgroundImage: 'url("https://i.ibb.co/hZ5ySgB/fundo.png")',
+                backgroundImage: 'url("/fundo/fundo.png")',
                 backgroundSize: 'cover',
                 backgroundPosition: 'center'
               }}
             >
               <div className="animate-float mb-10 drop-shadow-[0_15px_15px_rgba(0,0,0,0.6)]">
                 <img 
-                  src="https://i.ibb.co/dG0c6yB/logo.png" 
+                  src="/logo/logo.png" 
                   alt="Logo Cantinho da Sandra" 
                   className="w-80 h-auto"
                 />
