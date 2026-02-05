@@ -848,8 +848,14 @@ export default function App() {
           pagamento: customer.paymentMethod + (customer.needsChange ? ` (Troco R$ ${customer.changeAmount})` : ''), 
           endereco: fullAddress.toUpperCase() 
       });
-      setCart([]); setView('SUCCESS'); 
-    } catch (err) { alert('Erro ao enviar.'); setIsSending(false); }
+      setCart([]); 
+      setStep('MENU'); // Garante que o passo de revisão seja "fechado" internamente
+      setView('SUCCESS'); 
+    } catch (err) { 
+      alert('Erro ao enviar.'); 
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleCustomSale = async () => {
@@ -1329,7 +1335,7 @@ export default function App() {
                 onClick={() => setView('HOME')} 
                 className="py-5 text-zinc-500 border-zinc-200"
               >
-                AGUARDAR CONFIRMAÇÃO
+                NOVO PEDIDO
               </Button>
             </div>
           </div>
