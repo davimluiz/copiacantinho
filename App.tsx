@@ -1409,7 +1409,7 @@ export default function App() {
                     {cart.length > 0 && <div className="fixed bottom-8 left-6 right-6 z-50 animate-slide-up max-w-lg mx-auto"><Button fullWidth onClick={() => setStep('CART_REVIEW')} className="py-5 text-lg flex justify-between items-center px-8 shadow-2xl rounded-[2rem] border-b-4 border-red-900"><span className="font-black italic uppercase">Sacola ({cart.length})</span><span className="bg-white/20 px-5 py-1.5 rounded-xl text-base font-black">R$ {itemsTotal.toFixed(2)}</span></Button></div>}
                 </>
             )}
-            {['CART_REVIEW', 'TYPE_SELECTION', 'FORM', 'SUMMARY'].includes(step) && (
+            {['CART_REVIEW', 'TYPE_SELECTION', 'FORM'].includes(step) && (
                 <div className="p-8 pb-44 animate-fade-in space-y-6">
                     {step === 'CART_REVIEW' && (
                         <div className="space-y-6">
@@ -1495,38 +1495,94 @@ export default function App() {
                             </form>
                         </div>
                     )}
-                    {step === 'SUMMARY' && (
-                        <div className="space-y-8 text-left">
-                            <h2 className="text-3xl font-black text-red-800 italic uppercase">Confirmar</h2>
-                            <div className="bg-zinc-50 p-6 rounded-[2rem] space-y-6 border border-white shadow-xl">
-                                <p className="text-2xl font-black text-red-950 italic uppercase leading-none">{customer.name}</p>
-                                <div className="space-y-2 border-t border-zinc-200 pt-4">
-                                    {cart.map(item => (
-                                        <div key={item.cartId} className="flex justify-between text-sm italic font-black uppercase text-red-900 leading-tight">
-                                            <span>{item.quantity}x {item.name}</span>
-                                            <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="border-t border-zinc-200 pt-4 space-y-2 text-xs font-black uppercase italic">
-                                    {customer.orderType !== OrderType.TABLE && <p className="text-zinc-400">PAGAMENTO: {customer.paymentMethod}</p>}
-                                    {customer.paymentMethod === PaymentMethod.CASH && customer.needsChange && customer.orderType !== OrderType.TABLE && (
-                                        <p className="text-red-600">LEVAR TROCO PARA R$ {Number(customer.changeAmount).toFixed(2)}</p>
-                                    )}
-                                </div>
-                                <div className="border-t border-zinc-200 pt-4 space-y-2">
-                                    {customer.orderType === OrderType.DELIVERY && <div className="flex justify-between text-xs font-black text-red-400 italic"><span>Entrega</span><span>R$ {currentFee.toFixed(2)}</span></div>}
-                                    <div className="flex justify-between items-center pt-2 text-3xl font-black text-red-700 italic leading-none"><span>Total</span><span>R$ {total.toFixed(2)}</span></div>
-                                </div>
-                            </div>
-                            <Button onClick={handleFinishOrder} disabled={isSending} fullWidth className={`py-6 text-2xl rounded-[2.5rem] border-b-8 border-red-950 ${isSending ? 'opacity-50' : 'animate-pulse-slow'}`}>{isSending ? 'ENVIANDO...' : 'FINALIZAR! ✅'}</Button>
-                            <button onClick={() => setStep('MENU')} className="w-full text-zinc-400 font-black uppercase text-xs tracking-widest py-2">Voltar ao Cardápio</button>
-                        </div>
-                    )}
                 </div>
             )}
         </div>
       )}
+
+      {/* JANELA DE REVISÃO (MODAL DE RESUMO) */}
+      <div className={`fixed inset-0 z-[600] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-all duration-300 no-print ${step === 'SUMMARY' ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'}`}>
+          <div className={`bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[92vh] border-4 border-red-50 transition-transform duration-500 ${step === 'SUMMARY' ? 'translate-y-0 scale-100' : 'translate-y-20 scale-95'}`}>
+              <div className="p-6 border-b border-red-50 bg-red-50/30 flex justify-between items-center">
+                  <h3 className="text-xl font-black text-red-800 uppercase italic">Revisão do Pedido</h3>
+                  <button onClick={() => setStep('FORM')} className="text-zinc-400 text-3xl font-light hover:text-red-600 transition-colors">&times;</button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-6 text-left custom-scrollbar">
+                  {/* Informações de Entrega */}
+                  <div className="bg-zinc-50 p-5 rounded-2xl border border-zinc-100">
+                      <p className="text-[10px] font-black text-red-900/40 uppercase italic mb-2">Destino / Tipo</p>
+                      <p className="text-lg font-black text-red-950 uppercase italic leading-none">{customer.name}</p>
+                      <p className="text-xs font-bold text-zinc-500 mt-2 uppercase italic">
+                          {customer.orderType === OrderType.DELIVERY ? (
+                              <>🛵 ENTREGA: {customer.address}, {customer.neighborhood}</>
+                          ) : customer.orderType === OrderType.TABLE ? (
+                              <>🪑 MESA: {customer.tableNumber || 'CONSUMO NO LOCAL'}</>
+                          ) : (
+                              <>🥡 RETIRADA NA LANCHONETE</>
+                          )}
+                      </p>
+                  </div>
+
+                  {/* Itens */}
+                  <div>
+                      <p className="text-[10px] font-black text-red-900/40 uppercase italic mb-3">Itens Escolhidos</p>
+                      <div className="space-y-3">
+                          {cart.map(item => (
+                              <div key={item.cartId} className="flex justify-between items-start gap-4">
+                                  <div className="flex-1">
+                                      <p className="text-xs font-black text-red-950 uppercase italic leading-tight">{item.quantity}x {item.name}</p>
+                                      {item.observation && <p className="text-[9px] text-zinc-400 font-bold uppercase italic mt-0.5 leading-tight">{item.observation}</p>}
+                                  </div>
+                                  <p className="text-xs font-black text-red-800 italic">R$ {(item.price * item.quantity).toFixed(2)}</p>
+                              </div>
+                          ))}
+                      </div>
+                  </div>
+
+                  {/* Pagamento */}
+                  <div className="pt-4 border-t border-dashed border-zinc-200">
+                      <div className="flex justify-between items-center text-xs font-black text-zinc-500 uppercase italic">
+                          <span>Pagamento:</span>
+                          <span className="text-red-900">{customer.paymentMethod}</span>
+                      </div>
+                      {customer.paymentMethod === PaymentMethod.CASH && customer.needsChange && (
+                          <p className="text-right text-[10px] font-black text-red-600 uppercase italic mt-1">Levar troco para R$ {Number(customer.changeAmount).toFixed(2)}</p>
+                      )}
+                  </div>
+
+                  {/* Valores Finais */}
+                  <div className="pt-4 border-t-2 border-red-50 space-y-2">
+                      <div className="flex justify-between items-center text-sm font-bold text-zinc-400 uppercase italic">
+                          <span>Subtotal Itens:</span>
+                          <span>R$ {itemsTotal.toFixed(2)}</span>
+                      </div>
+                      {customer.orderType === OrderType.DELIVERY && (
+                          <div className="flex justify-between items-center text-sm font-bold text-red-400 uppercase italic">
+                              <span>Taxa de Entrega:</span>
+                              <span>R$ {currentFee.toFixed(2)}</span>
+                          </div>
+                      )}
+                      <div className="flex justify-between items-center pt-4 border-t-2 border-red-100">
+                          <span className="text-xl font-black text-red-900 italic uppercase">Total Geral</span>
+                          <span className="text-4xl font-black text-red-700 italic">R$ {total.toFixed(2)}</span>
+                      </div>
+                  </div>
+              </div>
+
+              <div className="p-6 bg-zinc-50/80 border-t border-red-50 flex flex-col gap-3">
+                  <Button 
+                      onClick={handleFinishOrder} 
+                      disabled={isSending} 
+                      fullWidth 
+                      className={`py-6 text-xl rounded-[2rem] border-b-8 border-red-950 shadow-2xl transform active:scale-95 transition-all ${isSending ? 'opacity-50' : 'animate-pulse-slow'}`}
+                  >
+                      {isSending ? 'ENVIANDO PEDIDO...' : 'ENVIAR PEDIDO AGORA! ✅'}
+                  </Button>
+                  <button onClick={() => setStep('FORM')} className="text-zinc-400 font-black uppercase text-[10px] tracking-widest py-2 hover:text-red-800 transition-colors">CORRIGIR DADOS</button>
+              </div>
+          </div>
+      </div>
 
       {showAcaiConfirmation && (
           <div className="fixed inset-0 z-[600] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm animate-fade-in no-print">
