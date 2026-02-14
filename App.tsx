@@ -325,7 +325,7 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
         <div className="p-6 border-b border-red-50 flex justify-between items-center bg-red-50/30">
           <div>
             <h3 className="text-xl font-black text-red-800 italic uppercase">{product.name}</h3>
-            {product.unit && <p className="text-[10px] text-zinc-400 font-black uppercase italic leading-none">{product.unit}</p>}
+            {product.unit && <p className="text-[10px] text-zinc-400 font-black uppercase italic leading-none mb-1">{product.unit}</p>}
             <p className="text-red-600 font-black mt-1 italic text-lg">R$ {calculateTotalPrice().toFixed(2)}</p>
           </div>
           <button onClick={onClose} className="text-zinc-300 hover:text-red-600 text-3xl transition-colors">&times;</button>
@@ -394,7 +394,7 @@ const ProductModal = ({ product, isOpen, onClose, onConfirm }: any) => {
                 <div className="space-y-2">
                     <button 
                       onClick={() => setPicanhaAddition(!picanhaAddition)}
-                      className={`w-full p-3 rounded-xl border text-left flex justify-between items-center font-bold uppercase text-[10px] transition-all ${picanhaAddition ? 'bg-red-700 text-white border-red-900' : 'bg-zinc-50 border-zinc-100 text-zinc-500'}`}
+                      className={`w-full p-3 rounded-xl border text-left flex justify-between items-center font-bold uppercase text-[10px] transition-all ${picanhaAddition ? 'bg-red-700 text-white border-red-950' : 'bg-zinc-50 border-zinc-100 text-zinc-500'}`}
                     >
                         <span>Bife de Picanha</span>
                         <span>+ R$ 4,50</span>
@@ -704,13 +704,6 @@ export default function App() {
 
     const unsubProducts = onSnapshot(query(collection(db, 'products')), (snapshot) => {
         const fetchedProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-        fetchedProducts.sort((a, b) => {
-            if (a.categoryId < b.categoryId) return -1;
-            if (a.categoryId > b.categoryId) return 1;
-            if (a.name < b.name) return -1;
-            if (a.name > b.name) return 1;
-            return 0;
-        });
         setProducts(fetchedProducts);
     });
     
@@ -742,15 +735,64 @@ export default function App() {
     const isWorkingDay = [0, 3, 4, 5, 6].includes(day);
     return isWorkingDay && hour >= 18 && hour < 23;
   }, [config]);
+
+  // LISTA DE PRODUTOS ÚNICOS COM ORDENAÇÃO RIGOROSA
+  const uniqueProducts = useMemo(() => {
+    if (!products.length) return [];
+    
+    // 1. DEDUPLICAÇÃO AGRESSIVA
+    // Usamos Categoria + Nome Limpo + Unidade para identificar itens realmente diferentes
+    const map = new Map();
+    products.forEach(p => {
+        const cleanName = p.name.replace(/\s+/g, ' ').trim().toLowerCase();
+        const cleanUnit = (p.unit || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        // A chave única garante que itens idênticos no banco não se repitam na tela
+        const key = `${p.categoryId}|${cleanName}|${cleanUnit}`;
+        
+        // Mantém apenas um. Se houver um habilitado, prioriza ele.
+        if (!map.has(key) || (p.enabled !== false && map.get(key).enabled === false)) {
+            map.set(key, p);
+        }
+    });
+    
+    const uniqueList = Array.from(map.values()) as Product[];
+
+    // 2. ORDENAÇÃO CUSTOMIZADA (ESPECIALMENTE PARA FRANGUINHO)
+    return uniqueList.sort((a, b) => {
+        // Primeiro por Categoria (Ordem do Array CATEGORIES)
+        const catA = CATEGORIES.findIndex(c => c.id === a.categoryId);
+        const catB = CATEGORIES.findIndex(c => c.id === b.categoryId);
+        if (catA !== catB) return catA - catB;
+
+        // Se for Franguinho, segue a ordem solicitada: 250g -> 500g -> 1kg
+        if (a.categoryId === 'franguinho' && b.categoryId === 'franguinho') {
+            const getWeight = (name: string) => {
+                const lower = name.toLowerCase();
+                if (lower.includes('250g')) return 250;
+                if (lower.includes('500g')) return 500;
+                if (lower.includes('1kg') || lower.includes('1 kg')) return 1000;
+                return 9999;
+            };
+            const wA = getWeight(a.name);
+            const wB = getWeight(b.name);
+            if (wA !== wB) return wA - wB;
+            // Se o peso for igual, ordena por número de acompanhamentos (maxSides)
+            return (a.maxSides || 0) - (b.maxSides || 0);
+        }
+
+        // Para outras categorias, ordem alfabética
+        return a.name.localeCompare(b.name);
+    });
+  }, [products]);
   
   const visibleProducts = useMemo(() => {
-    if (!products.length) return [];
+    if (!uniqueProducts.length) return [];
     const now = new Date();
     const day = now.getDay();
-    const isWeekendSpecial = day === 5 || day === 6; // Friday or Saturday
+    const isWeekendSpecial = day === 5 || day === 6; // Sexta ou Sábado
     const specialItemNames = ['Torta', 'Bolo', 'Empadão', 'Feijão Tropeiro (P)', 'Feijão Tropeiro (M)', 'Feijão Tropeiro (G)', 'Feijão Tropeiro (GG)'];
     
-    return products.filter(p => {
+    return uniqueProducts.filter(p => {
         if (p.enabled === false) return false;
         
         const isSpecial = specialItemNames.some(name => p.name.includes(name));
@@ -759,7 +801,7 @@ export default function App() {
         }
         return true;
     });
-  }, [products, config]);
+  }, [uniqueProducts, config]);
 
 
   const itemsTotal = useMemo(() => cart.reduce((acc, item) => acc + (Number(item.price) * Number(item.quantity)), 0), [cart]);
@@ -849,7 +891,7 @@ export default function App() {
           endereco: fullAddress.toUpperCase() 
       });
       setCart([]); 
-      setStep('MENU'); // Garante que o passo de revisão seja "fechado" internamente
+      setStep('MENU'); 
       setView('SUCCESS'); 
     } catch (err) { 
       alert('Erro ao enviar.'); 
@@ -976,7 +1018,7 @@ export default function App() {
     );
   };
   
-  const ConfigManager = ({ products, deliveryFees, config }: any) => {
+  const ConfigManager = ({ uniqueProducts, deliveryFees, config }: any) => {
     const [newFeeName, setNewFeeName] = useState('');
     const [newFeeValue, setNewFeeValue] = useState('');
 
@@ -1077,7 +1119,7 @@ export default function App() {
                         <div key={category.id}>
                             <h4 className="text-sm font-black text-red-900/50 uppercase italic border-b border-zinc-100 pb-2 mb-3">{category.icon} {category.name}</h4>
                             <div className="space-y-2">
-                                {products.filter((p: Product) => p.categoryId === category.id).map((p: Product) => (
+                                {uniqueProducts.filter((p: Product) => p.categoryId === category.id).map((p: Product) => (
                                     <div key={p.id} className={`grid grid-cols-[1fr,120px,80px] items-center gap-4 p-2 rounded-lg ${p.enabled !== false ? 'bg-white' : 'bg-zinc-100 opacity-60'}`}>
                                         <input 
                                             defaultValue={p.name}
@@ -1165,7 +1207,7 @@ export default function App() {
         {adminTab === 'promos' && <PromoManager />}
         
         {adminTab === 'config' && (
-            <ConfigManager products={products} deliveryFees={deliveryFees} config={config} />
+            <ConfigManager uniqueProducts={uniqueProducts} deliveryFees={deliveryFees} config={config} />
         )}
 
         {adminTab === 'concluido' && (
